@@ -1,0 +1,17 @@
+README.md
+setup.py
+src/electricity_price_forecast/__init__.py
+src/electricity_price_forecast/models/__init__.py
+src/electricity_price_forecast/models/baseline_models/__init__.py
+src/electricity_price_forecast/models/baseline_models/linear_regression.py
+src/electricity_price_forecast/utils/__init__.py
+src/electricity_price_forecast/utils/config/__init__.py
+src/electricity_price_forecast/utils/config/config_loader.py
+src/electricity_price_forecasting.egg-info/PKG-INFO
+src/electricity_price_forecasting.egg-info/SOURCES.txt
+src/electricity_price_forecasting.egg-info/dependency_links.txt
+src/electricity_price_forecasting.egg-info/entry_points.txt
+src/electricity_price_forecasting.egg-info/not-zip-safe
+src/electricity_price_forecasting.egg-info/requires.txt
+src/electricity_price_forecasting.egg-info/top_level.txt
+tests/test_main.py

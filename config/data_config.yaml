@@ -1,0 +1,140 @@
+# Data Configuration for Electricity Price Forecasting
+
+# Data Sources
+data_sources:
+  pjm:
+    base_url: "https://dataminer2.pjm.com"
+    api_key: null
+    endpoints:
+      day_ahead_prices: "/list/v2/da_lmp"
+      load_data: "/list/v2/load"
+    data_types:
+      - "DAY_AHEAD_LMP"
+      - "DAY_AHEAD_ENERGY"
+    timezone: "US/Eastern"
+  
+  noaa:
+    base_url: "https://www.ncdc.noaa.gov/cdo-web/api/v2/"
+    api_key: null
+    stations:
+      - "KNYC"  # New York Central Park
+      - "KDCA"  # Washington DC
+      - "KPHL"  # Philadelphia
+    data_types:
+      - "TMAX"  # Maximum temperature
+      - "TMIN"  # Minimum temperature
+      - "PRCP"  # Precipitation
+      - "SNWD"  # Snow depth
+    units: "metric"
+  
+  eia:
+    base_url: "https://api.eia.gov/v2/"
+    api_key: null
+    endpoints:
+      electricity: "/electricity"
+      natural_gas: "/natural-gas"
+      petroleum: "/petroleum"
+    frequency: "daily"
+
+# Data Collection Parameters
+collection:
+  start_date: "2016-01-01"
+  end_date: "2024-12-31"
+  frequency: "hourly"
+  retry_attempts: 3
+  timeout: 30
+  
+# Preprocessing
+preprocessing:
+  missing_threshold: 0.05  # Maximum allowed missing data ratio
+  outlier_method: "iqr"     # Outlier detection method: iqr, zscore, isolation_forest
+  outlier_threshold: 1.5    # IQR multiplier for outlier detection
+  
+  # Missing Data Handling
+  missing_data:
+    method: "interpolation"  # interpolation, forward_fill, backward_fill, drop
+    interpolation_method: "linear"
+    max_interpolation_gap: 24  # hours
+  
+  # Data Validation
+  validation:
+    price_range: [0, 5000]    # Reasonable price range in $/MWh
+    load_range: [0, 200000]   # Reasonable load range in MW
+    temp_range: [-50, 60]     # Reasonable temperature range in Celsius
+
+# Feature Engineering
+feature_engineering:
+  # Time-based Features
+  time_features:
+    - "hour_of_day"
+    - "day_of_week"
+    - "day_of_month"
+    - "month"
+    - "quarter"
+    - "year"
+    - "is_weekend"
+    - "is_holiday"
+  
+  # Lag Features
+  lag_features:
+    price_lags: [1, 2, 3, 24, 48, 168]  # 1h, 2h, 3h, 1d, 2d, 1w ago
+    load_lags: [1, 2, 3, 24, 48, 168]
+    weather_lags: [1, 2, 3, 24]
+  
+  # Rolling Window Features
+  rolling_features:
+    windows: [3, 6, 12, 24, 48, 168]  # hours
+    functions: ["mean", "std", "min", "max"]
+    features: ["price", "load", "temperature"]
+  
+  # Weather Features
+  weather_features:
+    - "temperature"
+    - "humidity"
+    - "precipitation"
+    - "wind_speed"
+    - "cloud_cover"
+  
+  # Calendar Features
+  calendar_features:
+    holidays: ["US"]  # US holidays
+    special_events: []  # Special market events
+
+# Data Splitting
+data_splitting:
+  method: "time_series"  # time_series, random
+  train_ratio: 0.70
+  val_ratio: 0.15
+  test_ratio: 0.15
+  
+  # Time Series Specific
+  time_series:
+    validation_start: "2022-01-01"
+    test_start: "2023-01-01"
+
+# Data Storage
+storage:
+  raw_data_path: "02_data/raw/"
+  processed_data_path: "02_data/processed/"
+  file_format: "parquet"  # csv, parquet, hdf5
+  compression: "snappy"   # gzip, snappy, brotli
+
+# Data Quality
+quality_control:
+  enabled: true
+  checks:
+    - "completeness"      # Check for missing values
+    - "uniqueness"        # Check for duplicates
+    - "validity"          # Check for valid ranges
+    - "consistency"       # Check for consistent timestamps
+  reporting:
+    generate_reports: true
+    save_plots: true
+    alert_threshold: 0.1  # Alert if >10% data quality issues
+
+# Caching
+cache:
+  enabled: true
+  cache_dir: "cache/"
+  max_cache_size: "1GB"
+  ttl: 86400  # Time to live in seconds (24 hours)

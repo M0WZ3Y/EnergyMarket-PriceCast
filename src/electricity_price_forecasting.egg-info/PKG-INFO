@@ -1,0 +1,278 @@
+Metadata-Version: 2.4
+Name: electricity-price-forecasting
+Version: 0.1.0
+Summary: Daily and Hourly Electricity Price Forecasting Using Machine Learning Approaches
+Home-page: https://github.com/author/electricity-price-forecasting
+Author: Thesis Author
+Author-email: author@university.edu
+Project-URL: Bug Tracker, https://github.com/author/electricity-price-forecasting/issues
+Project-URL: Documentation, https://github.com/author/electricity-price-forecasting/docs
+Project-URL: Source Code, https://github.com/author/electricity-price-forecasting
+Keywords: electricity price forecasting,machine learning,time series,energy markets,pjm,neural networks,random forest,support vector machines
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Science/Research
+Classifier: Topic :: Scientific/Engineering :: Artificial Intelligence
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+Requires-Dist: pandas>=1.5.0
+Requires-Dist: numpy>=1.21.0
+Requires-Dist: scipy>=1.9.0
+Requires-Dist: scikit-learn>=1.1.0
+Requires-Dist: xgboost>=1.6.0
+Requires-Dist: tensorflow>=2.10.0
+Requires-Dist: keras>=2.10.0
+Requires-Dist: shap>=0.41.0
+Requires-Dist: matplotlib>=3.5.0
+Requires-Dist: seaborn>=0.11.0
+Requires-Dist: plotly>=5.10.0
+Requires-Dist: requests>=2.28.0
+Requires-Dist: beautifulsoup4>=4.11.0
+Requires-Dist: joblib>=1.2.0
+Requires-Dist: pyyaml>=6.0
+Requires-Dist: tqdm>=4.64.0
+Requires-Dist: jupyter>=1.0.0
+Requires-Dist: ipykernel>=6.15.0
+Requires-Dist: statsmodels>=0.13.0
+Requires-Dist: numba>=0.56.0
+Requires-Dist: python-dotenv>=0.19.0
+Requires-Dist: pytest>=7.0.0
+Requires-Dist: pytest-cov>=3.0.0
+Provides-Extra: dev
+Requires-Dist: pytest>=6.0; extra == "dev"
+Requires-Dist: pytest-cov>=2.0; extra == "dev"
+Requires-Dist: black>=21.0; extra == "dev"
+Requires-Dist: flake8>=3.8; extra == "dev"
+Requires-Dist: mypy>=0.800; extra == "dev"
+Provides-Extra: deep-learning
+Requires-Dist: tensorflow>=2.6.0; extra == "deep-learning"
+Requires-Dist: torch>=1.9.0; extra == "deep-learning"
+Provides-Extra: explainability
+Requires-Dist: shap>=0.40.0; extra == "explainability"
+Requires-Dist: lime>=0.2.0; extra == "explainability"
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: home-page
+Dynamic: keywords
+Dynamic: project-url
+Dynamic: provides-extra
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary
+
+# Daily and Hourly Electricity Price Forecasting Using Machine Learning Approaches
+
+## Thesis Project Overview
+
+This repository contains the complete implementation and research for an MSc thesis in Electrical Engineering at Amirkabir University of Technology (Tehran Polytechnic).
+
+**Research Focus**: Developing a unified machine learning framework for electricity price forecasting in the PJM Day-Ahead Market, with emphasis on model comparison, explainability, and feature fusion.
+
+## Key Features
+
+- **Multi-Model Comparison**: 11 machine learning models evaluated under identical conditions
+- **Multi-Resolution Forecasting**: Hourly (24-hour ahead) and daily aggregated predictions
+- **Explainable AI**: SHAP-based model interpretation and feature importance analysis
+- **Feature Fusion**: Integration of exogenous variables (weather, load, calendar features)
+- **Volatility Analysis**: Specialized evaluation for high-volatility periods
+- **Reproducible Research**: Complete pipeline with configuration management
+
+## Quick Start
+
+### Prerequisites
+- Python 3.11+
+- Git
+- 8GB+ RAM recommended
+
+### Automated Setup (Recommended)
+```bash
+# Windows - Run the quick setup launcher
+scripts\START_SETUP.bat
+
+# Linux/macOS - Make executable and run
+chmod +x scripts/setup.sh
+./scripts/setup.sh
+
+# Or use the Python setup script
+python scripts/quick_setup.py
+```
+
+### Manual Setup
+```bash
+# Clone the repository
+git clone https://github.com/M0W3ZY/EnergyMarket-PriceCast.git
+cd EnergyMarket-PriceCast
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+# or venv\Scripts\activate  # Windows
+
+# Install in development mode
+pip install -e .
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Validate setup
+python scripts/check_setup.py
+```
+
+### Data Setup
+1. Download PJM data from [Data Miner 2](https://dataminer2.pjm.com)
+2. Fetch weather data from [NOAA](https://ncdc.noaa.gov)
+3. Obtain fuel/renewable data from [EIA](https://eia.gov/opendata)
+4. Place raw data in `data/raw/` directory
+
+### Running Experiments
+```bash
+# Train all models
+python -m electricity_price_forecast.models.train_models
+
+# Generate forecasts
+python -m electricity_price_forecast.models.predict
+
+# Run data collection
+python -m electricity_price_forecast.data_pipeline.collect_data
+
+# Test installation
+python -m pytest tests/
+```
+
+## Project Structure
+
+```
+electricity-price-forecasting/
+├── src/                          # Source code package
+│   └── electricity_price_forecast/
+│       ├── data_pipeline/        # Data collection and processing
+│       ├── models/               # Machine learning models
+│       ├── utils/                # Utilities and configuration
+│       └── evaluation/           # Model evaluation metrics
+├── tests/                        # Test suite
+├── docs/                         # Documentation and thesis materials
+├── data/                         # Data storage
+│   ├── raw/                     # Raw datasets
+│   ├── processed/               # Cleaned and engineered data
+│   └── external/                # Reference datasets
+├── experiments/                  # Experimental results
+├── outputs/                      # Final outputs and deliverables
+├── config/                       # Configuration files
+├── notebooks/                    # Jupyter notebooks
+├── scripts/                      # Setup and utility scripts
+├── admin/                        # Project management
+├── requirements.txt              # Dependencies
+├── setup.py                      # Package setup
+├── README.md                     # This file
+└── .gitignore                    # Git ignore rules
+```
+
+### Key Files
+- `README.md` - Project overview and quick start guide
+- `setup.py` - Package installation and metadata
+- `requirements.txt` - Python dependencies
+- `config/data_config.yaml` - Data pipeline configuration
+- `config/model_config.yaml` - Model hyperparameters
+- `docs/Thesis Proposal.docx` - Original thesis proposal
+
+## Research Questions
+
+1. **Model Performance**: Which of the 11 ML models achieve the highest accuracy under identical conditions?
+2. **Multi-Resolution**: How does accuracy differ between hourly and daily horizons?
+3. **Feature Impact**: To what extent do exogenous variables improve performance?
+4. **Volatility Handling**: How do models perform in high-volatility periods vs. normal?
+5. **Explainability**: Which features contribute most, and how does SHAP enhance interpretability?
+6. **Efficiency**: What are the computational trade-offs between models?
+
+## Models Implemented
+
+### Baseline Models
+- Linear Regression
+- Ridge Regression
+- Lasso Regression
+
+### Tree-Based Models
+- Decision Tree
+- Random Forest
+- Gradient Boosting
+
+### Advanced ML Models
+- K-Nearest Neighbors (KNN)
+- Support Vector Regression (SVR)
+- Multi-Layer Perceptron (MLP)
+- XGBoost
+
+### Deep Learning
+- LSTM (Long Short-Term Memory)
+
+## Expected Outcomes
+
+- **Accuracy**: <10% MAPE for hourly forecasts
+- **Insights**: Feature importance rankings via SHAP
+- **Framework**: Reproducible pipeline for stakeholders
+- **Publications**: 3+ potential journal papers
+- **Tools**: Open-source repository for community use
+
+## Data Sources
+
+- **PJM**: Day-Ahead Market prices and load data (2016-2024)
+- **NOAA**: Weather data (temperature, humidity)
+- **EIA**: Fuel prices and renewable energy generation
+
+## Performance Metrics
+
+- **MAE** (Mean Absolute Error)
+- **RMSE** (Root Mean Square Error)
+- **MAPE** (Mean Absolute Percentage Error)
+- **Statistical Tests**: Diebold-Mariano test for model comparison
+
+## Contributing
+
+This is a research project. For collaboration:
+1. Check the [project management](admin/README.md) guidelines
+2. Review the [code standards](docs/development_guide.md)
+3. Follow the [documentation requirements](docs/contributing.md)
+
+## Citation
+
+If you use this work in your research, please cite:
+
+```bibtex
+@thesis{azimpour2025electricity,
+  title={Daily and Hourly Electricity Price Forecasting Using Machine Learning Approaches},
+  author={Azimpour, Mohammad},
+  year={2025},
+  school={Amirkabir University of Technology},
+  department={Department of Electrical Engineering}
+}
+```
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Contact
+
+- **Student**: Mohammad Azimpour
+- **GitHub**: [@M0W3ZY](https://github.com/M0W3ZY)
+- **Repository**: https://github.com/M0W3ZY/EnergyMarket-PriceCast
+
+## Acknowledgments
+
+- Amirkabir University of Technology, Department of Electrical Engineering
+- Thesis Supervisor and Advisor
+- PJM Interconnection LLC for market data
+- NOAA and EIA for exogenous data sources
+
+---
+
+**Note**: This is an active research project. The repository is continuously updated as the thesis progresses.

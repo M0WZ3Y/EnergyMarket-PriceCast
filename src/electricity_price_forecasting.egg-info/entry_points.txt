@@ -1,0 +1,4 @@
+[console_scripts]
+epf-collect = electricity_price_forecast.data_pipeline.collect_data:main
+epf-predict = electricity_price_forecast.models.predict:main
+epf-train = electricity_price_forecast.models.train_models:main

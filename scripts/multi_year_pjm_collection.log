@@ -1,0 +1,259 @@
+2025-11-26 20:47:44,651 - INFO - Multi-Year PJM Data Collector initialized
+2025-11-26 20:47:44,651 - INFO - Project root: c:\Users\win-10\Desktop\Thesis Project\Programming Workspace
+2025-11-26 20:47:44,651 - INFO - PJM directory: c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master
+2025-11-26 20:47:44,651 - INFO - Data output directory: c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\02_data\raw\pjm
+2025-11-26 20:47:44,651 - INFO - Years to collect: [2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024]
+2025-11-26 20:47:44,712 - INFO - Datasets: ['da_hrl_lmps', 'rt_da_monthly_lmps']
+2025-11-26 20:47:44,712 - INFO - Starting comprehensive multi-year PJM LMP data collection...
+2025-11-26 20:47:44,717 - INFO - Created all necessary directories
+2025-11-26 20:47:44,717 - INFO - Starting collection for dataset: da_hrl_lmps
+2025-11-26 20:47:44,717 - INFO - Starting collection of Day-Ahead Hourly LMPs for all years...
+2025-11-26 20:47:44,718 - INFO - Processing year 2014...
+2025-11-26 20:47:44,718 - INFO - ================================================================================
+2025-11-26 20:47:44,718 - INFO - COLLECTING DAY-AHEAD HOURLY LMPS FOR YEAR 2014
+2025-11-26 20:47:44,718 - INFO - ================================================================================
+2025-11-26 20:47:44,718 - INFO - Downloading Day-Ahead Hourly LMPs data...
+2025-11-26 20:47:44,718 - INFO - Executing: cd c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master && set PYTHONIOENCODING=utf-8 && venv\Scripts\activate && python fetch_pjm.py -u da_hrl_lmps -f csv -o c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master\temp_da_hrl_lmps_2014.csv
+2025-11-26 20:47:46,412 - ERROR - Error downloading data from da_hrl_lmps: usage: fetch_pjm.py [-h] [--url URL] [--output OUTPUT]
+                    [--format {csv,json,xls,stdout,raw}] [--list] [--version]
+fetch_pjm.py: error: unrecognized arguments: Project\Programming Workspace\pjm_dataminer-master\temp_da_hrl_lmps_2014.csv
+
+2025-11-26 20:47:46,413 - ERROR - Failed to download Day-Ahead Hourly LMPs for year 2014
+2025-11-26 20:47:48,415 - INFO - Processing year 2015...
+2025-11-26 20:47:48,415 - INFO - ================================================================================
+2025-11-26 20:47:48,415 - INFO - COLLECTING DAY-AHEAD HOURLY LMPS FOR YEAR 2015
+2025-11-26 20:47:48,415 - INFO - ================================================================================
+2025-11-26 20:47:48,415 - INFO - Downloading Day-Ahead Hourly LMPs data...
+2025-11-26 20:47:48,415 - INFO - Executing: cd c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master && set PYTHONIOENCODING=utf-8 && venv\Scripts\activate && python fetch_pjm.py -u da_hrl_lmps -f csv -o c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master\temp_da_hrl_lmps_2015.csv
+2025-11-26 20:47:49,393 - ERROR - Error downloading data from da_hrl_lmps: usage: fetch_pjm.py [-h] [--url URL] [--output OUTPUT]
+                    [--format {csv,json,xls,stdout,raw}] [--list] [--version]
+fetch_pjm.py: error: unrecognized arguments: Project\Programming Workspace\pjm_dataminer-master\temp_da_hrl_lmps_2015.csv
+
+2025-11-26 20:47:49,393 - ERROR - Failed to download Day-Ahead Hourly LMPs for year 2015
+2025-11-26 20:47:51,395 - INFO - Processing year 2016...
+2025-11-26 20:47:51,395 - INFO - ================================================================================
+2025-11-26 20:47:51,395 - INFO - COLLECTING DAY-AHEAD HOURLY LMPS FOR YEAR 2016
+2025-11-26 20:47:51,395 - INFO - ================================================================================
+2025-11-26 20:47:51,395 - INFO - Downloading Day-Ahead Hourly LMPs data...
+2025-11-26 20:47:51,395 - INFO - Executing: cd c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master && set PYTHONIOENCODING=utf-8 && venv\Scripts\activate && python fetch_pjm.py -u da_hrl_lmps -f csv -o c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master\temp_da_hrl_lmps_2016.csv
+2025-11-26 20:47:52,406 - ERROR - Error downloading data from da_hrl_lmps: usage: fetch_pjm.py [-h] [--url URL] [--output OUTPUT]
+                    [--format {csv,json,xls,stdout,raw}] [--list] [--version]
+fetch_pjm.py: error: unrecognized arguments: Project\Programming Workspace\pjm_dataminer-master\temp_da_hrl_lmps_2016.csv
+
+2025-11-26 20:47:52,406 - ERROR - Failed to download Day-Ahead Hourly LMPs for year 2016
+2025-11-26 20:47:54,407 - INFO - Processing year 2017...
+2025-11-26 20:47:54,407 - INFO - ================================================================================
+2025-11-26 20:47:54,407 - INFO - COLLECTING DAY-AHEAD HOURLY LMPS FOR YEAR 2017
+2025-11-26 20:47:54,407 - INFO - ================================================================================
+2025-11-26 20:47:54,407 - INFO - Downloading Day-Ahead Hourly LMPs data...
+2025-11-26 20:47:54,407 - INFO - Executing: cd c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master && set PYTHONIOENCODING=utf-8 && venv\Scripts\activate && python fetch_pjm.py -u da_hrl_lmps -f csv -o c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master\temp_da_hrl_lmps_2017.csv
+2025-11-26 20:47:55,456 - ERROR - Error downloading data from da_hrl_lmps: usage: fetch_pjm.py [-h] [--url URL] [--output OUTPUT]
+                    [--format {csv,json,xls,stdout,raw}] [--list] [--version]
+fetch_pjm.py: error: unrecognized arguments: Project\Programming Workspace\pjm_dataminer-master\temp_da_hrl_lmps_2017.csv
+
+2025-11-26 20:47:55,457 - ERROR - Failed to download Day-Ahead Hourly LMPs for year 2017
+2025-11-26 20:47:57,458 - INFO - Processing year 2018...
+2025-11-26 20:47:57,458 - INFO - ================================================================================
+2025-11-26 20:47:57,458 - INFO - COLLECTING DAY-AHEAD HOURLY LMPS FOR YEAR 2018
+2025-11-26 20:47:57,458 - INFO - ================================================================================
+2025-11-26 20:47:57,458 - INFO - Downloading Day-Ahead Hourly LMPs data...
+2025-11-26 20:47:57,458 - INFO - Executing: cd c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master && set PYTHONIOENCODING=utf-8 && venv\Scripts\activate && python fetch_pjm.py -u da_hrl_lmps -f csv -o c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master\temp_da_hrl_lmps_2018.csv
+2025-11-26 20:47:58,447 - ERROR - Error downloading data from da_hrl_lmps: usage: fetch_pjm.py [-h] [--url URL] [--output OUTPUT]
+                    [--format {csv,json,xls,stdout,raw}] [--list] [--version]
+fetch_pjm.py: error: unrecognized arguments: Project\Programming Workspace\pjm_dataminer-master\temp_da_hrl_lmps_2018.csv
+
+2025-11-26 20:47:58,448 - ERROR - Failed to download Day-Ahead Hourly LMPs for year 2018
+2025-11-26 20:48:00,450 - INFO - Processing year 2019...
+2025-11-26 20:48:00,450 - INFO - ================================================================================
+2025-11-26 20:48:00,450 - INFO - COLLECTING DAY-AHEAD HOURLY LMPS FOR YEAR 2019
+2025-11-26 20:48:00,450 - INFO - ================================================================================
+2025-11-26 20:48:00,450 - INFO - Downloading Day-Ahead Hourly LMPs data...
+2025-11-26 20:48:00,450 - INFO - Executing: cd c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master && set PYTHONIOENCODING=utf-8 && venv\Scripts\activate && python fetch_pjm.py -u da_hrl_lmps -f csv -o c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master\temp_da_hrl_lmps_2019.csv
+2025-11-26 20:48:01,396 - ERROR - Error downloading data from da_hrl_lmps: usage: fetch_pjm.py [-h] [--url URL] [--output OUTPUT]
+                    [--format {csv,json,xls,stdout,raw}] [--list] [--version]
+fetch_pjm.py: error: unrecognized arguments: Project\Programming Workspace\pjm_dataminer-master\temp_da_hrl_lmps_2019.csv
+
+2025-11-26 20:48:01,396 - ERROR - Failed to download Day-Ahead Hourly LMPs for year 2019
+2025-11-26 20:48:03,398 - INFO - Processing year 2020...
+2025-11-26 20:48:03,398 - INFO - ================================================================================
+2025-11-26 20:48:03,398 - INFO - COLLECTING DAY-AHEAD HOURLY LMPS FOR YEAR 2020
+2025-11-26 20:48:03,398 - INFO - ================================================================================
+2025-11-26 20:48:03,399 - INFO - Downloading Day-Ahead Hourly LMPs data...
+2025-11-26 20:48:03,399 - INFO - Executing: cd c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master && set PYTHONIOENCODING=utf-8 && venv\Scripts\activate && python fetch_pjm.py -u da_hrl_lmps -f csv -o c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master\temp_da_hrl_lmps_2020.csv
+2025-11-26 20:48:04,386 - ERROR - Error downloading data from da_hrl_lmps: usage: fetch_pjm.py [-h] [--url URL] [--output OUTPUT]
+                    [--format {csv,json,xls,stdout,raw}] [--list] [--version]
+fetch_pjm.py: error: unrecognized arguments: Project\Programming Workspace\pjm_dataminer-master\temp_da_hrl_lmps_2020.csv
+
+2025-11-26 20:48:04,386 - ERROR - Failed to download Day-Ahead Hourly LMPs for year 2020
+2025-11-26 20:48:06,387 - INFO - Processing year 2021...
+2025-11-26 20:48:06,387 - INFO - ================================================================================
+2025-11-26 20:48:06,387 - INFO - COLLECTING DAY-AHEAD HOURLY LMPS FOR YEAR 2021
+2025-11-26 20:48:06,387 - INFO - ================================================================================
+2025-11-26 20:48:06,387 - INFO - Downloading Day-Ahead Hourly LMPs data...
+2025-11-26 20:48:06,387 - INFO - Executing: cd c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master && set PYTHONIOENCODING=utf-8 && venv\Scripts\activate && python fetch_pjm.py -u da_hrl_lmps -f csv -o c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master\temp_da_hrl_lmps_2021.csv
+2025-11-26 20:48:07,332 - ERROR - Error downloading data from da_hrl_lmps: usage: fetch_pjm.py [-h] [--url URL] [--output OUTPUT]
+                    [--format {csv,json,xls,stdout,raw}] [--list] [--version]
+fetch_pjm.py: error: unrecognized arguments: Project\Programming Workspace\pjm_dataminer-master\temp_da_hrl_lmps_2021.csv
+
+2025-11-26 20:48:07,332 - ERROR - Failed to download Day-Ahead Hourly LMPs for year 2021
+2025-11-26 20:48:09,333 - INFO - Processing year 2022...
+2025-11-26 20:48:09,333 - INFO - ================================================================================
+2025-11-26 20:48:09,333 - INFO - COLLECTING DAY-AHEAD HOURLY LMPS FOR YEAR 2022
+2025-11-26 20:48:09,333 - INFO - ================================================================================
+2025-11-26 20:48:09,333 - INFO - Downloading Day-Ahead Hourly LMPs data...
+2025-11-26 20:48:09,333 - INFO - Executing: cd c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master && set PYTHONIOENCODING=utf-8 && venv\Scripts\activate && python fetch_pjm.py -u da_hrl_lmps -f csv -o c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master\temp_da_hrl_lmps_2022.csv
+2025-11-26 20:48:10,394 - ERROR - Error downloading data from da_hrl_lmps: usage: fetch_pjm.py [-h] [--url URL] [--output OUTPUT]
+                    [--format {csv,json,xls,stdout,raw}] [--list] [--version]
+fetch_pjm.py: error: unrecognized arguments: Project\Programming Workspace\pjm_dataminer-master\temp_da_hrl_lmps_2022.csv
+
+2025-11-26 20:48:10,395 - ERROR - Failed to download Day-Ahead Hourly LMPs for year 2022
+2025-11-26 20:48:12,397 - INFO - Processing year 2023...
+2025-11-26 20:48:12,397 - INFO - ================================================================================
+2025-11-26 20:48:12,397 - INFO - COLLECTING DAY-AHEAD HOURLY LMPS FOR YEAR 2023
+2025-11-26 20:48:12,397 - INFO - ================================================================================
+2025-11-26 20:48:12,397 - INFO - Downloading Day-Ahead Hourly LMPs data...
+2025-11-26 20:48:12,397 - INFO - Executing: cd c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master && set PYTHONIOENCODING=utf-8 && venv\Scripts\activate && python fetch_pjm.py -u da_hrl_lmps -f csv -o c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master\temp_da_hrl_lmps_2023.csv
+2025-11-26 20:48:13,348 - ERROR - Error downloading data from da_hrl_lmps: usage: fetch_pjm.py [-h] [--url URL] [--output OUTPUT]
+                    [--format {csv,json,xls,stdout,raw}] [--list] [--version]
+fetch_pjm.py: error: unrecognized arguments: Project\Programming Workspace\pjm_dataminer-master\temp_da_hrl_lmps_2023.csv
+
+2025-11-26 20:48:13,348 - ERROR - Failed to download Day-Ahead Hourly LMPs for year 2023
+2025-11-26 20:48:15,351 - INFO - Processing year 2024...
+2025-11-26 20:48:15,351 - INFO - ================================================================================
+2025-11-26 20:48:15,351 - INFO - COLLECTING DAY-AHEAD HOURLY LMPS FOR YEAR 2024
+2025-11-26 20:48:15,351 - INFO - ================================================================================
+2025-11-26 20:48:15,351 - INFO - Downloading Day-Ahead Hourly LMPs data...
+2025-11-26 20:48:15,351 - INFO - Executing: cd c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master && set PYTHONIOENCODING=utf-8 && venv\Scripts\activate && python fetch_pjm.py -u da_hrl_lmps -f csv -o c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master\temp_da_hrl_lmps_2024.csv
+2025-11-26 20:48:16,333 - ERROR - Error downloading data from da_hrl_lmps: usage: fetch_pjm.py [-h] [--url URL] [--output OUTPUT]
+                    [--format {csv,json,xls,stdout,raw}] [--list] [--version]
+fetch_pjm.py: error: unrecognized arguments: Project\Programming Workspace\pjm_dataminer-master\temp_da_hrl_lmps_2024.csv
+
+2025-11-26 20:48:16,333 - ERROR - Failed to download Day-Ahead Hourly LMPs for year 2024
+2025-11-26 20:48:18,334 - INFO - Completed Day-Ahead Hourly LMPs collection: 0/11 years successful
+2025-11-26 20:48:18,334 - INFO - Starting collection for dataset: rt_da_monthly_lmps
+2025-11-26 20:48:18,334 - INFO - Starting collection of Settlements Verified Hourly LMPs for all years...
+2025-11-26 20:48:18,334 - INFO - Processing year 2014...
+2025-11-26 20:48:18,334 - INFO - ================================================================================
+2025-11-26 20:48:18,334 - INFO - COLLECTING SETTLEMENTS VERIFIED HOURLY LMPS FOR YEAR 2014
+2025-11-26 20:48:18,334 - INFO - ================================================================================
+2025-11-26 20:48:18,334 - INFO - Downloading Settlements Verified Hourly LMPs data...
+2025-11-26 20:48:18,334 - INFO - Executing: cd c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master && set PYTHONIOENCODING=utf-8 && venv\Scripts\activate && python fetch_pjm.py -u rt_da_monthly_lmps -f csv -o c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master\temp_rt_da_monthly_lmps_2014.csv
+2025-11-26 20:48:19,433 - ERROR - Error downloading data from rt_da_monthly_lmps: usage: fetch_pjm.py [-h] [--url URL] [--output OUTPUT]
+                    [--format {csv,json,xls,stdout,raw}] [--list] [--version]
+fetch_pjm.py: error: unrecognized arguments: Project\Programming Workspace\pjm_dataminer-master\temp_rt_da_monthly_lmps_2014.csv
+
+2025-11-26 20:48:19,433 - ERROR - Failed to download Settlements Verified Hourly LMPs for year 2014
+2025-11-26 20:48:21,434 - INFO - Processing year 2015...
+2025-11-26 20:48:21,434 - INFO - ================================================================================
+2025-11-26 20:48:21,434 - INFO - COLLECTING SETTLEMENTS VERIFIED HOURLY LMPS FOR YEAR 2015
+2025-11-26 20:48:21,434 - INFO - ================================================================================
+2025-11-26 20:48:21,434 - INFO - Downloading Settlements Verified Hourly LMPs data...
+2025-11-26 20:48:21,434 - INFO - Executing: cd c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master && set PYTHONIOENCODING=utf-8 && venv\Scripts\activate && python fetch_pjm.py -u rt_da_monthly_lmps -f csv -o c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master\temp_rt_da_monthly_lmps_2015.csv
+2025-11-26 20:48:22,410 - ERROR - Error downloading data from rt_da_monthly_lmps: usage: fetch_pjm.py [-h] [--url URL] [--output OUTPUT]
+                    [--format {csv,json,xls,stdout,raw}] [--list] [--version]
+fetch_pjm.py: error: unrecognized arguments: Project\Programming Workspace\pjm_dataminer-master\temp_rt_da_monthly_lmps_2015.csv
+
+2025-11-26 20:48:22,410 - ERROR - Failed to download Settlements Verified Hourly LMPs for year 2015
+2025-11-26 20:48:24,412 - INFO - Processing year 2016...
+2025-11-26 20:48:24,472 - INFO - ================================================================================
+2025-11-26 20:48:24,472 - INFO - COLLECTING SETTLEMENTS VERIFIED HOURLY LMPS FOR YEAR 2016
+2025-11-26 20:48:24,472 - INFO - ================================================================================
+2025-11-26 20:48:24,472 - INFO - Downloading Settlements Verified Hourly LMPs data...
+2025-11-26 20:48:24,472 - INFO - Executing: cd c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master && set PYTHONIOENCODING=utf-8 && venv\Scripts\activate && python fetch_pjm.py -u rt_da_monthly_lmps -f csv -o c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master\temp_rt_da_monthly_lmps_2016.csv
+2025-11-26 20:48:25,459 - ERROR - Error downloading data from rt_da_monthly_lmps: usage: fetch_pjm.py [-h] [--url URL] [--output OUTPUT]
+                    [--format {csv,json,xls,stdout,raw}] [--list] [--version]
+fetch_pjm.py: error: unrecognized arguments: Project\Programming Workspace\pjm_dataminer-master\temp_rt_da_monthly_lmps_2016.csv
+
+2025-11-26 20:48:25,459 - ERROR - Failed to download Settlements Verified Hourly LMPs for year 2016
+2025-11-26 20:48:27,464 - INFO - Processing year 2017...
+2025-11-26 20:48:27,464 - INFO - ================================================================================
+2025-11-26 20:48:27,465 - INFO - COLLECTING SETTLEMENTS VERIFIED HOURLY LMPS FOR YEAR 2017
+2025-11-26 20:48:27,465 - INFO - ================================================================================
+2025-11-26 20:48:27,465 - INFO - Downloading Settlements Verified Hourly LMPs data...
+2025-11-26 20:48:27,465 - INFO - Executing: cd c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master && set PYTHONIOENCODING=utf-8 && venv\Scripts\activate && python fetch_pjm.py -u rt_da_monthly_lmps -f csv -o c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master\temp_rt_da_monthly_lmps_2017.csv
+2025-11-26 20:48:28,401 - ERROR - Error downloading data from rt_da_monthly_lmps: usage: fetch_pjm.py [-h] [--url URL] [--output OUTPUT]
+                    [--format {csv,json,xls,stdout,raw}] [--list] [--version]
+fetch_pjm.py: error: unrecognized arguments: Project\Programming Workspace\pjm_dataminer-master\temp_rt_da_monthly_lmps_2017.csv
+
+2025-11-26 20:48:28,401 - ERROR - Failed to download Settlements Verified Hourly LMPs for year 2017
+2025-11-26 20:48:30,402 - INFO - Processing year 2018...
+2025-11-26 20:48:30,402 - INFO - ================================================================================
+2025-11-26 20:48:30,402 - INFO - COLLECTING SETTLEMENTS VERIFIED HOURLY LMPS FOR YEAR 2018
+2025-11-26 20:48:30,402 - INFO - ================================================================================
+2025-11-26 20:48:30,402 - INFO - Downloading Settlements Verified Hourly LMPs data...
+2025-11-26 20:48:30,402 - INFO - Executing: cd c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master && set PYTHONIOENCODING=utf-8 && venv\Scripts\activate && python fetch_pjm.py -u rt_da_monthly_lmps -f csv -o c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master\temp_rt_da_monthly_lmps_2018.csv
+2025-11-26 20:48:31,340 - ERROR - Error downloading data from rt_da_monthly_lmps: usage: fetch_pjm.py [-h] [--url URL] [--output OUTPUT]
+                    [--format {csv,json,xls,stdout,raw}] [--list] [--version]
+fetch_pjm.py: error: unrecognized arguments: Project\Programming Workspace\pjm_dataminer-master\temp_rt_da_monthly_lmps_2018.csv
+
+2025-11-26 20:48:31,340 - ERROR - Failed to download Settlements Verified Hourly LMPs for year 2018
+2025-11-26 20:48:33,342 - INFO - Processing year 2019...
+2025-11-26 20:48:33,342 - INFO - ================================================================================
+2025-11-26 20:48:33,342 - INFO - COLLECTING SETTLEMENTS VERIFIED HOURLY LMPS FOR YEAR 2019
+2025-11-26 20:48:33,342 - INFO - ================================================================================
+2025-11-26 20:48:33,342 - INFO - Downloading Settlements Verified Hourly LMPs data...
+2025-11-26 20:48:33,342 - INFO - Executing: cd c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master && set PYTHONIOENCODING=utf-8 && venv\Scripts\activate && python fetch_pjm.py -u rt_da_monthly_lmps -f csv -o c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master\temp_rt_da_monthly_lmps_2019.csv
+2025-11-26 20:48:34,301 - ERROR - Error downloading data from rt_da_monthly_lmps: usage: fetch_pjm.py [-h] [--url URL] [--output OUTPUT]
+                    [--format {csv,json,xls,stdout,raw}] [--list] [--version]
+fetch_pjm.py: error: unrecognized arguments: Project\Programming Workspace\pjm_dataminer-master\temp_rt_da_monthly_lmps_2019.csv
+
+2025-11-26 20:48:34,301 - ERROR - Failed to download Settlements Verified Hourly LMPs for year 2019
+2025-11-26 20:48:36,302 - INFO - Processing year 2020...
+2025-11-26 20:48:36,302 - INFO - ================================================================================
+2025-11-26 20:48:36,302 - INFO - COLLECTING SETTLEMENTS VERIFIED HOURLY LMPS FOR YEAR 2020
+2025-11-26 20:48:36,302 - INFO - ================================================================================
+2025-11-26 20:48:36,302 - INFO - Downloading Settlements Verified Hourly LMPs data...
+2025-11-26 20:48:36,302 - INFO - Executing: cd c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master && set PYTHONIOENCODING=utf-8 && venv\Scripts\activate && python fetch_pjm.py -u rt_da_monthly_lmps -f csv -o c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master\temp_rt_da_monthly_lmps_2020.csv
+2025-11-26 20:48:37,217 - ERROR - Error downloading data from rt_da_monthly_lmps: usage: fetch_pjm.py [-h] [--url URL] [--output OUTPUT]
+                    [--format {csv,json,xls,stdout,raw}] [--list] [--version]
+fetch_pjm.py: error: unrecognized arguments: Project\Programming Workspace\pjm_dataminer-master\temp_rt_da_monthly_lmps_2020.csv
+
+2025-11-26 20:48:37,217 - ERROR - Failed to download Settlements Verified Hourly LMPs for year 2020
+2025-11-26 20:48:39,219 - INFO - Processing year 2021...
+2025-11-26 20:48:39,219 - INFO - ================================================================================
+2025-11-26 20:48:39,219 - INFO - COLLECTING SETTLEMENTS VERIFIED HOURLY LMPS FOR YEAR 2021
+2025-11-26 20:48:39,219 - INFO - ================================================================================
+2025-11-26 20:48:39,219 - INFO - Downloading Settlements Verified Hourly LMPs data...
+2025-11-26 20:48:39,219 - INFO - Executing: cd c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master && set PYTHONIOENCODING=utf-8 && venv\Scripts\activate && python fetch_pjm.py -u rt_da_monthly_lmps -f csv -o c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master\temp_rt_da_monthly_lmps_2021.csv
+2025-11-26 20:48:40,148 - ERROR - Error downloading data from rt_da_monthly_lmps: usage: fetch_pjm.py [-h] [--url URL] [--output OUTPUT]
+                    [--format {csv,json,xls,stdout,raw}] [--list] [--version]
+fetch_pjm.py: error: unrecognized arguments: Project\Programming Workspace\pjm_dataminer-master\temp_rt_da_monthly_lmps_2021.csv
+
+2025-11-26 20:48:40,148 - ERROR - Failed to download Settlements Verified Hourly LMPs for year 2021
+2025-11-26 20:48:42,150 - INFO - Processing year 2022...
+2025-11-26 20:48:42,150 - INFO - ================================================================================
+2025-11-26 20:48:42,150 - INFO - COLLECTING SETTLEMENTS VERIFIED HOURLY LMPS FOR YEAR 2022
+2025-11-26 20:48:42,150 - INFO - ================================================================================
+2025-11-26 20:48:42,150 - INFO - Downloading Settlements Verified Hourly LMPs data...
+2025-11-26 20:48:42,150 - INFO - Executing: cd c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master && set PYTHONIOENCODING=utf-8 && venv\Scripts\activate && python fetch_pjm.py -u rt_da_monthly_lmps -f csv -o c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master\temp_rt_da_monthly_lmps_2022.csv
+2025-11-26 20:48:43,107 - ERROR - Error downloading data from rt_da_monthly_lmps: usage: fetch_pjm.py [-h] [--url URL] [--output OUTPUT]
+                    [--format {csv,json,xls,stdout,raw}] [--list] [--version]
+fetch_pjm.py: error: unrecognized arguments: Project\Programming Workspace\pjm_dataminer-master\temp_rt_da_monthly_lmps_2022.csv
+
+2025-11-26 20:48:43,107 - ERROR - Failed to download Settlements Verified Hourly LMPs for year 2022
+2025-11-26 20:48:45,109 - INFO - Processing year 2023...
+2025-11-26 20:48:45,109 - INFO - ================================================================================
+2025-11-26 20:48:45,109 - INFO - COLLECTING SETTLEMENTS VERIFIED HOURLY LMPS FOR YEAR 2023
+2025-11-26 20:48:45,109 - INFO - ================================================================================
+2025-11-26 20:48:45,109 - INFO - Downloading Settlements Verified Hourly LMPs data...
+2025-11-26 20:48:45,109 - INFO - Executing: cd c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master && set PYTHONIOENCODING=utf-8 && venv\Scripts\activate && python fetch_pjm.py -u rt_da_monthly_lmps -f csv -o c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master\temp_rt_da_monthly_lmps_2023.csv
+2025-11-26 20:48:46,044 - ERROR - Error downloading data from rt_da_monthly_lmps: usage: fetch_pjm.py [-h] [--url URL] [--output OUTPUT]
+                    [--format {csv,json,xls,stdout,raw}] [--list] [--version]
+fetch_pjm.py: error: unrecognized arguments: Project\Programming Workspace\pjm_dataminer-master\temp_rt_da_monthly_lmps_2023.csv
+
+2025-11-26 20:48:46,044 - ERROR - Failed to download Settlements Verified Hourly LMPs for year 2023
+2025-11-26 20:48:48,045 - INFO - Processing year 2024...
+2025-11-26 20:48:48,045 - INFO - ================================================================================
+2025-11-26 20:48:48,045 - INFO - COLLECTING SETTLEMENTS VERIFIED HOURLY LMPS FOR YEAR 2024
+2025-11-26 20:48:48,045 - INFO - ================================================================================
+2025-11-26 20:48:48,045 - INFO - Downloading Settlements Verified Hourly LMPs data...
+2025-11-26 20:48:48,045 - INFO - Executing: cd c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master && set PYTHONIOENCODING=utf-8 && venv\Scripts\activate && python fetch_pjm.py -u rt_da_monthly_lmps -f csv -o c:\Users\win-10\Desktop\Thesis Project\Programming Workspace\pjm_dataminer-master\temp_rt_da_monthly_lmps_2024.csv
+2025-11-26 20:48:49,005 - ERROR - Error downloading data from rt_da_monthly_lmps: usage: fetch_pjm.py [-h] [--url URL] [--output OUTPUT]
+                    [--format {csv,json,xls,stdout,raw}] [--list] [--version]
+fetch_pjm.py: error: unrecognized arguments: Project\Programming Workspace\pjm_dataminer-master\temp_rt_da_monthly_lmps_2024.csv
+
+2025-11-26 20:48:49,005 - ERROR - Failed to download Settlements Verified Hourly LMPs for year 2024
+2025-11-26 20:48:51,007 - INFO - Completed Settlements Verified Hourly LMPs collection: 0/11 years successful
+2025-11-26 20:48:51,007 - INFO - ================================================================================
+2025-11-26 20:48:51,007 - INFO - CREATING MASTER SUMMARY
+2025-11-26 20:48:51,007 - INFO - ================================================================================
