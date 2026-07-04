@@ -1,0 +1,21 @@
+# pip equivalent of environment.yml, for venv users (Option B)
+pandas
+numpy
+scipy
+scikit-learn
+statsmodels
+matplotlib
+seaborn
+plotly
+jupyterlab
+pyyaml
+requests
+pytest
+holidays
+lightgbm
+optuna
+shap
+openpyxl
+streamlit
+loguru
+git+https://github.com/jeslago/epftoolbox.git
