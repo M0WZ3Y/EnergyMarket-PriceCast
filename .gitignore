@@ -1,0 +1,22 @@
+# Data (raw is re-downloadable; processed is regenerable)
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# Models & experiment artifacts
+models/*
+!models/.gitkeep
+mlruns/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Environments & editors
+.env
+.venv/
+.vscode/
+.DS_Store

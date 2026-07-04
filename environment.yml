@@ -1,0 +1,36 @@
+# Create:   conda env create -f environment.yml
+# Activate: conda activate epf-thesis
+# epftoolbox is installed from GitHub (not on PyPI) — see pip section.
+name: epf-thesis
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pandas
+  - numpy
+  - scipy
+  - scikit-learn
+  - statsmodels
+  - matplotlib
+  - seaborn
+  - plotly
+  - jupyterlab
+  - pyyaml
+  - requests
+  - pytest
+  - holidays
+  - lightgbm
+  - optuna
+  - shap
+  - openpyxl
+  - pip
+  - pip:
+      # Deep learning: pick ONE in week 6 and log the choice.
+      # epftoolbox depends on tensorflow/keras, so TF comes along anyway.
+      - "git+https://github.com/jeslago/epftoolbox.git"
+      - streamlit
+      - loguru
+# Note: if epftoolbox's pinned deps conflict on your machine, install it
+# in a separate step and let pip report the conflict:
+#   pip install "git+https://github.com/jeslago/epftoolbox.git"
+# Record the resolution in logs/decisions.md.
