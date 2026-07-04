@@ -1,124 +1,61 @@
-# ⚡ EnergyMarket-PriceCast
+# Daily & Hourly Electricity Price Forecasting (MSc thesis)
 
-**Daily and Hourly Electricity Price Forecasting Using Machine Learning Approaches**
+Forecasting day-ahead electricity prices (hourly + daily baseload) for the
+German market using ML/DL, benchmarked per Lago et al. (2021), with the
+EnergyMarket-PriceCast Streamlit tool as the applied deliverable.
 
-MSc Thesis Project · [University Name] · [Programme Name] · 2026
+## Data sources (both keyless — no registration anywhere)
 
----
-
-## Overview
-
-This project builds a robust and accurate forecasting system for predicting day-ahead and hour-ahead electricity prices in competitive power markets using machine learning and deep learning methods.
-
-Electricity prices are highly volatile and depend on nonlinear, time-varying factors including load demand, generation mix, fuel prices, weather conditions, and renewable energy penetration. Classical methods (ARIMA, SARIMA) fail to capture these relationships. This project applies:
-
-- Random Forest (RF)
-- XGBoost
-- LightGBM
-- Support Vector Regression (SVR)
-- Long Short-Term Memory (LSTM)
-- Gated Recurrent Unit (GRU)
-- Hybrid and ensemble models
-
-## Research Questions
-
-| ID | Question |
-|---|---|
-| RQ1 | Which ML model produces the most accurate electricity price forecasts? |
-| RQ2 | Which input features have the greatest impact on electricity prices? |
-| RQ3 | How much improvement can ML/DL methods provide over classical statistical models? |
-| RQ4 | Can a single framework accurately predict both daily and hourly prices? |
-
-## Hypotheses
-
-| ID | Hypothesis | Test |
+| Purpose | Source | Access |
 |---|---|---|
-| H1 | ≥1 ML model significantly outperforms ARIMA/SARIMA | Diebold-Mariano, p < 0.05 |
-| H2 | ≥1 DL model significantly outperforms best classical ML | Diebold-Mariano, p < 0.05 |
-| H3 | Hybrid ensemble achieves lower RMSE than any single model | Diebold-Mariano, p < 0.05 |
-| H4 | Domain features improve accuracy over statistical features alone | Ablation study |
+| Thesis results | Lago et al. open benchmark (EPEX-DE, 6y hourly) via `epftoolbox` | auto-download on first `read_data` call |
+| Live tool feed | Energy-Charts API (Fraunhofer ISE), zone DE-LU | plain REST, CC BY 4.0 |
 
-## Project Structure
+Attribution (required, CC BY 4.0): *Data: Energy-Charts (Fraunhofer ISE) /
+Bundesnetzagentur SMARD.de.*
 
-```
-EnergyMarket-PriceCast/
-├── data/
-│   ├── raw/             # Raw data as downloaded — never modified
-│   ├── processed/       # Cleaned, merged, feature-engineered data
-│   └── external/        # External reference data (fuel prices, weather)
-├── notebooks/           # Jupyter notebooks (EDA, experiments, reporting)
-├── models/
-│   ├── saved/           # Serialised trained models (.pkl, .pt)
-│   └── checkpoints/     # Training checkpoints (LSTM/GRU)
-├── src/
-│   ├── data/            # Data loading and preprocessing modules
-│   ├── features/        # Feature engineering pipeline
-│   ├── models/          # Model definitions and training scripts
-│   ├── evaluation/      # Metrics, DM test, ablation study
-│   ├── visualization/   # Plotting and dashboard utilities
-│   └── utils/           # Shared utilities (logging, config, paths)
-├── tests/               # pytest unit tests
-├── docs/                # Documentation, schema, decisions
-├── configs/             # YAML configuration files
-├── logs/                # Training and experiment logs
-├── outputs/             # Generated figures, tables, exports
-├── mlruns/              # MLflow experiment tracking
-├── requirements.txt
-├── setup.py
-├── .gitignore
-└── README.md
-```
-
-## Deliverables
-
-| # | Deliverable | Target Week |
-|---|---|---|
-| D1 | Cleaned dataset | W4 |
-| D2 | EDA notebook | W6 |
-| D3 | Feature pipeline | W6 |
-| D4 | Benchmark models | W7 |
-| D5 | Best model card | W12 |
-| D6 | Visualization dashboard | W12 |
-| D7 | SHAP report | W12 |
-| D8 | Thesis report | W16 |
-| D9 | Journal article | W16 |
-| D10 | EnergyMarket-PriceCast app | W16 |
-
-## Setup
+## Week-1 runbook
 
 ```bash
-# Clone the repo
-git clone https://github.com/[username]/EnergyMarket-PriceCast.git
-cd EnergyMarket-PriceCast
+conda env create -f environment.yml
+conda activate epf-thesis
 
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate        # Linux/Mac
-# venv\Scripts\activate         # Windows
+# 1. Verify benchmark download + data quality
+python scripts/verify_dataset.py
 
-# Install dependencies
-pip install -r requirements.txt
+# 2. Smoke-test the live API
+python scripts/smoke_test_energycharts.py
 
-# Launch MLflow UI
-mlflow ui --host 0.0.0.0 --port 5000
-# Open http://localhost:5000
+# 3. Run offline tests
+pytest -m "not network"
+
+# 4. Record outcomes in logs/decisions.md
 ```
 
-## Evaluation Protocol
+Fallback if the epftoolbox server is down: the five benchmark CSVs are
+mirrored in several public research repos; pin the DE csv into `data/raw/`
+and `read_data` will use the local copy.
 
-- Walk-forward cross-validation · 70/15/15 train/validation/test split
-- Test set opened **once only**, after all model selection and tuning is complete
-- Metrics: MAE, RMSE, MAPE, sMAPE
-- Hypothesis testing: Diebold-Mariano test (α = 0.05)
+## Repo layout
 
-## Data Sources
+```
+configs/      data.yaml (market, splits, seed) — change market here only
+src/data/     BenchmarkLoader + EnergyChartsLoader (one shared schema)
+src/features/ feature pipeline (week 3)
+src/models/   model wrappers on a common interface (weeks 4–7)
+src/evaluation/ walk-forward validation, metrics, DM tests (week 4)
+scripts/      verification & utilities
+notebooks/    EDA (week 2)
+app/          PriceCast Streamlit MVP (week 11)
+reports/figures/  final-form figures only (frozen at export)
+logs/decisions.md research log — one dated entry per decision
+thesis/ defense/  writing and presentation assets
+```
 
-| Source | Data | Resolution |
-|---|---|---|
-| ENTSO-E Transparency Platform | Electricity prices, load, generation mix | Hourly |
-| Open-Meteo API | Temperature, wind speed, solar irradiance | Hourly |
-| EIA / Quandl | Gas, coal, oil prices | Daily |
+## Standing rules
 
-## License
-
-Academic use only · MSc Thesis · [University Name] · 2026
+1. Results freeze end of week 7 (`v1.0-results` tag) — no reruns after.
+2. 45–60 min thesis writing daily before code (week 2+), page quotas tracked.
+3. One canonical results table, auto-exported to LaTeX.
+4. Fixed tuning budgets: 50 Optuna trials per model, then stop.
+5. Seed 42, pinned environment, every decision logged.
