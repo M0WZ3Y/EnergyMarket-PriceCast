@@ -56,4 +56,21 @@ Negative prices:  241 hours (1.38%)
 
 ---
 
+## Week 2
+
+### 2026-07-05 — EDA complete (notebooks/01_eda.ipynb)
+- Spike threshold: train mean + 3*std = 84.04 EUR/MWh (train-only, no test
+  leakage). Spike rate: train 180 hrs (0.52%), test 145 hrs (0.83%).
+- ADF: statistic=-16.693, p≈0.0000 -> rejects unit-root null (stationary).
+- KPSS: statistic=8.721, p=0.01 (capped, actual p smaller) -> rejects
+  level-stationarity null (not stationary).
+- Reading: classic ADF/KPSS contradiction for electricity prices — series
+  is mean-reverting (no unit root) but has strong deterministic seasonal
+  structure (daily/weekly harmonics, confirmed by ACF/PACF peaks at lag 24
+  and 168) that KPSS picks up. Decision: model seasonality explicitly
+  (seasonal terms/dummies) rather than treating the series as I(1).
+- Figures exported to reports/figures/ (01-09, feeds thesis 3-3-3 and 5-2).
+
+---
+
 Pages banked: 0 / quota 0 | Results table: n/a | Backup: [ ]
