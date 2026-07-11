@@ -37,7 +37,10 @@ Maps to the 8 Zotero subcollections, ~2pp each:
 - 3-7 مدل‌های یادگیری ماشین و یادگیری عمیق [7pp]
   - 3-7-1 LightGBM [3pp] (week 5)
   - 3-7-2 LSTM [4pp] (week 6)
-- 3-8 مدل ترکیبی [3pp] — ensemble (week 7)
+- 3-8 مدل ترکیبی [3pp] — ensemble (week 7); static ensemble first, then
+  regime-aware ensemble weighting (calm/spike weight sets switched on the
+  84.04 EUR/MWh spike threshold) if week-5 checkpoint favors Plan B —
+  see logs/decisions.md 2026-07-11 gameplan decision
 
 ## فصل چهارم: نتایج و تحلیل [29pp] — results-heavy chapter
 - 4-1 مقدمه [1pp]
@@ -50,7 +53,12 @@ Maps to the 8 Zotero subcollections, ~2pp each:
 
 ## فصل پنجم: جمع‌بندی، بحث و پیشنهادات [10pp]
 - 5-1 جمع‌بندی نتایج [2pp]
-- 5-2 محدودیت‌ها [2pp] — incl. benchmark-era vs. live-data regime shift
+- 5-2 محدودیت‌ها [2pp] — incl. benchmark-era vs. live-data regime shift;
+  candidate subsection (page budget unchanged, folded into existing 2pp):
+  OOD stress test — frozen benchmark-era models evaluated on live 2026
+  Energy-Charts data, per logs/decisions.md 2026-07-11 gameplan decision.
+  If results warrant more space, move to a new 4-x subsection in chapter
+  4 instead — page budget for that chapter is fixed at 29pp regardless.
 - 5-3 ابزار EnergyMarket-PriceCast [2pp] — week 11 tool, live screenshot
 - 5-4 پیشنهادات برای تحقیقات آینده [2pp]
 - 5-5 نتیجه‌گیری نهایی [2pp]

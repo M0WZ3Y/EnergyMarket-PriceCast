@@ -73,4 +73,72 @@ Negative prices:  241 hours (1.38%)
 
 ---
 
+## Week 3
+
+### 2026-07-11 — Feature pipeline built (src/features/pipeline.py)
+- Fixed epftoolbox not being installed in .venv (was breaking
+  test_benchmark_download) and restored notebooks/01_eda.ipynb after an
+  accidental output-clearing left it uncommitted; both now clean.
+- Feature set copied exactly from epftoolbox's own LEAR implementation
+  (epftoolbox/models/_lear.py::LEAR._build_and_split_XYs), read directly
+  from the installed package rather than reconstructed from memory:
+  price lags D-1/D-2/D-3/D-7 (24h vectors), exogenous lags D-1/D-7 plus
+  exog for the target day itself (D0 — legal, exog_1/exog_2 are
+  day-ahead load/generation forecasts known before the forecast origin,
+  not realized prices), weekday one-hot dummies. Config in
+  configs/features.yaml.
+- Rationale: reusing the exact published-benchmark feature convention
+  (rather than inventing a parallel one) keeps all 5 models on one
+  consistent, comparable feature set and avoids a second, undocumented
+  feature-engineering path for LEAR-LASSO vs. the rest.
+- Implementation: hourly df pivoted to one row per calendar day
+  (`_pivot_to_daily_wide`), lag columns built via `.shift(n)` on the
+  day-indexed frame (vectorized, avoids a slow per-row Python loop).
+  Any day with an incomplete lag window or a missing source hour is
+  dropped via `dropna`, never filled/interpolated — no risk of an
+  interpolated value crossing the forecast origin.
+- Tests: tests/test_features.py — deterministic synthetic price/exog
+  series (value encodes day-number + hour) so every lag column's
+  expected value is checked exactly; explicit leakage guards assert no
+  X column reads the target day's own price, and exog columns are
+  restricted to the D0/D-1/D-7 tags. 9/9 pass; full suite 13/13 pass.
+- Reviewed by the leakage-reviewer agent: **no origin-crossing leakage
+  found** (label never appears in X, no exog read past the target day,
+  "price_D-1 = origin day itself" confirmed correct — day-ahead prices
+  for day O are published the day before O, so they're already known by
+  origin day O's own gate closure). One real bug found and fixed:
+  `_pivot_to_daily_wide` built lag columns with positional `.shift()`,
+  which would silently mislabel a farther day as a closer lag if a whole
+  calendar day were missing from the source (never a future-leak, since
+  shift always looks backward, but a silent mislabeling of lag distance).
+  Fixed by reindexing to a contiguous daily calendar before shifting, so
+  a missing day now becomes an explicit NaN row that gets dropped instead.
+  Added regression test `test_full_day_gap_does_not_misalign_lags`.
+  Also dropped the unused `min_history_days` config key (dead — trimming
+  already happens via shift-induced NaN + dropna).
+  Deferred (logged, not blocking): (a) `exog_current_day` applies to any
+  `exog_*` column with no schema guard — fine today since exog_1/exog_2
+  are both day-ahead forecasts, but would silently leak if a realized
+  (non-forecast) exog column were ever added; (b) DST fall-back hour
+  collision in the pivot (`groupby(day, hour).first()` merges the
+  repeated nominal hour) — not addressed this week, note as a data-
+  quality item under assumption (3) if DE/DE-LU DST edges matter later.
+- Open item for week 4: decide whether LEAR-LASSO consumes this shared
+  X/Y directly (feeding epftoolbox's LEAR.recalibrate(Xtrain, Ytrain)
+  with our arrays) or keeps epftoolbox's internal builder — functionally
+  identical, deferred since it doesn't block feature-pipeline work now.
+
+### 2026-07-11 — Gameplan decision: Plan A / Plan B
+Plan A = match/beat Lago et al.'s published LEAR/DNN numbers on EPEX-DE
+(the only fair "beat" claim). Plan B (built regardless, weeks 5-8) =
+innovation-led defense: regime-aware ensemble weighting (calm/spike weight
+sets switched on the 84.04 EUR/MWh threshold), calm-vs-spike +
+hourly-vs-daily SHAP comparison, OOD stress test of frozen models on live
+2026 Energy-Charts data. Week-5 checkpoint: LightGBM walk-forward results
+compared against Lago et al. published numbers decides which plan leads.
+Week-7 priority: static ensemble → regime-aware ensemble → France (only
+if slack).
+
+---
+
 Pages banked: 0 / quota 0 | Results table: n/a | Backup: [ ]
