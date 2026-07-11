@@ -1,0 +1,35 @@
+{
+  "enabledPlugins": {
+    "claude-code-setup@claude-plugins-official": true
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\".venv/Scripts/python.exe\" .claude/hooks/frozen_results_guard.py",
+            "shell": "bash",
+            "timeout": 30,
+            "statusMessage": "Checking frozen-results guard..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\".venv/Scripts/python.exe\" .claude/hooks/run_offline_tests.py",
+            "shell": "bash",
+            "timeout": 300,
+            "statusMessage": "Running offline contract tests..."
+          }
+        ]
+      }
+    ]
+  }
+}

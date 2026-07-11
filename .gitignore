@@ -20,3 +20,7 @@ __pycache__/
 .venv/
 .vscode/
 .DS_Store
+
+# Claude Code: personal/session-local state (shared config in .claude/ is committed)
+.claude/settings.local.json
+.claude/worktrees/
