@@ -1,0 +1,24 @@
+# Feature engineering configuration — src/features/pipeline.py
+#
+# Matches the Lago et al. (2021) / epftoolbox LEAR feature convention exactly
+# (cross-checked against epftoolbox.models._lear.LEAR._build_and_split_XYs)
+# so every model in the benchmark (naive, SARIMAX, LEAR-LASSO, LightGBM,
+# LSTM) is trained on the same, consistently-derived feature set.
+#
+# Forecast setting: at origin day O (~noon), predict all 24 hourly prices of
+# target day O+1. In lag terms below, "target_day" = O+1.
+
+# Which past days' full 24h price vectors to include as lag features,
+# relative to target_day (e.g. 1 = target_day - 1, i.e. "yesterday").
+price_lag_days: [1, 2, 3, 7]
+
+# Which past days' exogenous vectors to include, relative to target_day.
+exog_lag_days: [1, 7]
+
+# Include exog_1/exog_2 for target_day itself. Legal because epftoolbox's
+# exog_1/exog_2 are day-ahead load/generation forecasts — known before the
+# forecast origin, not the actual realized price.
+exog_current_day: true
+
+# One-hot day-of-week dummies for target_day (Monday=0 .. Sunday=6).
+weekday_dummies: true
