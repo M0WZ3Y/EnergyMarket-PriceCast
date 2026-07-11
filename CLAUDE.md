@@ -26,9 +26,27 @@ separate journal article deliverable is English.
   logs/decisions.md.
 - After the `v1.0-results` tag exists (end of week 7): never rerun or
   modify model results — writing depends on frozen numbers.
-- Stretch goal (week 7, only if ahead of schedule): rerun final models on
-  France (`dataset='FR'`, config change only). Nord Pool was considered
-  and rejected (system-price vs. zonal-price mismatch with the live API).
+- Week-5 checkpoint: compare LightGBM walk-forward results against Lago
+  et al.'s published numbers. Outcome decides which gameplan leads —
+  Plan A (match/beat the published benchmark) or Plan B (innovation-led
+  defense) — see logs/decisions.md 2026-07-11 for the full gameplan.
+- Week-7 priority order: static ensemble → regime-aware ensemble →
+  France (only if slack; France is now third priority, not a default).
+
+## Gameplan (2026-07-11)
+- Plan A = match/beat Lago et al.'s published LEAR/DNN numbers on
+  EPEX-DE (the only fair "beat" claim).
+- Plan B (built regardless, weeks 5-8) = innovation-led defense, all
+  sanctioned scope (not scope creep):
+  - Regime-aware ensemble weighting — calm/spike weight sets switched on
+    the 84.04 EUR/MWh spike threshold from the week-2 EDA.
+  - Calm-vs-spike + hourly-vs-daily SHAP comparison.
+  - OOD stress test: frozen benchmark-era models evaluated on live 2026
+    Energy-Charts data (tool-only loader, per the data rule above).
+- Stretch goal (week 7, third priority, only if ahead of schedule):
+  rerun final models on France (`dataset='FR'`, config change only).
+  Nord Pool was considered and rejected (system-price vs. zonal-price
+  mismatch with the live API).
 
 ## Six formal assumptions (from the approved university proposal)
 Must appear in thesis section 3-2. Keep them in mind when writing any
@@ -42,8 +60,11 @@ interpretability as an assumption not a deliverable). This project adds,
 confirmed by supervisor as approved: named benchmark tied to published
 literature (Lago et al. protocol), hourly actually operationalized, fixed
 5-model list, live data feed, significance testing, SHAP as a real
-deliverable, the PriceCast tool, and a separate journal article. Don't
-scope-creep beyond this list without a logged decision.
+deliverable, the PriceCast tool, and a separate journal article. Also
+sanctioned (2026-07-11 gameplan decision, not scope creep): regime-aware
+ensemble weighting (calm/spike weight sets) and the OOD stress test of
+frozen models on live Energy-Charts data — see Gameplan section below.
+Don't scope-creep beyond this list without a logged decision.
 
 ## Thesis structure (see thesis/outline.md for full detail)
 100-page Farsi body, 5 chapters mapped to Amirkabir's official template:
