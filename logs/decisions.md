@@ -139,6 +139,25 @@ compared against Lago et al. published numbers decides which plan leads.
 Week-7 priority: static ensemble → regime-aware ensemble → France (only
 if slack).
 
+### 2026-07-13 — Data source testing schedule
+
+Principle: every source is tested BEFORE anything downstream depends on it.
+The live API (the only external dependency) gets re-touched at three points
+rather than trusted from one early smoke test.
+
+| Week | What gets tested | Status |
+|---|---|---|
+| 1 | Initial verification: epftoolbox full download (gaps/NaNs/stats) + Energy-Charts /price smoke test | DONE — both passed (see week 1 entries) |
+| 3 | New Energy-Charts endpoints (load + renewables): JSON parsing, 15-min→hourly resampling, schema match vs BenchmarkLoader, unit test on a sample month. Plus leakage assertion test on the feature pipeline | IN PROGRESS — current task |
+| 4 | Indirect re-test: walk-forward framework consumes processed benchmark data end-to-end; LEAR sanity check vs published Lago et al. numbers doubles as a silent-data-bug detector | Scheduled |
+| 7 | Pre-freeze reproducibility check: fresh environment, one model end-to-end from config — re-verifies benchmark download path from scratch | Scheduled |
+| 8 or 11 | Live pipeline under real load: OOD stress test pulls a large 2026 window through EnergyChartsLoader (much bigger than week-1 smoke test) | Scheduled |
+| 11 | Full live path inside PriceCast: date picker → API fetch → forecast → chart, plus CSV-upload fallback path | Scheduled |
+
+Mitigation note: on the first successful large 2026 pull (week 8 or 11),
+cache the window to data/processed/live_2026_cache.csv so the OOD test and
+defense demo can run from the cached copy if the API hiccups on defense day.
+
 ---
 
 Pages banked: 0 / quota 0 | Results table: n/a | Backup: [ ]
