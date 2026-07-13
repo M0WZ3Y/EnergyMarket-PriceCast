@@ -219,4 +219,64 @@ defense demo can run from the cached copy if the API hiccups on defense day.
 
 ---
 
+## Week 4
+
+### 2026-07-13 — Evaluation framework built (src/evaluation/)
+
+- `src/evaluation/metrics.py`: thin wrappers around `epftoolbox.evaluation`
+  (MAE, RMSE, sMAPE, rMAE, DM) rather than reimplemented — same convention
+  as the week-3 feature pipeline, keeps results numerically comparable to
+  the published Lago et al. benchmark. No plain MAPE exposed (CLAUDE.md —
+  negative prices make percentage error undefined).
+- `src/evaluation/walk_forward.py`: rolling-origin (walk-forward) split
+  generator implementing epftoolbox's own LEAR daily-recalibration protocol
+  exactly (cross-checked against
+  `epftoolbox.models._lear.LEAR.recalibrate_and_forecast_next_day`): each
+  forecast origin trains on a fixed trailing calibration window, predicts
+  one day ahead, origin advances by `step_days`. Config in
+  `configs/evaluation.yaml`: `calibration_window_days: 1092` (= 364*3,
+  epftoolbox/Lago et al.'s own LEAR default, not invented), `validation_days:
+  364`, `optuna.n_trials: 50` (per CLAUDE.md), `random_seed: 42`.
+- Also added `carve_validation_from_train` (trailing-slice split of the
+  train calendar for Optuna tuning) and `assert_validation_before_test`
+  (hard assertion that the validation window ends strictly before the test
+  window starts — the project's non-negotiable ordering rule).
+- Reviewed by the leakage-reviewer agent: **no actual leakage** with the
+  shipped default config values — the train/origin boundary assertion
+  (`train_days.max() < origin`) is reachable and sufficient, splits are
+  emitted in plain chronological order (no shuffling/KFold), and
+  `first_origin` restricts which days are used as origins without ever
+  truncating or leaking into the training-history slice. Four latent
+  edge-case issues found and fixed before treating this as the frozen
+  harness models will be built on: (a) `assert_validation_before_test`
+  silently no-op'd (returned instead of raising) on an empty
+  validation/test window — since this function is the last line of
+  defense against tuning/test overlap, a silent pass-through defeated its
+  purpose; now raises `ValueError`. (b) `carve_validation_from_train` hit
+  Python's negative-zero slicing trap when `validation_days: 0`
+  (`train_days[:-0]` is empty, `train_days[-0:]` is everything) — would
+  have silently inverted fit/validation instead of erroring; now raises
+  `ValueError` for `validation_days <= 0`. (c) Removed one line of dead
+  code (`if pos - window < 0: continue`) that could never trigger given
+  `start_pos = max(window, ...)`. (d) Added test coverage for the
+  documented-but-previously-untested case where a requested `first_origin`
+  sits before a full calibration window of history exists — behavior
+  (silently pushed forward to the first day with full history) was
+  already safe, just unverified.
+  Also added one integration test using the REAL `configs/evaluation.yaml`
+  values (not the shrunk config used in the rest of the test file) tying
+  `carve_validation_from_train` + `assert_validation_before_test` +
+  `walk_forward_splits` together end-to-end, confirming the first
+  test-period origin's training window contains zero test-period days —
+  this is the concrete check backing the thesis's "validation strictly
+  before test" leakage claim, previously only exercised function-by-function.
+- Tests: tests/test_evaluation.py — 18 tests, all passing; full offline
+  suite (features + loaders + evaluation) is 32/32 green.
+- Open item carried from week 3, still open: decide whether LEAR-LASSO
+  consumes the shared X/Y from `src/features/pipeline.py` directly or
+  keeps epftoolbox's internal builder. Next up: wire naive, SARIMAX, and
+  LEAR-LASSO baselines onto this evaluation harness.
+
+---
+
 Pages banked: 0 / quota 0 | Results table: n/a | Backup: [ ]

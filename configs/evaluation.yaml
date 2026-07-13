@@ -1,0 +1,25 @@
+# Evaluation framework configuration — src/evaluation/
+#
+# Daily-recalibration walk-forward protocol, exactly as Lago et al. (2021) /
+# epftoolbox implement it for LEAR: each forecast origin trains on a fixed
+# trailing calibration window, predicts one day ahead, then the origin
+# advances by step_days. Never a random/shuffled split.
+
+walk_forward:
+  # Trailing training window length in days, immediately preceding each
+  # origin. 364*3 = epftoolbox/Lago et al.'s own LEAR default
+  # (epftoolbox.models._lear.LEAR.__init__ default calibration_window).
+  calibration_window_days: 1092
+  # Days to advance the origin by after each forecast (1 = daily recalibration).
+  step_days: 1
+
+# Validation window: carved from the trailing days of the train split, used
+# for Optuna hyperparameter tuning. Must sit strictly before the test window
+# — enforced by assert_validation_before_test(), never just assumed.
+validation:
+  validation_days: 364
+
+optuna:
+  n_trials: 50
+
+random_seed: 42
