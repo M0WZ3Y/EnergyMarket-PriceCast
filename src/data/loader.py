@@ -20,6 +20,7 @@ Usage:
 from __future__ import annotations
 
 import logging
+import time
 from pathlib import Path
 
 import pandas as pd
@@ -77,28 +78,52 @@ class BenchmarkLoader:
 
 
 class EnergyChartsLoader:
-    """Live day-ahead prices from the Energy-Charts API (Fraunhofer ISE).
+    """Live day-ahead prices, load and generation from the Energy-Charts API
+    (Fraunhofer ISE).
 
     Keyless REST API. License CC BY 4.0 — attribute Energy-Charts.info.
     Recent data is 15-minute resolution (European 15-min settlement);
     we resample to hourly means to match the pipeline schema.
 
-    Week-3 TODO: add load / renewable-generation fetching. Endpoint names
-    and parameters should be taken from the interactive API docs at
-    https://api.energy-charts.info/ (Swagger UI) rather than guessed.
-    The `_get` helper below works for any of them.
+    Endpoint parameter naming is NOT uniform: `/price` takes `bzn` (bidding
+    zone, e.g. 'DE-LU') while `/public_power_forecast` takes `country`
+    (e.g. 'de') — confirmed against the live openapi.json spec at
+    https://api.energy-charts.info/openapi.json, not guessed. Both are kept
+    in configs/data.yaml under `live.bzn` / `live.country` and must be kept
+    in sync manually if the market changes (e.g. the France stretch goal).
     """
+
+    # production_type values that sum to epftoolbox's exog_2 convention
+    # (day-ahead solar + wind generation forecast).
+    _RENEWABLE_TYPES = ("solar", "wind_onshore", "wind_offshore")
 
     def __init__(self, cfg: dict):
         self.cfg = cfg["live"]
         self.base_url = self.cfg["base_url"].rstrip("/")
 
+    # fetch_renewables/fetch_exog fire several sequential requests per call;
+    # the API 429s on bursts even well under any documented quota, so retry
+    # with backoff instead of treating a burst as a hard failure.
+    _MAX_RETRIES = 3
+
     def _get(self, endpoint: str, params: dict) -> dict:
         url = f"{self.base_url}/{endpoint.lstrip('/')}"
-        logger.info("GET %s params=%s", url, params)
-        r = requests.get(url, params=params, timeout=30)
-        r.raise_for_status()
-        return r.json()
+        for attempt in range(self._MAX_RETRIES + 1):
+            logger.info("GET %s params=%s", url, params)
+            r = requests.get(url, params=params, timeout=30)
+            if r.status_code == 429 and attempt < self._MAX_RETRIES:
+                wait = float(r.headers.get("Retry-After", 2 ** attempt))
+                logger.warning("429 from %s, retrying in %.1fs", url, wait)
+                time.sleep(wait)
+                continue
+            r.raise_for_status()
+            return r.json()
+
+    def _resample(self, df: pd.DataFrame) -> pd.DataFrame:
+        if self.cfg.get("resample_to_hourly", True):
+            df = df.resample("1h").mean()
+        df.index.name = "timestamp"
+        return df
 
     def fetch_prices(self, start: str, end: str) -> pd.DataFrame:
         """Day-ahead prices for cfg['bzn'] between start/end (YYYY-MM-DD).
@@ -118,14 +143,77 @@ class EnergyChartsLoader:
             }
         ).set_index("timestamp")
 
-        # Drop trailing nulls (future slots not yet published)
-        df = df.dropna(subset=["price"])
+        # Trim only the trailing run of not-yet-published nulls; an interior
+        # NaN is a real API gap and must stay visible, not be silently
+        # dropped (dropping it would misalign downstream lag features).
+        last_valid = df["price"].last_valid_index()
+        df = df.loc[:last_valid] if last_valid is not None else df.iloc[0:0]
+        return self._resample(df)
 
-        if self.cfg.get("resample_to_hourly", True):
-            df = df.resample("1h").mean()
+    def _fetch_forecast(self, production_type: str, start: str, end: str) -> pd.Series:
+        """Day-ahead forecast series for one /public_power_forecast type."""
+        data = self._get(
+            "public_power_forecast",
+            {
+                "country": self.cfg["country"],
+                "production_type": production_type,
+                "forecast_type": "day-ahead",
+                "start": start,
+                "end": end,
+            },
+        )
+        s = pd.Series(
+            data["forecast_values"],
+            index=pd.to_datetime(data["unix_seconds"], unit="s", utc=True),
+            name=production_type,
+        )
+        s.index.name = "timestamp"
+        return s
 
-        df.index.name = "timestamp"
-        return df
+    def fetch_load(self, start: str, end: str) -> pd.DataFrame:
+        """Day-ahead total load forecast (epftoolbox exog_1 equivalent).
+
+        Returns a DataFrame with hourly DatetimeIndex (UTC) and column
+        'load' in MW.
+        """
+        s = self._fetch_forecast("load", start, end).rename("load")
+        return self._resample(s.to_frame())
+
+    def fetch_renewables(self, start: str, end: str) -> pd.DataFrame:
+        """Day-ahead solar + wind generation forecast (exog_2 equivalent).
+
+        Sums solar, wind_onshore and wind_offshore day-ahead forecasts —
+        the same components Lago et al.'s DE dataset uses for exog_2.
+        Returns a DataFrame with hourly DatetimeIndex (UTC) and column
+        'renewables' in MW.
+        """
+        parts = [self._fetch_forecast(t, start, end) for t in self._RENEWABLE_TYPES]
+        # min_count keeps an hour NaN if any component is missing, rather
+        # than sum()'s default skipna=True silently treating a gap as 0
+        # and underestimating exog_2.
+        combined = (
+            pd.concat(parts, axis=1)
+            .sum(axis=1, min_count=len(self._RENEWABLE_TYPES))
+            .rename("renewables")
+        )
+        return self._resample(combined.to_frame())
+
+    def fetch_exog(self, start: str, end: str) -> pd.DataFrame:
+        """Price + load + renewables in the BenchmarkLoader schema.
+
+        Returns a DataFrame with columns ['price', 'exog_1', 'exog_2'] —
+        exog_1 = day-ahead load forecast, exog_2 = day-ahead renewable
+        generation forecast, matching BenchmarkLoader's column naming so
+        the live loader is a drop-in replacement for the feature pipeline.
+        """
+        price = self.fetch_prices(start, end)
+        load = self.fetch_load(start, end).rename(columns={"load": "exog_1"})
+        renewables = self.fetch_renewables(start, end).rename(
+            columns={"renewables": "exog_2"}
+        )
+        out = price.join(load, how="inner").join(renewables, how="inner")
+        out.index.name = "timestamp"
+        return out
 
     @property
     def attribution(self) -> str:
