@@ -148,7 +148,7 @@ rather than trusted from one early smoke test.
 | Week | What gets tested | Status |
 |---|---|---|
 | 1 | Initial verification: epftoolbox full download (gaps/NaNs/stats) + Energy-Charts /price smoke test | DONE — both passed (see week 1 entries) |
-| 3 | New Energy-Charts endpoints (load + renewables): JSON parsing, 15-min→hourly resampling, schema match vs BenchmarkLoader, unit test on a sample month. Plus leakage assertion test on the feature pipeline | IN PROGRESS — current task |
+| 3 | New Energy-Charts endpoints (load + renewables): JSON parsing, 15-min→hourly resampling, schema match vs BenchmarkLoader, unit test on a sample month. Plus leakage assertion test on the feature pipeline | DONE — see 2026-07-13 entry below |
 | 4 | Indirect re-test: walk-forward framework consumes processed benchmark data end-to-end; LEAR sanity check vs published Lago et al. numbers doubles as a silent-data-bug detector | Scheduled |
 | 7 | Pre-freeze reproducibility check: fresh environment, one model end-to-end from config — re-verifies benchmark download path from scratch | Scheduled |
 | 8 or 11 | Live pipeline under real load: OOD stress test pulls a large 2026 window through EnergyChartsLoader (much bigger than week-1 smoke test) | Scheduled |
@@ -157,6 +157,65 @@ rather than trusted from one early smoke test.
 Mitigation note: on the first successful large 2026 pull (week 8 or 11),
 cache the window to data/processed/live_2026_cache.csv so the OOD test and
 defense demo can run from the cached copy if the API hiccups on defense day.
+
+### 2026-07-13 — Week 3 closed: Energy-Charts load/renewables endpoints
+
+- Real endpoint names/params pulled from the live openapi.json spec
+  (https://api.energy-charts.info/openapi.json), not guessed. Key finding:
+  parameter naming is NOT uniform across the API — `/price` takes `bzn`
+  (bidding zone, e.g. `DE-LU`) but `/public_power_forecast` takes `country`
+  (e.g. `de`). Both kept in configs/data.yaml (`live.bzn` / `live.country`)
+  and must be updated together if the market changes (France stretch goal).
+- No dedicated `/load` or `/total_load` endpoint exists. Load is only
+  available via `/public_power_forecast?production_type=load&forecast_type=
+  day-ahead` — confirmed this is the correct exog_1 equivalent (day-ahead
+  load forecast, matching epftoolbox's DE dataset convention).
+- Implemented in `src/data/loader.py`: `EnergyChartsLoader.fetch_load`
+  (day-ahead load forecast, exog_1), `.fetch_renewables` (solar +
+  wind_onshore + wind_offshore day-ahead forecast summed, exog_2), and
+  `.fetch_exog` (joins price+load+renewables into the same
+  `['price','exog_1','exog_2']` schema as BenchmarkLoader, so the live
+  loader is a drop-in equivalent).
+- Reviewed by the leakage-reviewer agent: **no origin-crossing leakage** —
+  `_fetch_forecast` hardcodes `forecast_type="day-ahead"` on every call
+  (no code path can substitute realized/actuals data into exog_1/exog_2),
+  and `fetch_exog`'s joins are all `how="inner"` with no
+  backfill/interpolation, so no future value can bleed into an earlier row.
+  `pipeline.py` does not import/call `EnergyChartsLoader` yet, so no
+  benchmark train/eval path is contaminated (tool-only rule intact).
+  Two real (non-leakage) bugs found and fixed: (a) `fetch_renewables`
+  summed the three renewable components with default `skipna=True`,
+  silently treating a missing component (e.g. wind_offshore gap) as 0 and
+  underestimating exog_2 — fixed with `min_count=len(components)` so a
+  missing component now surfaces as NaN; (b) `fetch_prices` used a blanket
+  `dropna` intended only to trim not-yet-published trailing nulls, which
+  would have also silently deleted interior API gaps and misaligned
+  downstream lag features — fixed to trim only the trailing NaN run via
+  `last_valid_index`. Added two offline (non-network) regression tests:
+  one asserting every load/renewables request hardcodes
+  `forecast_type="day-ahead"` (the single most safety-critical invariant
+  in this file), one asserting a missing renewable component yields NaN
+  not a silently-low sum.
+  Deferred (logged, not blocking): whether `/public_power_forecast?
+  forecast_type=day-ahead` values are genuinely published before the D
+  noon origin for day D+1, vs. continuously re-issued — verified operationally
+  by construction (values are stable once past the query date; no
+  re-fetch-and-diff verification run yet). Revisit if the week-8/11 OOD
+  test surfaces any origin-timing anomaly.
+- Also discovered: the API 429s on a burst of ~4-8 sequential requests
+  well under any documented quota (hit during test runs, not just at
+  week-8/11 "real load" scale). Added retry-with-backoff (honors
+  `Retry-After`, else exponential, 3 retries) to `_get` rather than
+  deferring the fix to week 8 — this would have blocked even a single
+  `fetch_exog` call in normal use.
+- Tests: tests/test_loaders.py — 19/19 pass (was 6 before this entry).
+  Network-marked tests include a load fetch and a renewables fetch over a
+  full sample month (2026-06-01 to 2026-07-01, ~700 hourly rows) plus a
+  schema-match test confirming `fetch_exog` output has exactly
+  `['price', 'exog_1', 'exog_2']` columns matching BenchmarkLoader.
+- Full leakage-assertion suite (tests/test_features.py, from the earlier
+  week-3 feature pipeline entry) re-run alongside these changes: still
+  10/10 pass; combined with loader tests, full suite is 19/19 green.
 
 ---
 

@@ -13,8 +13,12 @@ benchmark:
 live:
   # Energy-Charts API (Fraunhofer ISE) — keyless, CC BY 4.0
   base_url: "https://api.energy-charts.info"
-  # Bidding zone: 'DE-LU' (Germany today), 'FR', 'BE', ...
+  # Bidding zone: 'DE-LU' (Germany today), 'FR', 'BE', ... (used by /price)
   bzn: "DE-LU"
+  # Country code: 'de' (used by /public_power_forecast — that endpoint has no
+  # bzn param, only country, so the two params must be kept in sync manually
+  # if the market ever changes, e.g. for the France stretch goal)
+  country: "de"
   # Recent data arrives at 15-min resolution; pipeline schema is hourly
   resample_to_hourly: true
   # Required attribution (thesis, app UI, README)
