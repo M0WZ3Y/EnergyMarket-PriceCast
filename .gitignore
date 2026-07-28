@@ -3,6 +3,9 @@ data/raw/*
 data/processed/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
+# Exception: walk-forward baseline predictions are load-bearing for the
+# v1.0-results freeze (SARIMAX is not bit-reproducible across BLAS builds)
+!data/processed/baselines/
 
 # Models & experiment artifacts
 models/*
