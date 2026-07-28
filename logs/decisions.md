@@ -428,6 +428,48 @@ defense demo can run from the cached copy if the API hiccups on defense day.
   checkpoint) hasn't been executed yet — today's runs were small
   wiring-validation slices only.
 
+### 2026-07-28 — Full 2-year baseline walk-forward run complete
+
+- Ran all three baselines over the complete benchmark test period via the
+  new `scripts/run_full_baselines.py` (same wiring as
+  `src/evaluation/run_baselines.py`, plus what a multi-hour run needs:
+  per-origin CSV checkpointing with crash-safe resume — only origins with
+  all 24 hours written count as done — progress/ETA logging, one output
+  file per model under `data/processed/baselines/`).
+- Coverage: 728 origins (2016-01-04 -> 2017-12-31), 17,472 predictions
+  per model, zero NaN predictions in any of the three files.
+- Headline hourly metrics (informal, computed directly from the long
+  frames — the formal metrics layer / results-table export is still a
+  separate task):
+
+  | model | MAE | RMSE |
+  |---|---|---|
+  | naive | 7.750 | 13.257 |
+  | SARIMAX | 4.351 | 7.117 |
+  | LEAR-LASSO | 3.899 | 6.475 |
+
+- Reading: ordering is exactly as expected (naive >> SARIMAX >
+  LEAR-LASSO), and LEAR-LASSO's 3.90 MAE sits in the right neighborhood
+  of Lago et al.'s published DE LEAR results — strong evidence the whole
+  loader -> features -> walk-forward path reproduces the benchmark
+  protocol faithfully. This satisfies the week-4 "indirect re-test" row
+  of the 2026-07-13 data source testing schedule (LEAR sanity check as
+  silent-data-bug detector). The formal side-by-side against the
+  published table (exact numbers from the paper, not recollection) is
+  the week-5 checkpoint and still to come, together with LightGBM.
+- SARIMAX emitted statsmodels ConvergenceWarnings on some weekly refits
+  (expected for seasonal orders on real price data; forecasts were still
+  produced for every origin). Runtime: ~3.4 s/origin (~41 min total) —
+  the weekly-refit cadence logged on 2026-07-27 made the full run
+  practical. LEAR-LASSO and naive were faster still.
+- Decision: committed the three result CSVs to git via a narrow
+  `.gitignore` exception (`!data/processed/baselines/`), deviating from
+  the "processed is regenerable" default. Rationale: the v1.0-results
+  freeze rule makes these exact numbers load-bearing for the thesis
+  text, and SARIMAX refits are not bit-reproducible across
+  BLAS/statsmodels builds even at seed 42 — versioning ~4 MB of CSV is
+  cheaper than discovering a silent drift after the freeze.
+
 ---
 
 Pages banked: 0 / quota 0 | Results table: n/a | Backup: [ ]
