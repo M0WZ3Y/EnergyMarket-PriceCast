@@ -279,4 +279,155 @@ defense demo can run from the cached copy if the API hiccups on defense day.
 
 ---
 
+## Week 5
+
+### 2026-07-27 — Environment fix: epftoolbox/numpy-2.x incompatibility
+
+- Discovered the active shell had no working Python environment for this
+  project at all: no `conda` binary anywhere on the machine (bash or
+  PowerShell), and `epftoolbox` was not importable in the system Python
+  3.11 install — meaning even the existing week-4 evaluation suite
+  (`tests/test_evaluation.py`, which imports `src/evaluation/metrics.py`
+  -> `epftoolbox.evaluation`) was silently unrunnable before today.
+- Fix: created a project-local `.venv` (Python 3.11 — the only interpreter
+  available on this machine; `environment.yml`'s Python 3.10 pin could not
+  be honored since no 3.10 install or conda exists here) and
+  `pip install -r requirements.txt`. This resolved cleanly, including
+  `epftoolbox` + its `tensorflow`/`keras` dependency chain.
+- Re-ran the full pre-existing suite as a smoke test immediately after
+  install: 32/32 still green, confirming no regression from the new
+  environment.
+- Found (and worked around, not by downgrading numpy) a real
+  epftoolbox/numpy-2.x incompatibility: `epftoolbox.models.LEAR.predict()`
+  (`_lear.py:109`) does `Yp[h] = self.models[h].predict(X)`, relying on
+  numpy's old implicit array-to-scalar coercion for the length-1 array
+  each per-hour Lasso model returns. numpy>=1.25 deprecated this and
+  numpy 2.x (2.4.6, installed here) removed it outright, raising
+  "setting an array element with a sequence" on every `LEAR.predict()`
+  call. epftoolbox's own metadata declares only `numpy>=1` with no upper
+  bound and was never updated for this — not a bug in our code. Downgrading
+  numpy was rejected: the installed `tensorflow==2.21.0` (an epftoolbox
+  dependency via its DNN model) requires numpy 2.x, so pinning numpy<2
+  would trade one broken dependency for another. Resolution: `src/models/
+  lear_lasso.py`'s `LEARLassoModel.predict()` reproduces `LEAR.predict()`'s
+  exact operation order (scale non-dummy columns via the already-fitted
+  `scalerX`, per-hour `models[h].predict()`, `scalerY.inverse_transform`
+  on the assembled 24-vector) using epftoolbox's own fitted state, with
+  only the final scalar extraction made numpy-2.x-safe (`.predict(Xtest)[0]`
+  instead of relying on removed coercion). `LEAR.recalibrate()` (the
+  numerically significant LassoLarsIC + Lasso fitting step) is called
+  as-is, untouched — this is a compatibility shim for one broken line,
+  not a reimplementation of LEAR.
+
+### 2026-07-27 — Naive / SARIMAX / LEAR-LASSO model wrappers built
+
+- Resolves the week-3/4 open item: **LEAR-LASSO consumes the shared
+  `build_features()` X/Y directly**, via epftoolbox's low-level
+  `LEAR.recalibrate(Xtrain, Ytrain)` / `LEAR.predict(X)` API, not the
+  high-level `recalibrate_and_forecast_next_day` (which reruns its own
+  internal df -> X/Y builder). Confirmed by reading the installed
+  `epftoolbox/models/_lear.py` source: `recalibrate()` accepts pre-built
+  `[n_days, n_features]` / `[n_days, 24]` arrays directly and expects the
+  last 7 columns to be day-of-week dummies — exactly `build_features()`'s
+  existing column order (247 features for the shipped 2-exog config:
+  96 price-lag + 144 exog-lag/current-day + 7 dow, matching epftoolbox's
+  own `n_features = 96 + 7 + n_exogenous*72` formula exactly). This keeps
+  one leakage-audited feature source of truth instead of trusting a
+  second internal builder path, and gives LEAR the same
+  `fit(X,Y)`/`predict(X)` call shape as every other model wrapper.
+- `src/models/base.py`: `BaseModel` ABC — `fit(X, Y) -> self`,
+  `predict(X) -> DataFrame[y_h00..y_h23]`, `save(path)`, `load(path)`,
+  with a shared pickle-based default `save`/`load` every wrapper can use
+  or override. All fit/predict calls take/return DataFrames in
+  `build_features()`'s exact shape so `src/evaluation/run_baselines.py`
+  never branches on model type.
+- `src/models/naive.py`: the standard Lago et al. day-of-week "similar
+  day" naive — Monday -> `price_D-3` (last Friday; D-1/D-2 are the
+  weekend), Saturday/Sunday -> `price_D-7`, Tuesday-Friday -> `price_D-1`.
+  Pure column selection over existing `build_features()` lag columns, no
+  fitting, no new numeric logic.
+- `src/models/sarimax.py`: 24 independent per-hour `statsmodels` SARIMAX
+  models (mirroring LEAR-LASSO's own per-hour independence), exogenous =
+  the target day's own day-ahead `exog_1_D0`/`exog_2_D0` forecasts
+  (legal — known before the forecast origin, never realized price).
+  **Logged deviation from strict daily recalibration**: fully refitting
+  24 seasonal SARIMAX models across the full ~730-origin walk-forward
+  test period (~17.5k fits) is not practical, and — unlike LEAR-LASSO —
+  there is no upstream Lago et al./epftoolbox precedent constraining
+  SARIMAX's cadence specifically (SARIMAX is this thesis's own addition
+  as the classical/interpretable baseline). SARIMAX fully refits every
+  `refit_every_n_days` (default 7, `configs/models.yaml`) and uses
+  statsmodels' cheap `.append(refit=False)` state-space update in
+  between; the harness still *forecasts* every origin day
+  (`walk_forward.step_days` stays 1), so the daily model-comparison stays
+  fair — only SARIMAX's own fitted parameters are held between full
+  refits. Disclosed here rather than silently baked in, since CLAUDE.md's
+  daily-recalibration walk-forward protocol was written with LEAR's fast
+  Lasso refit as the reference case.
+- `configs/models.yaml` (new): `naive.rule`, `sarimax.{order,
+  seasonal_order, exog_columns_prefix, refit_every_n_days}`,
+  `lear_lasso.calibration_window_days` (null -> falls back to
+  `evaluation.yaml`'s single source of truth), `artifact_dir`.
+- `src/evaluation/run_baselines.py` (new): wires
+  `BenchmarkLoader` -> `build_features` -> `walk_forward_splits` ->
+  `model.fit`/`predict` -> a long `[origin, hour, y_true, y_pred, model]`
+  DataFrame per model. Stops there deliberately — the metrics/results-
+  table export (model x target x metric, per `.claude/skills/
+  export-results/SKILL.md`) is a separate, not-yet-built task.
+- **Daily-target modeling (RQ4) explicitly deferred**: land hourly for
+  all three models first; the long-format results frame already contains
+  everything needed for daily-aggregated metrics later
+  (`groupby('origin').mean()`). Daily-*direct* fitting is its own later
+  task, once hourly is validated against Lago et al.'s numbers (week-5
+  checkpoint).
+- Leakage-reviewer review of `src/models/{base,naive,sarimax,
+  lear_lasso}.py` and `src/evaluation/run_baselines.py`: **no leakage**
+  found (no feature/model path reads same-day or future-of-origin data;
+  naive never touches a same-day price column since `build_features()`
+  doesn't even produce one; SARIMAX's exog columns are confirmed
+  day-ahead-legal; LEAR's scaler fit/transform separation and the
+  numpy-2.x predict() shim were both confirmed faithful to epftoolbox's
+  original by reading its installed source). The review did catch one
+  real (non-leakage) correctness bug, fixed before treating this as done:
+  `SARIMAXModel.fit()` was updating `_last_refit_end` unconditionally on
+  every call instead of only on an actual full refit — since
+  `walk_forward_splits` advances the origin by 1 day per call, this made
+  `(train_end - _last_refit_end).days` always equal 1, so
+  `needs_full_refit` could never re-trigger after the very first cycle
+  (SARIMAX would have silently refit once and appended forever, growing
+  its effective training history unboundedly instead of holding a fixed
+  rolling window — not a future-information leak, since every appended
+  day was still strictly pre-origin, but it would have invalidated the
+  "fixed window, refit every N days" methodology this section describes).
+  Fixed by only stamping `_last_refit_end` inside the `needs_full_refit`
+  branch. Also hardened `LEARLassoModel.predict()` with the same
+  exactly-one-row guard `SARIMAXModel.predict()` already had (the
+  reviewer flagged that without it, a future multi-row caller would
+  silently get row-0's prediction repeated for every row instead of a
+  loud error).
+- Tests: `tests/test_models.py` — 16 new tests (interface conformance,
+  naive's 4 weekday-rule branches + idempotency + schema, SARIMAX's
+  single-row guard / exog-column contract / refit-cadence regression test
+  (7 sequential calls, long enough to distinguish "cadence from last full
+  refit" from the caught bug's "cadence from last call") / end-to-end
+  forecast shape, LEAR-LASSO's single-row guard / column-order guard /
+  real-epftoolbox recalibrate+predict shape check — the last two marked
+  `epftoolbox` (new `pytest.ini` marker, deselect with
+  `-m "not epftoolbox"`) since they exercise the real package). Full
+  offline suite: 48/48 green (32 prior + 16 new), 45/48 with
+  `-m "not epftoolbox"`.
+- Manually sanity-ran `run_baselines.run_model()` for all three models on
+  real `BenchmarkLoader` DE data over a handful of origins (not the full
+  2-year test period — expensive and unnecessary just to validate
+  wiring): naive and SARIMAX each produced `n_origins * 24` rows in
+  seconds; LEAR-LASSO likewise, ~15s for 3 origins with a 300-day
+  window. Output shapes and column names matched `Y`'s schema in all
+  three cases.
+- Open item for next session: the full walk-forward run over the real
+  2-year test period (needed before the week-5 LightGBM-vs-Lago-et-al.
+  checkpoint) hasn't been executed yet — today's runs were small
+  wiring-validation slices only.
+
+---
+
 Pages banked: 0 / quota 0 | Results table: n/a | Backup: [ ]
