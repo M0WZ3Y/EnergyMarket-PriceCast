@@ -1,0 +1,32 @@
+# Model hyperparameters/config — src/models/
+#
+# random_seed: 42 (configs/evaluation.yaml) applies project-wide; no model
+# wrapper here introduces a separate seed of its own.
+
+naive:
+  # Lago et al. day-of-week naive: Monday -> D-3 (last Friday),
+  # Saturday/Sunday -> D-7, Tuesday-Friday -> D-1. No hyperparameters.
+  rule: "lago_dow"
+
+sarimax:
+  order: [1, 1, 1]
+  seasonal_order: [1, 0, 1, 7]
+  # Per-hour exogenous regressors: the target day's own day-ahead exog_1/
+  # exog_2 forecasts (legal -- known before the forecast origin).
+  exog_columns_prefix: ["exog_1_D0", "exog_2_D0"]
+  # Full refit cadence in days; forecasts are still produced every origin
+  # (harness walk_forward.step_days stays 1). See logs/decisions.md for
+  # the runtime rationale (24 hourly models x ~730 origins is impractical
+  # to fully refit daily) and src/models/sarimax.py's docstring for the
+  # append-only update mechanism used between full refits.
+  refit_every_n_days: 7
+
+lear_lasso:
+  # null -> fall back to configs/evaluation.yaml's
+  # walk_forward.calibration_window_days (single source of truth). Set an
+  # explicit override here only for a deliberate ablation run.
+  calibration_window_days: null
+
+# Where BaseModel.save()/load() persist artifacts, one subdirectory per
+# model name (e.g. models/naive/, models/sarimax/, models/lear_lasso/).
+artifact_dir: "models"
