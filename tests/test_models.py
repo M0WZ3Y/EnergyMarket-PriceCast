@@ -437,3 +437,189 @@ def test_lightgbm_malformed_tuned_file_raises(tmp_path):
     tuned.write_text(yaml.safe_dump(dict(validation_mae=3.9, n_trials=50)))
     with pytest.raises(ValueError, match="params"):
         LightGBMModel(_lgbm_cfg(tuned_params_file=str(tuned)))
+
+
+# --------------------------------------------------------------------------
+# LSTM
+# --------------------------------------------------------------------------
+
+def _lstm_cfg(**overrides):
+    cfg = dict(
+        refit_every_n_days=7,
+        sequence_lags=[7, 3, 2, 1],  # oldest -> newest timesteps
+        units=8,
+        epochs=2,
+        batch_size=32,
+        tuned_params_file=None,
+    )
+    cfg.update(overrides)
+    return cfg
+
+
+def test_lstm_conforms_to_base_model_interface():
+    from src.models import LSTMModel
+
+    model = LSTMModel(_lstm_cfg())
+    assert isinstance(model, BaseModel)
+    for method in ("fit", "predict", "save", "load"):
+        assert callable(getattr(model, method))
+
+
+def test_lstm_predict_raises_on_multi_row_X():
+    from src.models import LSTMModel
+
+    X, Y = build_features(_synthetic_df(30), FEATURE_CFG)
+    model = LSTMModel(_lstm_cfg()).fit(X, Y)
+    with pytest.raises(ValueError):
+        model.predict(X)
+
+
+def test_lstm_predict_raises_on_reordered_columns():
+    from src.models import LSTMModel
+
+    X, Y = build_features(_synthetic_df(30), FEATURE_CFG)
+    model = LSTMModel(_lstm_cfg()).fit(X, Y)
+    reordered = X.iloc[[-1]][list(X.columns[::-1])]
+    with pytest.raises(ValueError):
+        model.predict(reordered)
+
+
+def test_lstm_sequence_uses_only_price_lag_columns():
+    """The LSTM's sequence branch must be built exclusively from the
+    audited price_D-<lag> columns of the shared X — never from any column
+    that could carry target-day price information (none exists in X, but
+    the selection must be by explicit prefix, not positional)."""
+    from src.models import LSTMModel
+
+    X, Y = build_features(_synthetic_df(30), FEATURE_CFG)
+    model = LSTMModel(_lstm_cfg())
+    seq_cols = model._sequence_columns(X.columns)
+    assert len(seq_cols) == 4  # one entry per configured lag
+    for lag, cols in zip([7, 3, 2, 1], seq_cols):
+        assert len(cols) == 24
+        assert all(c.startswith(f"price_D-{lag}_") for c in cols)
+
+
+def test_lstm_refit_cadence_only_stamps_on_full_refit():
+    from src.models import LSTMModel
+
+    X, Y = build_features(_synthetic_df(45), FEATURE_CFG)
+    days = Y.index
+    model = LSTMModel(_lstm_cfg(refit_every_n_days=3, epochs=1))
+
+    model.fit(X.loc[days[:20]], Y.loc[days[:20]])
+    first_net = model._net
+    stamp = model._last_refit_end
+
+    model.fit(X.loc[days[1:21]], Y.loc[days[1:21]])
+    model.fit(X.loc[days[2:22]], Y.loc[days[2:22]])
+    assert model._last_refit_end == stamp
+    assert model._net is first_net
+
+    model.fit(X.loc[days[3:23]], Y.loc[days[3:23]])
+    assert model._last_refit_end != stamp
+    assert model._net is not first_net
+
+
+def test_lstm_end_to_end_walk_forward_on_synthetic_data():
+    from src.models import LSTMModel
+
+    X, Y = build_features(_synthetic_df(45), FEATURE_CFG)
+    eval_cfg = dict(walk_forward=dict(calibration_window_days=15, step_days=1), random_seed=42)
+    first_origin = Y.index[30]
+    n_origins = sum(1 for d in Y.index if d >= first_origin)
+
+    result = run_model(
+        "LSTM",
+        LSTMModel(_lstm_cfg(epochs=1, refit_every_n_days=30)),
+        X,
+        Y,
+        eval_cfg=eval_cfg,
+        first_origin=first_origin,
+    )
+    assert len(result) == n_origins * 24
+    assert result.columns.tolist() == ["origin", "hour", "y_true", "y_pred", "model"]
+    assert not result["y_pred"].isna().any()
+
+
+def test_lstm_tuned_params_file_merges_over_defaults(tmp_path):
+    """Leakage-review bug fix: models.yaml declares tuned_params_file for
+    lstm but the wrapper ignored it -- tuned params must merge over the
+    config defaults (same channel as LightGBM)."""
+    import yaml
+
+    from src.models import LSTMModel
+
+    tuned = tmp_path / "tuned.yaml"
+    tuned.write_text(yaml.safe_dump(dict(params=dict(units=16, learning_rate=0.005))))
+    model = LSTMModel(_lstm_cfg(units=8, tuned_params_file=str(tuned)))
+    assert model.units == 16
+    assert model.learning_rate == 0.005
+    assert model.epochs == 2  # non-tuned default untouched
+
+
+def test_lstm_malformed_tuned_file_raises(tmp_path):
+    import yaml
+
+    from src.models import LSTMModel
+
+    tuned = tmp_path / "tuned.yaml"
+    tuned.write_text(yaml.safe_dump(dict(validation_mae=9.9)))
+    with pytest.raises(ValueError, match="params"):
+        LSTMModel(_lstm_cfg(tuned_params_file=str(tuned)))
+
+
+def test_lstm_predict_unfitted_raises_clear_error():
+    from src.models import LSTMModel
+
+    X, _ = build_features(_synthetic_df(30), FEATURE_CFG)
+    with pytest.raises(RuntimeError, match="not fitted"):
+        LSTMModel(_lstm_cfg()).predict(X.iloc[[-1]])
+
+
+def test_lstm_scalers_untouched_between_refits_and_at_predict():
+    """Guards the reviewed leak class: between full refits and during
+    predict(), the train-slice scalers must not be refit or mutated."""
+    from src.models import LSTMModel
+
+    X, Y = build_features(_synthetic_df(45), FEATURE_CFG)
+    days = Y.index
+    model = LSTMModel(_lstm_cfg(refit_every_n_days=5, epochs=1))
+    model.fit(X.loc[days[:20]], Y.loc[days[:20]])
+    scalers = model._scalers
+    seq_mean = scalers[0].mean_.copy()
+
+    model.fit(X.loc[days[1:21]], Y.loc[days[1:21]])  # non-refit call
+    model.predict(X.loc[days[[21]]])
+    assert model._scalers is scalers
+    assert np.array_equal(model._scalers[0].mean_, seq_mean)
+
+
+def test_lstm_fit_raises_on_backward_train_window():
+    """A train window ending BEFORE the last refit would reuse a network
+    trained on later data -- genuine leakage if any caller ever iterates
+    origins out of order. Must refuse loudly."""
+    from src.models import LSTMModel
+
+    X, Y = build_features(_synthetic_df(45), FEATURE_CFG)
+    days = Y.index
+    model = LSTMModel(_lstm_cfg(epochs=1))
+    model.fit(X.loc[days[:20]], Y.loc[days[:20]])
+    with pytest.raises(ValueError, match="backward"):
+        model.fit(X.loc[days[:10]], Y.loc[days[:10]])
+
+
+def test_lstm_load_raises_when_keras_file_missing(tmp_path):
+    """load() silently leaving _net=None while is_fitted=True would give
+    an opaque AttributeError at predict -- exactly the path the week-8/11
+    OOD stress test will exercise. Must raise cleanly instead."""
+    from src.models import LSTMModel
+
+    X, Y = build_features(_synthetic_df(30), FEATURE_CFG)
+    model = LSTMModel(_lstm_cfg(epochs=1)).fit(X, Y)
+    path = tmp_path / "lstm_artifact.pkl"
+    model.save(path)
+    path.with_suffix(".keras").unlink()
+
+    with pytest.raises(RuntimeError, match="keras"):
+        LSTMModel(_lstm_cfg()).load(path)
