@@ -291,3 +291,149 @@ def test_run_baselines_end_to_end_on_synthetic_data():
     )
     assert len(sarimax_result) == n_origins * 24
     assert not sarimax_result["y_pred"].isna().any()
+
+
+# --------------------------------------------------------------------------
+# LightGBM
+# --------------------------------------------------------------------------
+
+def _lgbm_cfg(**overrides):
+    cfg = dict(
+        refit_every_n_days=1,
+        params=dict(objective="regression_l1", n_estimators=10, num_leaves=7),
+        tuned_params_file=None,
+    )
+    cfg.update(overrides)
+    return cfg
+
+
+def test_lightgbm_conforms_to_base_model_interface():
+    from src.models import LightGBMModel
+
+    model = LightGBMModel(_lgbm_cfg())
+    assert isinstance(model, BaseModel)
+    for method in ("fit", "predict", "save", "load"):
+        assert callable(getattr(model, method))
+
+
+def test_lightgbm_predict_raises_on_multi_row_X():
+    from src.models import LightGBMModel
+
+    X, Y = build_features(_synthetic_df(30), FEATURE_CFG)
+    model = LightGBMModel(_lgbm_cfg()).fit(X, Y)
+    with pytest.raises(ValueError):
+        model.predict(X)
+
+
+def test_lightgbm_predict_raises_on_reordered_columns():
+    from src.models import LightGBMModel
+
+    X, Y = build_features(_synthetic_df(30), FEATURE_CFG)
+    model = LightGBMModel(_lgbm_cfg()).fit(X, Y)
+    reordered = X.iloc[[-1]][list(X.columns[::-1])]
+    with pytest.raises(ValueError):
+        model.predict(reordered)
+
+
+def test_lightgbm_seed_and_determinism_forced_over_config():
+    """The project's seed-42 rule must survive any params dict a config or
+    tuned-params file could supply -- FORCED_PARAMS always wins."""
+    from src.models import LightGBMModel
+
+    from src.models.lgbm import FORCED_PARAMS
+
+    cfg = _lgbm_cfg()
+    cfg["params"].update(random_state=7, deterministic=False, n_jobs=8)
+    model = LightGBMModel(cfg)
+    assert model.params["random_state"] == 42
+    assert model.params["deterministic"] is True
+    assert model.params["n_jobs"] == FORCED_PARAMS["n_jobs"]
+
+
+def test_lightgbm_fit_predict_is_deterministic():
+    from src.models import LightGBMModel
+
+    X, Y = build_features(_synthetic_df(40), FEATURE_CFG)
+    test_day = X.index[[-1]]
+    p1 = LightGBMModel(_lgbm_cfg()).fit(X, Y).predict(X.loc[test_day])
+    p2 = LightGBMModel(_lgbm_cfg()).fit(X, Y).predict(X.loc[test_day])
+    pd.testing.assert_frame_equal(p1, p2)
+
+
+def test_lightgbm_refit_cadence_only_stamps_on_full_refit():
+    """Same regression class as SARIMAX's cadence bug: with cadence N and
+    the origin advancing 1 day per fit() call, the model must refit on the
+    Nth day, not never-again after the first fit."""
+    from src.models import LightGBMModel
+
+    X, Y = build_features(_synthetic_df(45), FEATURE_CFG)
+    days = Y.index
+    model = LightGBMModel(_lgbm_cfg(refit_every_n_days=3))
+
+    model.fit(X.loc[days[:20]], Y.loc[days[:20]])
+    first_models = dict(model._models)
+    stamp_after_first = model._last_refit_end
+
+    # +1 and +2 days: within cadence, models must be reused
+    model.fit(X.loc[days[1:21]], Y.loc[days[1:21]])
+    model.fit(X.loc[days[2:22]], Y.loc[days[2:22]])
+    assert model._last_refit_end == stamp_after_first
+    assert all(model._models[h] is first_models[h] for h in range(24))
+
+    # +3 days: cadence reached, full refit must trigger
+    model.fit(X.loc[days[3:23]], Y.loc[days[3:23]])
+    assert model._last_refit_end != stamp_after_first
+    assert all(model._models[h] is not first_models[h] for h in range(24))
+
+
+def test_lightgbm_end_to_end_walk_forward_on_synthetic_data():
+    from src.models import LightGBMModel
+
+    X, Y = build_features(_synthetic_df(60), FEATURE_CFG)
+    eval_cfg = dict(walk_forward=dict(calibration_window_days=20, step_days=1), random_seed=42)
+    first_origin = Y.index[25]
+    n_origins = sum(1 for d in Y.index if d >= first_origin)
+
+    result = run_model(
+        "LightGBM", LightGBMModel(_lgbm_cfg()), X, Y, eval_cfg=eval_cfg, first_origin=first_origin
+    )
+    assert len(result) == n_origins * 24
+    assert not result["y_pred"].isna().any()
+
+
+def test_lightgbm_tuned_file_cannot_override_forced_params(tmp_path):
+    """Seed-42 rule guarded through the FILE channel, not just cfg[params]:
+    a tuned-params yaml trying to change seed/determinism/n_jobs must
+    still lose to FORCED_PARAMS."""
+    import yaml
+
+    from src.models import LightGBMModel
+
+    tuned = tmp_path / "tuned.yaml"
+    tuned.write_text(
+        yaml.safe_dump(
+            dict(params=dict(random_state=7, deterministic=False, n_jobs=8, num_leaves=31))
+        )
+    )
+    from src.models.lgbm import FORCED_PARAMS
+
+    model = LightGBMModel(_lgbm_cfg(tuned_params_file=str(tuned)))
+    assert model.params["random_state"] == 42
+    assert model.params["deterministic"] is True
+    assert model.params["n_jobs"] == FORCED_PARAMS["n_jobs"]
+    # non-forced tuned values do merge
+    assert model.params["num_leaves"] == 31
+
+
+def test_lightgbm_malformed_tuned_file_raises(tmp_path):
+    """A tuned file without a 'params' key must fail loudly instead of
+    silently merging file metadata (validation_mae, window strings) into
+    LGBMRegressor kwargs."""
+    import yaml
+
+    from src.models import LightGBMModel
+
+    tuned = tmp_path / "tuned.yaml"
+    tuned.write_text(yaml.safe_dump(dict(validation_mae=3.9, n_trials=50)))
+    with pytest.raises(ValueError, match="params"):
+        LightGBMModel(_lgbm_cfg(tuned_params_file=str(tuned)))
