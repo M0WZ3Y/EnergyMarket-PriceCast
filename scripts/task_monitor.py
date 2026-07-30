@@ -136,20 +136,25 @@ def _bar(done: int, total: int, width: int = 20) -> str:
 PROCEED_RULES = {
     "walk-forward": dict(
         blocked=[
-            "the week-5 checkpoint comparison for THIS model",
+            "the checkpoint comparison for THIS model",
             "committing this model's results CSV (partial file)",
             "the v1.0-results freeze tag",
+            "the next model's tuning/walk-forward EXECUTION (heavy CPU -- "
+            "queue it behind this run)",
         ],
         safe=[
-            "developing other models (LSTM wrapper), tests, thesis writing",
-            "committing/pushing unrelated code",
-            "running the checkpoint for models already DONE",
+            "analysis of models already DONE (checkpoint, DM tests, daily aggregation)",
+            "CPU-light code prep for later milestones (tuning/ensemble scripts, tests)",
+            "committing/pushing code that does not touch this model's outputs",
+            "waiting -- all current milestones are sequential behind this run",
         ],
         avoid=[
             "launching a second run of the SAME model (would corrupt its CSV)",
             "editing/deleting this model's CSV in data/processed/baselines/",
-            "heavy CPU jobs (slows the run; its ETA will stretch)",
+            "heavy CPU jobs incl. network training (slows the run; ETA stretches)",
             "shutting down the machine (run pauses; resumable, but delays ETA)",
+            "thesis drafting (parked by user decision 2026-07-30 until the "
+            "project side is fully done)",
         ],
     ),
     "tuning": dict(
