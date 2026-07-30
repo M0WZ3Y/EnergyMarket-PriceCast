@@ -223,6 +223,30 @@ def render(activities: list[Activity]) -> str:
 WATCH_INTERVAL_S = 1800  # 30 minutes
 
 
+def _wait_for_key_or_timeout(seconds: float) -> str:
+    """Block up to `seconds`, returning early on user input.
+
+    Returns "refresh" (Enter/Space pressed), "quit" ('q' pressed), or
+    "timeout". Uses msvcrt on Windows consoles; falls back to a plain
+    sleep (timeout only) where no console keyboard is available.
+    """
+    try:
+        import msvcrt
+    except ImportError:
+        time.sleep(seconds)
+        return "timeout"
+
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        if msvcrt.kbhit():
+            key = msvcrt.getwch().lower()
+            if key == "q":
+                return "quit"
+            return "refresh"  # Enter, Space, or any other key
+        time.sleep(0.25)
+    return "timeout"
+
+
 def _notify(title: str, text: str) -> None:
     """Non-blocking desktop notification (Windows message box on top,
     in its own thread) + console bell. Used for stop/stall/done events."""
@@ -273,8 +297,15 @@ def main() -> None:
             if watch:
                 print("\nnothing left running -- monitor exiting", flush=True)
             break
+        print(
+            "\n[Enter/Space] refresh now   [q] quit   "
+            f"(auto-refresh in {WATCH_INTERVAL_S // 60} min)",
+            flush=True,
+        )
+        if _wait_for_key_or_timeout(WATCH_INTERVAL_S) == "quit":
+            print("monitor quit by user", flush=True)
+            break
         print(flush=True)
-        time.sleep(WATCH_INTERVAL_S)
 
 
 if __name__ == "__main__":
