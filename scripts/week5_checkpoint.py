@@ -73,10 +73,21 @@ def main() -> None:
 
     for name, fname in OUR_MODELS.items():
         path = OURS_DIR / fname
-        if path.exists():
-            add(name, _ours_to_hourly(path), "this thesis")
-        else:
+        if not path.exists():
             print(f"[skip] {name}: {path.name} not found yet")
+            continue
+        pred = _ours_to_hourly(path)
+        n_missing = int(pred.reindex(real.index).isna().sum())
+        if n_missing > 0:
+            # In-progress walk-forward run: skip rather than compare a
+            # partial series (the `add` guard still catches any other
+            # alignment defect in a complete file).
+            print(
+                f"[skip] {name}: incomplete ({len(pred)}/{len(real)} hours, "
+                f"run still in progress)"
+            )
+            continue
+        add(name, pred, "this thesis")
 
     table = pd.DataFrame(rows).sort_values("MAE").reset_index(drop=True)
     pd.set_option("display.float_format", lambda v: f"{v:8.3f}")
