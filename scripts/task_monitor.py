@@ -1,4 +1,4 @@
-"""Background-activity monitor — scripts/monitor_runs.py
+"""Task monitor — scripts/task_monitor.py
 
 Discovers the project's long-running background activities from their
 on-disk footprints (works no matter which shell/session launched them):
@@ -13,9 +13,9 @@ time spent, and ETA. Rate comes from the artifact's own ctime->mtime
 span, so it is accurate even across pauses/resumes of the same file.
 
 Usage:
-    python scripts/monitor_runs.py            # one-shot status table
-    python scripts/monitor_runs.py --watch    # refresh every 30s until
-                                              # nothing is left running
+    python scripts/task_monitor.py            # one-shot status table
+    python scripts/task_monitor.py --watch    # refresh every 30 min,
+                                              # notify on stop/finish
 """
 
 from __future__ import annotations
@@ -169,7 +169,7 @@ PROCEED_RULES = {
 def render(activities: list[Activity]) -> str:
     now = datetime.now().strftime("%H:%M:%S")
     header = (
-        f"background activities @ {now}\n"
+        f"task monitor @ {now}\n"
         f"{'activity':<28} {'state':<8} {'progress':<28} "
         f"{'rate':<10} {'spent':<8} {'ETA':<8} finishes"
     )
