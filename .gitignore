@@ -24,6 +24,9 @@ __pycache__/
 .vscode/
 .DS_Store
 
+# Graphify knowledge-graph output (regenerate with: graphify . --code-only)
+graphify-out/
+
 # Claude Code: personal/session-local state (shared config in .claude/ is committed)
 .claude/settings.local.json
 .claude/worktrees/
