@@ -227,6 +227,112 @@ def render(activities: list[Activity]) -> str:
 
 WATCH_INTERVAL_S = 1800  # 30 minutes
 
+# How to resume each artifact if its producing process is gone
+# (csv/db stem -> command args after the venv python)
+RESUME_COMMANDS = {
+    "naive": ["scripts/run_full_baselines.py", "naive"],
+    "sarimax": ["scripts/run_full_baselines.py", "SARIMAX"],
+    "lear_lasso": ["scripts/run_full_baselines.py", "LEAR-LASSO"],
+    "lightgbm": ["scripts/run_full_baselines.py", "LightGBM"],
+    "tuning: lightgbm": ["scripts/tune_lightgbm.py"],
+    "tuning: lstm": ["scripts/tune_lstm.py"],
+}
+_PROC_PATTERN = "run_full_baselines|tune_lightgbm|tune_lstm"
+
+
+def _find_run_pids() -> list[int]:
+    """PIDs of python processes running this project's long jobs."""
+    import subprocess
+
+    try:
+        out = subprocess.run(
+            [
+                "powershell",
+                "-NoProfile",
+                "-Command",
+                "Get-CimInstance Win32_Process -Filter \"Name like 'python%'\" | "
+                f"Where-Object {{ $_.CommandLine -match '{_PROC_PATTERN}' }} | "
+                "Select-Object -ExpandProperty ProcessId",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        ).stdout
+        return [int(line) for line in out.split() if line.strip().isdigit()]
+    except Exception:
+        return []
+
+
+def _pause_all() -> None:
+    """Stop all running project jobs. Safe by design: every job
+    checkpoints per origin/trial, so at most the in-flight unit is lost
+    and a later resume continues from the last complete unit. Use before
+    shutting the machine down."""
+    import subprocess
+
+    pids = _find_run_pids()
+    if not pids:
+        print("nothing to pause -- no project job processes found", flush=True)
+        return
+    for pid in pids:
+        subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True)
+    print(
+        f"paused {len(pids)} job process(es); safe to shut down. "
+        "Press [r] after restart to resume.",
+        flush=True,
+    )
+
+
+def _resume_incomplete(activities) -> None:
+    """Relaunch every incomplete activity that has no live process,
+    detached so it survives this monitor window closing. Output goes to
+    logs/runs/<name>.log."""
+    import subprocess
+
+    if _find_run_pids():
+        print("job process(es) already running -- not spawning duplicates", flush=True)
+        return
+    launched = 0
+    log_dir = REPO_ROOT / "logs" / "runs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    python = REPO_ROOT / ".venv" / "Scripts" / "python.exe"
+    for a in activities:
+        if a.state == "DONE":
+            continue
+        key = a.name if a.name.startswith("tuning") else a.name.split(":")[-1].strip()
+        cmd = RESUME_COMMANDS.get(key)
+        if not cmd:
+            print(f"no resume command known for '{a.name}' -- skipped", flush=True)
+            continue
+        log_path = log_dir / f"{key.replace(': ', '_')}.log"
+        with open(log_path, "a") as log:
+            subprocess.Popen(
+                [str(python)] + cmd,
+                cwd=REPO_ROOT,
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                creationflags=0x00000008 | 0x00000200,  # DETACHED | NEW_PROCESS_GROUP
+            )
+        print(f"resumed '{a.name}' (log: {log_path})", flush=True)
+        launched += 1
+    if not launched:
+        print("nothing incomplete to resume", flush=True)
+
+
+def _set_keep_awake(active: bool) -> None:
+    """While a job is RUNNING and the watch window is open, stop Windows
+    from sleeping (display may still turn off). Released automatically
+    when nothing runs or the monitor exits."""
+    try:
+        import ctypes
+
+        ES_CONTINUOUS = 0x80000000
+        ES_SYSTEM_REQUIRED = 0x00000001
+        flags = ES_CONTINUOUS | (ES_SYSTEM_REQUIRED if active else 0)
+        ctypes.windll.kernel32.SetThreadExecutionState(flags)
+    except Exception:
+        pass
+
 
 def _wait_for_key_or_timeout(seconds: float) -> str:
     """Block up to `seconds`, returning early on user input.
@@ -247,6 +353,10 @@ def _wait_for_key_or_timeout(seconds: float) -> str:
             key = msvcrt.getwch().lower()
             if key == "q":
                 return "quit"
+            if key == "p":
+                return "pause"
+            if key == "r":
+                return "resume"
             return "refresh"  # Enter, Space, or any other key
         time.sleep(0.25)
     return "timeout"
@@ -298,18 +408,29 @@ def main() -> None:
         # Keep watching while anything is incomplete -- a STALLED run stays
         # on watch so a resume is picked up and re-notified on completion.
         incomplete = [a for a in acts if a.state != "DONE"]
+        running = [a for a in acts if a.state == "RUNNING"]
+        _set_keep_awake(bool(running))
         if not watch or not incomplete:
+            _set_keep_awake(False)
             if watch:
                 print("\nnothing left running -- monitor exiting", flush=True)
             break
+        awake_note = "   [machine kept awake]" if running else ""
         print(
-            "\n[Enter/Space] refresh now   [q] quit   "
-            f"(auto-refresh in {WATCH_INTERVAL_S // 60} min)",
+            "\n[Enter/Space] refresh   [p] pause jobs (pre-shutdown)   "
+            f"[r] resume   [q] quit   (auto-refresh {WATCH_INTERVAL_S // 60} min)"
+            f"{awake_note}",
             flush=True,
         )
-        if _wait_for_key_or_timeout(WATCH_INTERVAL_S) == "quit":
+        action = _wait_for_key_or_timeout(WATCH_INTERVAL_S)
+        if action == "quit":
+            _set_keep_awake(False)
             print("monitor quit by user", flush=True)
             break
+        if action == "pause":
+            _pause_all()
+        elif action == "resume":
+            _resume_incomplete(acts)
         print(flush=True)
 
 
