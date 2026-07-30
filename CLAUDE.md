@@ -74,6 +74,11 @@ by this repo map directly into chapter 3 (methodology sections 3-3
 through 3-8) and chapter 4 (results, DM tests, SHAP) — see outline.md for
 exact section numbers when generating tables/figures meant for the thesis.
 
+## Session startup (standing instruction, 2026-07-30)
+At the start of every task-oriented session in this project, invoke the
+task-observer skill and superpowers:using-superpowers before other work
+(also enforced by a SessionStart hook in .claude/settings.json).
+
 ## Conventions
 - Config-driven: market/zone/splits come from configs/*.yaml, not code.
 - Model wrappers implement fit/predict/save/load on a common interface.

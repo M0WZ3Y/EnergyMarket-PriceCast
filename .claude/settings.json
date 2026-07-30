@@ -1,8 +1,23 @@
 {
   "enabledPlugins": {
-    "claude-code-setup@claude-plugins-official": true
+    "claude-code-setup@claude-plugins-official": true,
+    "superpowers@superpowers-marketplace": true,
+    "claude-mem@thedotmack": true
   },
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"Standing instruction for this project (user, 2026-07-30): at the start of every task-oriented session, invoke the task-observer skill and the superpowers:using-superpowers skill before other work.\"}}'",
+            "shell": "bash",
+            "timeout": 10,
+            "statusMessage": "Injecting skill-activation reminder..."
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Edit|Write|NotebookEdit",

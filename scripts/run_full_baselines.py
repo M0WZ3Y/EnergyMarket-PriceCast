@@ -23,7 +23,13 @@ sys.path.insert(0, str(REPO_ROOT))
 from src.data.loader import BenchmarkLoader, load_config
 from src.evaluation.walk_forward import load_evaluation_config, walk_forward_splits
 from src.features.pipeline import build_features
-from src.models import LEARLassoModel, NaiveModel, SARIMAXModel, load_models_config
+from src.models import (
+    LEARLassoModel,
+    LightGBMModel,
+    NaiveModel,
+    SARIMAXModel,
+    load_models_config,
+)
 
 OUT_DIR = REPO_ROOT / "data" / "processed" / "baselines"
 COLUMNS = ["origin", "hour", "y_true", "y_pred", "model"]
@@ -92,6 +98,7 @@ def main(only: list[str] | None = None) -> None:
         "naive": NaiveModel(models_cfg["naive"]),
         "LEAR-LASSO": LEARLassoModel(models_cfg["lear_lasso"]),
         "SARIMAX": SARIMAXModel(models_cfg["sarimax"]),
+        "LightGBM": LightGBMModel(models_cfg["lightgbm"]),
     }
     if only:
         models = {k: v for k, v in models.items() if k in only}
