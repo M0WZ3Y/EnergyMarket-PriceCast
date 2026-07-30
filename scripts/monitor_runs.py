@@ -220,18 +220,61 @@ def render(activities: list[Activity]) -> str:
     return "\n".join(lines)
 
 
+WATCH_INTERVAL_S = 1800  # 30 minutes
+
+
+def _notify(title: str, text: str) -> None:
+    """Non-blocking desktop notification (Windows message box on top,
+    in its own thread) + console bell. Used for stop/stall/done events."""
+    print(f"\a*** {title}: {text}", flush=True)
+    try:
+        import ctypes
+        import threading
+
+        MB_SYSTEMMODAL, MB_ICONWARNING = 0x1000, 0x30
+        threading.Thread(
+            target=ctypes.windll.user32.MessageBoxW,
+            args=(None, text, title, MB_SYSTEMMODAL | MB_ICONWARNING),
+            daemon=True,
+        ).start()
+    except Exception:
+        pass  # console bell already fired
+
+
 def main() -> None:
     watch = "--watch" in sys.argv
+    prev_states: dict[str, str] = {}
     while True:
         acts = discover()
         print(render(acts), flush=True)
-        running = [a for a in acts if a.state == "RUNNING"]
-        if not watch or not running:
+
+        # Notify on state transitions: a run that stopped writing while
+        # incomplete (crash/kill/error) or one that just finished.
+        for a in acts:
+            prev = prev_states.get(a.name)
+            if prev is not None and prev != a.state:
+                if a.state == "STALLED":
+                    _notify(
+                        "Background run STOPPED",
+                        f"{a.name} stopped at {a.done}/{a.total} "
+                        f"({100 * a.done / a.total:.0f}%). It is no longer "
+                        f"writing output -- likely crashed or was killed. "
+                        f"Resume: python scripts/run_full_baselines.py "
+                        f"{a.name.split(':')[-1].strip()}",
+                    )
+                elif a.state == "DONE" and prev == "RUNNING":
+                    _notify("Background run finished", f"{a.name} completed {a.total}/{a.total}.")
+            prev_states[a.name] = a.state
+
+        # Keep watching while anything is incomplete -- a STALLED run stays
+        # on watch so a resume is picked up and re-notified on completion.
+        incomplete = [a for a in acts if a.state != "DONE"]
+        if not watch or not incomplete:
             if watch:
                 print("\nnothing left running -- monitor exiting", flush=True)
             break
         print(flush=True)
-        time.sleep(30)
+        time.sleep(WATCH_INTERVAL_S)
 
 
 if __name__ == "__main__":
