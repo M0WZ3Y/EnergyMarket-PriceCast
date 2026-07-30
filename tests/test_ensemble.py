@@ -77,3 +77,60 @@ def test_fit_weights_beats_or_matches_best_single_model_in_sample():
     mae_ens = (ens.y_true - ens.y_pred).abs().mean()
     best_single = min((f.y_true - f.y_pred).abs().mean() for f in frames.values())
     assert mae_ens <= best_single + 1e-9
+
+
+# --------------------------------------------------------------------------
+# Regime-aware ensemble (calm/spike weight sets, sanctioned 2026-07-11)
+# --------------------------------------------------------------------------
+
+from src.evaluation.ensemble import combine_regime_aware, regime_labels
+
+
+def _frame_with_spike_days(model, spike_days, n_days=20, bias=0.0, seed=42):
+    rng = np.random.default_rng(seed)
+    origins = pd.date_range("2021-01-01", periods=n_days, freq="D")
+    rows = []
+    for i, o in enumerate(origins):
+        level = 200.0 if i in spike_days else 50.0
+        y_true = rng.normal(level, 5, size=24)
+        y_pred = y_true + rng.normal(bias, 1, size=24)
+        for h in range(24):
+            rows.append(dict(origin=o, hour=h, y_true=y_true[h], y_pred=y_pred[h], model=model))
+    return pd.DataFrame(rows)
+
+
+def test_regime_labels_use_previous_day_only():
+    """Leakage rule: the regime of origin day D must be decided from the
+    PREVIOUS day's realized prices (known before the forecast origin),
+    never from day D's own outcome."""
+    frame = _frame_with_spike_days("m", spike_days={5})
+    labels = regime_labels(frame, threshold=84.04)
+    origins = sorted(frame["origin"].unique())
+    # day 5 is the spike day; only day 6 (which OBSERVES day 5) is
+    # labeled spike -- day 5 itself was preceded by a calm day
+    assert labels[origins[6]] == "spike"
+    assert labels[origins[5]] == "calm"
+    # first origin has no previous day inside the frame -> calm default
+    assert labels[origins[0]] == "calm"
+
+
+def test_combine_regime_aware_switches_weight_sets():
+    frames = {
+        "a": _frame_with_spike_days("a", spike_days={5}),
+        "b": _frame_with_spike_days("b", spike_days={5}, seed=7),
+    }
+    weights = dict(
+        calm={"a": 1.0, "b": 0.0},  # calm days: pure a
+        spike={"a": 0.0, "b": 1.0},  # spike-regime days: pure b
+    )
+    out = combine_regime_aware(frames, weights, threshold=84.04)
+    origins = sorted(frames["a"]["origin"].unique())
+
+    a_piv = frames["a"].pivot(index="origin", columns="hour", values="y_pred")
+    b_piv = frames["b"].pivot(index="origin", columns="hour", values="y_pred")
+    out_piv = out.pivot(index="origin", columns="hour", values="y_pred")
+
+    # day 6 follows the spike -> spike weights (pure b); day 3 calm -> pure a
+    assert np.allclose(out_piv.loc[origins[6]], b_piv.loc[origins[6]])
+    assert np.allclose(out_piv.loc[origins[3]], a_piv.loc[origins[3]])
+    assert (out["model"] == "regime-ensemble").all()

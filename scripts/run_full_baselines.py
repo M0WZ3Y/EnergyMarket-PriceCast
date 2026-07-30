@@ -45,13 +45,17 @@ def completed_origins(out_path: Path) -> set[pd.Timestamp]:
     return {pd.Timestamp(o) for o in counts[counts == 24].index}
 
 
-def run_one(model_name: str, model, X, Y, eval_cfg, first_origin) -> None:
-    out_path = OUT_DIR / f"{model_name.lower().replace('-', '_')}.csv"
+def run_one(
+    model_name: str, model, X, Y, eval_cfg, first_origin, last_origin=None, out_dir=OUT_DIR
+) -> None:
+    out_path = out_dir / f"{model_name.lower().replace('-', '_')}.csv"
     done = completed_origins(out_path)
     if done:
         print(f"[{model_name}] resuming: {len(done)} origins already complete", flush=True)
 
     splits = list(walk_forward_splits(Y.index, cfg=eval_cfg, first_origin=first_origin))
+    if last_origin is not None:
+        splits = [s for s in splits if s.origin <= last_origin]
     todo = [s for s in splits if s.origin not in done]
     print(f"[{model_name}] {len(todo)} of {len(splits)} origins to run", flush=True)
 
@@ -83,8 +87,22 @@ def run_one(model_name: str, model, X, Y, eval_cfg, first_origin) -> None:
     print(f"[{model_name}] DONE -> {out_path}", flush=True)
 
 
-def main(only: list[str] | None = None) -> None:
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
+def main(
+    only: list[str] | None = None,
+    first_origin: pd.Timestamp | None = None,
+    last_origin: pd.Timestamp | None = None,
+    out_dir=OUT_DIR,
+) -> None:
+    """Default: full benchmark test period into data/processed/baselines/.
+
+    Validation-period runs (week-7 ensemble weight fitting) override the
+    window and output dir, e.g.:
+        run_full_baselines.py naive --first-origin 2015-01-05 \
+            --last-origin 2016-01-03 --out-dir data/processed/validation_preds
+    The validation window must end strictly before the test period; the
+    ensemble weight-fitting code never sees test-period predictions.
+    """
+    out_dir.mkdir(parents=True, exist_ok=True)
 
     data_cfg = load_config()
     df_train, df_test = BenchmarkLoader(data_cfg).load()
@@ -92,7 +110,8 @@ def main(only: list[str] | None = None) -> None:
     X, Y = build_features(df)
     eval_cfg = load_evaluation_config()
     models_cfg = load_models_config()
-    first_origin = df_test.index.min().normalize()
+    if first_origin is None:
+        first_origin = df_test.index.min().normalize()
 
     models = {
         "naive": NaiveModel(models_cfg["naive"]),
@@ -105,10 +124,28 @@ def main(only: list[str] | None = None) -> None:
         if not models:
             raise SystemExit(f"no matching models in {only}")
 
-    print(f"test period starts {first_origin}, models: {list(models)}", flush=True)
+    print(
+        f"origins from {first_origin}"
+        + (f" to {last_origin}" if last_origin is not None else " (to end)")
+        + f", models: {list(models)}, out: {out_dir}",
+        flush=True,
+    )
     for name, model in models.items():
-        run_one(name, model, X, Y, eval_cfg, first_origin)
+        run_one(name, model, X, Y, eval_cfg, first_origin, last_origin, out_dir)
 
 
 if __name__ == "__main__":
-    main(only=sys.argv[1:] or None)
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("models", nargs="*", help="subset of model names (default: all)")
+    parser.add_argument("--first-origin", type=pd.Timestamp, default=None)
+    parser.add_argument("--last-origin", type=pd.Timestamp, default=None)
+    parser.add_argument("--out-dir", type=Path, default=OUT_DIR)
+    args = parser.parse_args()
+    main(
+        only=args.models or None,
+        first_origin=args.first_origin,
+        last_origin=args.last_origin,
+        out_dir=args.out_dir,
+    )

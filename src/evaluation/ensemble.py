@@ -64,6 +64,54 @@ def combine_forecasts(
     return long[["origin", "hour", "y_true", "y_pred", "model"]]
 
 
+def regime_labels(
+    frame: pd.DataFrame, threshold: float, default: str = "calm"
+) -> dict[pd.Timestamp, str]:
+    """Label each origin day 'calm' or 'spike' using ONLY information
+    known before that origin: day D is 'spike' iff the PREVIOUS day's
+    realized prices contain at least one hour above `threshold` (the
+    84.04 EUR/MWh train-only threshold from the week-2 EDA). The first
+    origin, having no previous day inside the frame, gets `default`.
+    Never reads day D's own outcome -- that would leak the label.
+    """
+    day_max = frame.groupby("origin")["y_true"].max().sort_index()
+    prev_max = day_max.shift(1)
+    labels = {}
+    for origin, prev in prev_max.items():
+        if pd.isna(prev):
+            labels[origin] = default
+        else:
+            labels[origin] = "spike" if prev > threshold else "calm"
+    return labels
+
+
+def combine_regime_aware(
+    frames: dict[str, pd.DataFrame],
+    weights: dict[str, dict[str, float]],
+    threshold: float,
+    name: str = "regime-ensemble",
+) -> pd.DataFrame:
+    """Regime-aware convex combination: each origin day uses the weight
+    set of its regime ('calm'/'spike' keys in `weights`), with the
+    regime decided by regime_labels() (previous-day information only).
+    """
+    if set(weights) != {"calm", "spike"}:
+        raise ValueError("regime weights must have exactly the keys 'calm' and 'spike'")
+
+    first = frames[next(iter(frames))]
+    labels = regime_labels(first, threshold)
+
+    parts = []
+    for regime in ("calm", "spike"):
+        days = [o for o, lab in labels.items() if lab == regime]
+        if not days:
+            continue
+        sub = {m: f[f["origin"].isin(days)] for m, f in frames.items()}
+        parts.append(combine_forecasts(sub, weights[regime], name=name))
+    out = pd.concat(parts, ignore_index=True)
+    return out.sort_values(["origin", "hour"]).reset_index(drop=True)
+
+
 def fit_weights(frames: dict[str, pd.DataFrame]) -> dict[str, float]:
     """MAE-minimizing convex weights over the given frames.
 
