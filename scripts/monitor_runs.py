@@ -127,17 +127,54 @@ def discover() -> list[Activity]:
     return activities
 
 
+def _bar(done: int, total: int, width: int = 20) -> str:
+    filled = int(width * done / total) if total else 0
+    return "[" + "#" * filled + "." * (width - filled) + f"] {100 * done / total:3.0f}%"
+
+
+# What an incomplete activity of each kind blocks, and what stays safe.
+PROCEED_RULES = {
+    "walk-forward": dict(
+        blocked=[
+            "the week-5 checkpoint comparison for THIS model",
+            "committing this model's results CSV (partial file)",
+            "the v1.0-results freeze tag",
+        ],
+        safe=[
+            "developing other models (LSTM wrapper), tests, thesis writing",
+            "committing/pushing unrelated code",
+            "running the checkpoint for models already DONE",
+        ],
+        avoid=[
+            "launching a second run of the SAME model (would corrupt its CSV)",
+            "editing/deleting this model's CSV in data/processed/baselines/",
+            "heavy CPU jobs (slows the run; its ETA will stretch)",
+            "shutting down the machine (run pauses; resumable, but delays ETA)",
+        ],
+    ),
+    "tuning": dict(
+        blocked=[
+            "the final walk-forward run for this model (needs tuned params)",
+            "committing configs/tuned/ for this model",
+        ],
+        safe=["all other development and writing"],
+        avoid=[
+            "a second tuning process on the same study DB",
+            "editing configs/evaluation.yaml mid-search",
+        ],
+    ),
+}
+
+
 def render(activities: list[Activity]) -> str:
     now = datetime.now().strftime("%H:%M:%S")
     header = (
         f"background activities @ {now}\n"
-        f"{'activity':<28} {'state':<8} {'progress':<14} "
+        f"{'activity':<28} {'state':<8} {'progress':<28} "
         f"{'rate':<10} {'spent':<8} {'ETA':<8} finishes"
     )
     lines = [header, "-" * len(header.splitlines()[-1])]
     for a in activities:
-        pct = 100 * a.done / a.total
-        bar = f"{a.done}/{a.total} ({pct:3.0f}%)"
         rate = f"{a.rate_s:.1f}s/unit" if a.rate_s else "-"
         spent = _fmt_dur(a.last_write - a.started)
         eta = _fmt_dur(a.eta_s)
@@ -147,10 +184,39 @@ def render(activities: list[Activity]) -> str:
             else "-"
         )
         lines.append(
-            f"{a.name:<28} {a.state:<8} {bar:<14} {rate:<10} {spent:<8} {eta:<8} {finishes}"
+            f"{a.name:<28} {a.state:<8} {_bar(a.done, a.total):<28} "
+            f"{rate:<10} {spent:<8} {eta:<8} {finishes}"
         )
     if not activities:
         lines.append("(no tracked activities found)")
+
+    incomplete = [a for a in activities if a.state != "DONE"]
+    if incomplete:
+        lines.append("")
+        lines.append("PROCEED? YES — parallel work is allowed; the run only owns its own output files.")
+        for a in incomplete:
+            kind = a.name.split(":")[0].strip()
+            rules = PROCEED_RULES.get(kind)
+            if not rules:
+                continue
+            lines.append(f"\nwhile '{a.name}' is {a.state}:")
+            lines.append("  blocked until done:")
+            lines.extend(f"    - {item}" for item in rules["blocked"])
+            lines.append("  safe to proceed with:")
+            lines.extend(f"    - {item}" for item in rules["safe"])
+            lines.append("  avoid:")
+            lines.extend(f"    - {item}" for item in rules["avoid"])
+            if a.state == "STALLED":
+                lines.append(
+                    "  recommended: run has stopped writing -- resume it with:"
+                )
+                lines.append(
+                    f"    .venv\\Scripts\\python.exe scripts\\run_full_baselines.py"
+                    f" {a.name.split(':')[1].strip()}"
+                )
+    else:
+        lines.append("")
+        lines.append("PROCEED? YES — no incomplete activities; all results are final.")
     return "\n".join(lines)
 
 
