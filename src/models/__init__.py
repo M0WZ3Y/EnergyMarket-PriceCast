@@ -7,6 +7,7 @@ from src.models.naive import NaiveModel
 from src.models.sarimax import SARIMAXModel
 from src.models.lear_lasso import LEARLassoModel
 from src.models.lgbm import LightGBMModel
+from src.models.lstm import LSTMModel
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG = REPO_ROOT / "configs" / "models.yaml"
@@ -17,6 +18,7 @@ __all__ = [
     "SARIMAXModel",
     "LEARLassoModel",
     "LightGBMModel",
+    "LSTMModel",
     "load_models_config",
 ]
 

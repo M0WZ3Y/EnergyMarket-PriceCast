@@ -42,6 +42,20 @@ lightgbm:
     lambda_l2: 0.0
   tuned_params_file: "configs/tuned/lightgbm_params.yaml"
 
+lstm:
+  # Full retrain every N days (network reused in between; forecasts still
+  # produced every origin). Daily retraining of a network across 728
+  # origins is impractical here -- logged deviation, see decisions.md.
+  refit_every_n_days: 7
+  # Timesteps of the sequence branch (price lag days, oldest -> newest);
+  # must be a subset of configs/features.yaml price_lag_days.
+  sequence_lags: [7, 3, 2, 1]
+  units: 64
+  epochs: 50
+  batch_size: 32
+  learning_rate: 0.001
+  tuned_params_file: "configs/tuned/lstm_params.yaml"
+
 lear_lasso:
   # null -> fall back to configs/evaluation.yaml's
   # walk_forward.calibration_window_days (single source of truth). Set an
