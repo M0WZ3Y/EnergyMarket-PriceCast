@@ -6,6 +6,9 @@ data/processed/*
 # Exception: walk-forward baseline predictions are load-bearing for the
 # v1.0-results freeze (SARIMAX is not bit-reproducible across BLAS builds)
 !data/processed/baselines/
+# Same rationale: validation-window predictions determine the ensemble
+# weights, so they are load-bearing for the freeze too
+!data/processed/validation_preds/
 
 # Models & experiment artifacts
 models/*

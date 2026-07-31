@@ -619,6 +619,81 @@ gameplan the week-5 checkpoint selects can start immediately.
   which is why the cheap models could run alongside it without slowing
   it (38.8 s/origin before and during).
 
+### 2026-07-31 — WEEK-5 CHECKPOINT DECIDED: Plan B leads
+
+- LightGBM's walk-forward completed (728 origins, 17,472 rows, 0 NaN, no
+  duplicate origin/hour). `scripts/week5_checkpoint.py` then ran against
+  Lago et al.'s own published DE forecasts on the identical test period
+  with our metric code. Data identity is exact: max |our y_true -
+  published Real price| = 0.000000 over all 17,472 hours.
+- Pooled MAE, 2016-01-04 -> 2017-12-31: DNN Ensemble 3.413, DNN 4 3.592,
+  LEAR Ensemble 3.609, DNN 3 3.706, DNN 1 3.716, DNN 2 3.850,
+  **our LEAR-LASSO 3.899**, LEAR 1092 3.930, **our LightGBM 3.968**,
+  LEAR 1456 3.988, LEAR 84 4.180, LEAR 56 4.283, our SARIMAX 4.351,
+  our naive 7.750.
+- **Decision: Plan A is not achievable with the sanctioned model list;
+  Plan B (innovation-led defense) becomes the primary line.** Rejected
+  alternative: claiming a partial-window win. The mid-run signal
+  (LightGBM 3.212 over 2016 alone) did not survive year two.
+- Per-year MAE, published models recomputed per-year so the comparison is
+  like-for-like rather than year-vs-pooled:
+
+  | model | 2016 | 2017 | change |
+  |---|---|---|---|
+  | DNN Ensemble (Lago) | 2.935 | 3.889 | +0.954 |
+  | LEAR Ensemble (Lago) | 2.960 | 4.254 | +1.294 |
+  | LightGBM (ours) | 3.204 | 4.727 | +1.523 |
+  | LEAR-LASSO (ours) | 3.452 | 4.343 | +0.891 |
+  | LEAR 1092 (Lago) | 3.474 | 4.383 | +0.909 |
+  | SARIMAX (ours) | 3.883 | 4.815 | +0.932 |
+
+- **No "beat the benchmark" claim is licensed in either year.** LightGBM's
+  2016 figure beats all four published LEAR variants but loses to the DNN
+  Ensemble's 2.935. Comparing our 2016 number against a published pooled
+  number would be comparing different windows; the per-year table exists
+  to stop that error reaching the thesis. For chapter 4, the defensible
+  claim is reproduction quality: our LEAR-LASSO 3.452 vs their LEAR 1092
+  3.474 in 2016, same protocol, identical data.
+- **The checkpoint hands Plan B its central finding.** LightGBM has the
+  steepest calm->volatile degradation of any serious model (+1.523),
+  LEAR-LASSO among the flattest (+0.891); 2017 is the more volatile year
+  (price std 17.62 vs 12.48, max 163.52 vs 104.96) and LightGBM's five
+  worst days are all 2017, led by 2017-10-29 (58.16 MAE — Storm Herwart).
+  Different models win in different regimes, which is precisely the
+  premise of the regime-aware ensemble sanctioned on 2026-07-11. The
+  innovation is now empirically motivated rather than assumed.
+
+### 2026-07-31 — Ensemble membership, freeze date, validation_preds versioning
+
+- Ensemble members are SARIMAX, LEAR-LASSO, LightGBM and LSTM. naive is a
+  reference model only (rMAE denominator, baseline row), not a weighted
+  member. Rejected alternative: include naive and let `fit_weights` drive
+  its weight to ~0 as a reportable finding — declined because at 7.750
+  pooled MAE it contributes nothing and its near-zero weight would be a
+  foregone conclusion rather than a result.
+- `data/processed/validation_preds/` joins `baselines/` as a `.gitignore`
+  exception. Same rationale as 2026-07-28: these files determine the
+  ensemble weights, so they are load-bearing for the freeze, and SARIMAX
+  is not bit-reproducible across BLAS/statsmodels builds even at seed 42.
+- **The `v1.0-results` tag slips past the end-of-week-7 target in
+  CLAUDE.md.** An audit of what the tag must cover found two required
+  deliverables entirely unbuilt: the daily-direct target (section 4-4 =
+  RQ4; `build_features()` returns a 24-column hourly Y only, so this is
+  new code plus another full pass of runs, not a config change) and the
+  OOD stress test on live Energy-Charts data. Both produce model results,
+  so both must precede the freeze. Rejected alternative: a staged
+  v1.0/v1.1 freeze — declined because chapter 4 would then cite two
+  frozen sets and the "never rerun" rule would need restating per tag.
+  One freeze, covering hourly + both daily routes + both ensembles + OOD.
+- Also noted for scheduling: SHAP (section 4-6, 8 pages, the largest
+  results section) has no implementation at all — nothing imports `shap`.
+  It explains already-fitted models and creates no new forecasts, so it
+  correctly sits after the freeze, as the outline's week-8 slot assumes.
+- The canonical results table has never been exported; `reports/tables/`
+  does not exist. Both it and the DM table must be exported *before* the
+  tag, because the `export-results` skill's PreToolUse hook blocks
+  results exports once `v1.0-results` exists.
+
 ---
 
 Pages banked: 0 / quota 0 | Results table: n/a | Backup: [ ]
