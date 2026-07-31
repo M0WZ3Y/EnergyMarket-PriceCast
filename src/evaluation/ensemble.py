@@ -112,17 +112,29 @@ def combine_regime_aware(
     return out.sort_values(["origin", "hour"]).reset_index(drop=True)
 
 
-def fit_weights(frames: dict[str, pd.DataFrame]) -> dict[str, float]:
+def fit_weights(
+    frames: dict[str, pd.DataFrame], test_days: pd.DatetimeIndex | None = None
+) -> dict[str, float]:
     """MAE-minimizing convex weights over the given frames.
 
     LEAKAGE CONTRACT: pass validation-period frames only (see module
-    docstring). Solved on the probability simplex with SLSQP from an
-    equal-weight start; deterministic (no random component).
+    docstring). Passing `test_days` turns that contract from a comment
+    into a check -- every origin in `frames` must fall strictly before
+    the test window, or this raises. Production callers should always
+    pass it; it stays optional only so unit tests can fit weights on
+    synthetic frames that have no test window.
+
+    Solved on the probability simplex with SLSQP from an equal-weight
+    start; deterministic (no random component).
     """
     from scipy.optimize import minimize
 
+    from src.evaluation.walk_forward import assert_validation_before_test
+
     names = list(frames)
     truth, preds = _aligned_pivots(frames)
+    if test_days is not None:
+        assert_validation_before_test(truth.index, test_days)
     P = np.stack([preds[m].values.ravel() for m in names])  # [n_models, n_obs]
     y = truth.values.ravel()
 

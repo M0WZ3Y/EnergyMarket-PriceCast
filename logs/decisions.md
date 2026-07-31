@@ -470,6 +470,155 @@ defense demo can run from the cached copy if the API hiccups on defense day.
   BLAS/statsmodels builds even at seed 42 — versioning ~4 MB of CSV is
   cheaper than discovering a silent drift after the freeze.
 
+## Week 6
+
+### 2026-07-30 — Machinery built ahead of the checkpoint (backfilled 2026-07-31)
+
+Backfilled: twelve commits landed on 07-30 without a log entry. No new
+results were produced — this was all machinery, built so that whichever
+gameplan the week-5 checkpoint selects can start immediately.
+
+- LSTM wrapper (`src/models/lstm.py`, TDD) plus its Optuna tuning script
+  (`scripts/tune_lstm.py`). The tuning run has NOT been executed — LSTM
+  has no tuned params and no walk-forward results yet.
+- Results-analysis layer (`src/evaluation/results.py`): daily-baseload
+  aggregation from hourly predictions and the pairwise Diebold-Mariano
+  matrix. The hourly-aggregated daily path is one half of the RQ4
+  comparison; the direct-daily half still needs its own runs.
+- Ensemble machinery (`src/evaluation/ensemble.py`), in the week-7
+  priority order from CLAUDE.md: static weighted combiner + weight
+  fitting first, then regime-aware weighting switching calm/spike weight
+  sets on the 84.04 EUR/MWh threshold from the week-2 EDA.
+- `run_full_baselines.py` gained `--first-origin/--last-origin/--out-dir`
+  so validation-window predictions can be generated into
+  `data/processed/validation_preds/` without touching the test-period
+  files. This is what keeps the ensemble weight fit from ever seeing
+  test-period predictions. Only `naive.csv` exists there so far, so
+  weight fitting is still blocked on validation runs for the other
+  models.
+- `week5_checkpoint.py` now skips models whose CSV is partial rather than
+  failing. Convenient during a long run, but it means the script exits 0
+  while silently omitting a model — the checkpoint is only meaningful
+  once every model file is complete. Worth re-checking the model list in
+  its output, not just its exit status.
+- Farsi drafts for thesis sections 3-5 and 3-6. Writing is otherwise
+  parked until the code/results are done (decision 2026-07-30).
+- Tooling: `scripts/task_monitor.py` (renamed) gained watch-mode input,
+  phase-aware recommendations, pause/resume, and keep-awake.
+
+### 2026-07-31 — LightGBM walk-forward resumed
+
+- The LightGBM full run started 07-30 13:10 and stopped 07-30 17:16 with
+  364 of 728 origins written (through 2017-01-01). The file ended on an
+  exact origin boundary (364 x 24 rows, no partial origin), so it was an
+  interruption between origins, not a crash mid-write — most likely the
+  machine sleeping or the terminal closing. No stdout had been captured,
+  so no traceback existed to confirm this. Runs now log to
+  `logs/runs/`; the earlier absence of a log is the only reason the
+  cause is inferred rather than known.
+- First resume attempt failed immediately: the shell's default
+  interpreter is the system Python 3.11, which has no `lightgbm`. The
+  project `.venv` (lightgbm 4.6.0, epftoolbox importable under numpy
+  2.4.6) is the correct one. Decision: invoke `.venv/Scripts/python.exe`
+  explicitly for long runs rather than relying on an activated shell —
+  an unactivated shell fails at import, which is loud, but only after
+  the operator assumes the run is under way.
+- Resumed from origin 365 via the existing per-origin checkpointing
+  (`completed_origins()` counts only origins with all 24 hours present).
+
+### 2026-07-31 — ROOT CAUSE: connected standby kills unattended runs
+
+- Both jobs running today (LightGBM test period, and the validation-window
+  runs) died simultaneously at ~15:21 with no traceback in either log —
+  they simply stop mid-progress. Simultaneous death of two unrelated
+  Python processes is not a model bug.
+- Windows System log, same minute: `Kernel-Power 506, "The system is
+  entering connected standby. Reason: Idle Timeout"` at 15:21:45,
+  followed by 507 (exit, "Input Keyboard") at 15:27:59. The machine idles
+  into connected standby and the long runs do not survive it.
+- This is almost certainly the same cause as the 07-30 17:16 stop, which
+  had the identical signature (clean stop on an origin boundary, no
+  traceback). The 07-30 event log shows the machine slept that afternoon
+  too. Recorded then as "most likely machine sleep"; now confirmed by
+  event-log correlation rather than inferred from the artifact.
+- Why the existing mitigation did not fire: `task_monitor.py` already
+  implements keep-awake (`SetThreadExecutionState` with
+  `ES_CONTINUOUS | ES_SYSTEM_REQUIRED`), but it asserts it only while the
+  monitor itself believes a job is running. Today's runs were launched
+  directly, outside the monitor, so nothing held the machine awake. The
+  keep-awake is coupled to the monitor's job registry, not to the actual
+  presence of a long-running process.
+- Power settings, confirmed with `powercfg`: this machine is Modern
+  Standby (S0 Low Power Idle; S1/S2/S3 all unavailable in firmware), with
+  "Sleep after" = 0 (never) on AC but 300 s (5 min) on battery. So an
+  unattended run on battery dies about five minutes after the last
+  keypress, which matches the repeated short-interval 506 events today.
+- Decision, implemented same session: `run_full_baselines.py` now wraps
+  its run loop in a `keep_awake()` context manager asserting
+  `ES_CONTINUOUS | ES_SYSTEM_REQUIRED` and releasing it on exit
+  (including on exception). A mitigation that lives in a different
+  process from the job it protects is a mitigation that silently does
+  not apply — so the job now asserts it directly rather than depending
+  on the monitor being open and tracking that job.
+- Belt and braces for long runs: stay on AC. On Modern Standby an
+  execution-state request is not an absolute guarantee against every
+  standby path (a lid close still forces it — see the 10:00 "Reason:
+  Lid" event), whereas AC power already sets the idle timeout to never.
+- Also noticed: two `task_monitor.py --watch` instances are running, one
+  under the project `.venv` and one under the system Python 3.11.
+  Duplicate watchers should be reconciled.
+
+### 2026-07-31 — Checkpoint script: partial input now fails by default
+
+- `week5_checkpoint.py` had been changed on 07-30 to skip models whose
+  CSV was still partial. That made it exit 0 while printing a
+  well-formed table with LightGBM silently absent — i.e. the script that
+  decides Plan A vs Plan B could report success without evaluating the
+  model the checkpoint exists for.
+- Decision: partial input now aborts with exit 1, naming each unready
+  model. Previewing mid-run requires `--allow-partial`, which prints the
+  table under a "PARTIAL PREVIEW - NOT THE CHECKPOINT" banner listing
+  what was omitted. Rationale: tolerance of incomplete input is safe
+  only while output is advisory; once output drives a decision, a silent
+  omission is worse than the crash it replaced.
+- Preview run against the current (still partial) state, for the record —
+  full test period, our metric code, published forecasts side by side:
+  DNN Ensemble 3.413 < LEAR Ensemble 3.609 < **our LEAR-LASSO 3.899** <
+  LEAR 1092 3.930 < LEAR 84 4.180 < LEAR 56 4.283, then our SARIMAX
+  4.351 and naive 7.750 (MAE, EUR/MWh). So our LEAR-LASSO already beats
+  three of Lago et al.'s four individual LEAR calibration windows on
+  identical data. The data cross-check is exact: max |our y_true -
+  published Real price| = 0.000000 over all 17,472 hours.
+- Plan A therefore hinges on LightGBM. The bar for a clean "beat" claim
+  against the best published model is 3.413 (DNN Ensemble).
+
+### 2026-07-31 — Ensemble weight fitting: leakage contract made checkable
+
+- `fit_weights()` documented "pass validation-period frames only" but
+  enforced nothing. Added an optional `test_days` argument that routes
+  through the existing `assert_validation_before_test()`, so the
+  contract is a check rather than a comment. Kept optional so unit tests
+  can still fit on synthetic frames with no test window; production
+  callers (the week-7 runner) must pass it. Two tests added.
+- Reviewed the rest of `ensemble.py` for leakage: `regime_labels()` is
+  correct — it decides day D's regime from day D-1's realized prices,
+  which are known at the D-1 noon auction before D's forecast origin,
+  and gaps in the origin sequence only make it look further back, never
+  forward. Already covered by a test.
+
+### 2026-07-31 — Validation-window predictions started (week-7 prerequisite)
+
+- `data/processed/validation_preds/` held only `naive.csv` with 3
+  origins — a wiring test, not a run — so ensemble weight fitting had no
+  data. Started full validation-window runs (2015-01-05 -> 2016-01-03,
+  357 origins, strictly before the 2016-01-04 test start) for naive,
+  LEAR-LASSO and SARIMAX. naive complete; the other two in progress.
+- LightGBM's validation run is deliberately deferred until the
+  test-period run finishes, to avoid two ~4-hour LightGBM jobs
+  contending. LightGBM is pinned to `n_jobs=4` of 12 logical processors,
+  which is why the cheap models could run alongside it without slowing
+  it (38.8 s/origin before and during).
+
 ---
 
 Pages banked: 0 / quota 0 | Results table: n/a | Backup: [ ]
