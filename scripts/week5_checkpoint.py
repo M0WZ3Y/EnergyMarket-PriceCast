@@ -33,6 +33,7 @@ OUR_MODELS = {
     "SARIMAX (ours)": "sarimax.csv",
     "LEAR-LASSO (ours)": "lear_lasso.csv",
     "LightGBM (ours)": "lightgbm.csv",
+    "LSTM (ours)": "lstm.csv",
 }
 
 

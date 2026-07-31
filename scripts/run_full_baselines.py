@@ -27,6 +27,7 @@ from src.features.pipeline import build_features
 from src.models import (
     LEARLassoModel,
     LightGBMModel,
+    LSTMModel,
     NaiveModel,
     SARIMAXModel,
     load_models_config,
@@ -119,6 +120,7 @@ def main(
         "LEAR-LASSO": LEARLassoModel(models_cfg["lear_lasso"]),
         "SARIMAX": SARIMAXModel(models_cfg["sarimax"]),
         "LightGBM": LightGBMModel(models_cfg["lightgbm"]),
+        "LSTM": LSTMModel(models_cfg["lstm"]),
     }
     if only:
         models = {k: v for k, v in models.items() if k in only}
