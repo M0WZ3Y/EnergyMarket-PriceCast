@@ -79,6 +79,23 @@ def test_fit_weights_beats_or_matches_best_single_model_in_sample():
     assert mae_ens <= best_single + 1e-9
 
 
+def test_fit_weights_rejects_frames_overlapping_the_test_window():
+    """Leakage rule: ensemble weights may never be fitted on predictions
+    from the test period. _long_frame spans 2021-01-01..2021-01-20, so a
+    test window starting inside it must be refused."""
+    frames = {"a": _long_frame("a"), "b": _long_frame("b", seed=7)}
+    test_days = pd.date_range("2021-01-10", periods=5, freq="D")
+    with pytest.raises(AssertionError):
+        fit_weights(frames, test_days=test_days)
+
+
+def test_fit_weights_accepts_frames_strictly_before_the_test_window():
+    frames = {"a": _long_frame("a"), "b": _long_frame("b", seed=7)}
+    test_days = pd.date_range("2021-02-01", periods=5, freq="D")
+    w = fit_weights(frames, test_days=test_days)
+    assert np.isclose(sum(w.values()), 1.0)
+
+
 # --------------------------------------------------------------------------
 # Regime-aware ensemble (calm/spike weight sets, sanctioned 2026-07-11)
 # --------------------------------------------------------------------------

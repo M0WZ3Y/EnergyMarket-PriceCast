@@ -44,11 +44,12 @@ def _ours_to_hourly(path: Path) -> pd.Series:
     return pd.Series(df["y_pred"].values, index=pd.DatetimeIndex(ts)).sort_index()
 
 
-def main() -> None:
+def main(allow_partial: bool = False) -> None:
     pub = pd.read_csv(PUBLISHED_FILE, index_col=0, parse_dates=True)
     real = pub["Real price"]
 
     rows = []
+    skipped: list[str] = []
 
     def add(name: str, pred: pd.Series, source: str) -> None:
         pred = pred.reindex(real.index)
@@ -74,25 +75,37 @@ def main() -> None:
     for name, fname in OUR_MODELS.items():
         path = OURS_DIR / fname
         if not path.exists():
-            print(f"[skip] {name}: {path.name} not found yet")
+            skipped.append(f"{name}: {path.name} not found")
             continue
         pred = _ours_to_hourly(path)
         n_missing = int(pred.reindex(real.index).isna().sum())
         if n_missing > 0:
-            # In-progress walk-forward run: skip rather than compare a
-            # partial series (the `add` guard still catches any other
-            # alignment defect in a complete file).
-            print(
-                f"[skip] {name}: incomplete ({len(pred)}/{len(real)} hours, "
-                f"run still in progress)"
-            )
+            # Partial file = walk-forward run still in progress. The `add`
+            # guard still catches any other alignment defect in a complete file.
+            skipped.append(f"{name}: incomplete ({len(pred)}/{len(real)} hours)")
             continue
         add(name, pred, "this thesis")
+
+    # This table decides Plan A vs Plan B, so a missing model is a failure,
+    # not a footnote. Previewing mid-run has to be asked for explicitly.
+    if skipped and not allow_partial:
+        raise SystemExit(
+            "checkpoint aborted - these models are not ready:\n  "
+            + "\n  ".join(skipped)
+            + "\n\nFinish their walk-forward runs, or pass --allow-partial to\n"
+            "preview the comparison without them (result is NOT the checkpoint)."
+        )
 
     table = pd.DataFrame(rows).sort_values("MAE").reset_index(drop=True)
     pd.set_option("display.float_format", lambda v: f"{v:8.3f}")
     print("\nDE test period 2016-01-04 -> 2017-12-31, identical metric code\n")
     print(table.to_string(index=False))
+
+    if skipped:
+        print("\n*** PARTIAL PREVIEW - NOT THE CHECKPOINT ***")
+        print("omitted from the table above:")
+        for s in skipped:
+            print(f"  {s}")
 
     # Cross-check: our y_true must equal the published Real price column,
     # else the two pipelines are not looking at the same data.
@@ -104,4 +117,12 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--allow-partial",
+        action="store_true",
+        help="preview the table with in-progress models omitted (not the checkpoint)",
+    )
+    main(allow_partial=parser.parse_args().allow_partial)
