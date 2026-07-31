@@ -27,6 +27,10 @@ __pycache__/
 # Graphify knowledge-graph output (regenerate with: graphify . --code-only)
 graphify-out/
 
+# Per-run stdout from long walk-forward jobs. Local diagnostic trail only —
+# what a run concluded belongs in logs/decisions.md, which IS committed.
+logs/runs/
+
 # Claude Code: personal/session-local state (shared config in .claude/ is committed)
 .claude/settings.local.json
 .claude/worktrees/
