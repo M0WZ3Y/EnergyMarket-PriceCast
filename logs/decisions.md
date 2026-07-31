@@ -694,6 +694,34 @@ gameplan the week-5 checkpoint selects can start immediately.
   tag, because the `export-results` skill's PreToolUse hook blocks
   results exports once `v1.0-results` exists.
 
+### 2026-07-31 — LSTM tuned and run; it is our best single model
+
+- Optuna tuning complete, 50 trials, TPE seeded 42, validation window
+  2015-01-05 -> 2016-01-03 asserted strictly before the test period.
+  Best validation MAE 3.6960 (units 29, epochs 47, batch 32, lr 8.317e-4)
+  -> `configs/tuned/lstm_params.yaml`. For comparison LightGBM's tuned
+  validation MAE on the same window was 3.7316. Trials cost 4-10 s each;
+  the whole search took minutes, not the hours budgeted.
+- Bug found while wiring the run: LSTM had a wrapper, a tuning script and
+  a `configs/models.yaml` entry but was never registered in
+  `run_full_baselines.py`'s model dict, so `run_full_baselines.py LSTM`
+  exited with "no matching models". Added there and to
+  `week5_checkpoint.py`'s `OUR_MODELS` — the checkpoint now aborts until
+  `lstm.csv` is complete instead of silently comparing four models.
+- Full test-period walk-forward complete and accepted: 728 origins,
+  17,472 rows, 0 NaN, no duplicate origin/hour. Cost ~0.9 s/origin
+  (~11 min total) because `refit_every_n_days: 7` means ~104 network
+  trainings rather than 728.
+- **LSTM is our best single model: 3.8734 pooled MAE** (2016: 3.210,
+  2017: 4.533), ahead of LEAR-LASSO 3.899 and LightGBM 3.968. It beats
+  every published individual LEAR variant (1092 3.930, 1456 3.988, 84
+  4.180, 56 4.283) but loses to all four published DNNs and both
+  published ensembles. The Plan B decision above is unchanged: our best
+  single model still sits 0.46 MAE behind the DNN Ensemble's 3.413.
+- Note for chapter 4: LSTM's calm->volatile degradation (+1.323) sits
+  between LightGBM's +1.523 and LEAR-LASSO's +0.891, so the regime story
+  holds across all three ML models rather than being a LightGBM quirk.
+
 ---
 
 Pages banked: 0 / quota 0 | Results table: n/a | Backup: [ ]
