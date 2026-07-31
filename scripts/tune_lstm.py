@@ -42,6 +42,7 @@ from src.evaluation.walk_forward import (
 )
 from src.features.pipeline import build_features
 from src.models import LSTMModel
+from src.runtime import keep_awake
 
 BEST_PARAMS_FILE = REPO_ROOT / "configs" / "tuned" / "lstm_params.yaml"
 TRIALS_FILE = REPO_ROOT / "data" / "processed" / "tuning" / "lstm_trials.csv"
@@ -122,7 +123,8 @@ def main() -> None:
     done = len([t for t in study.trials if t.state.is_finished()])
     remaining = max(0, eval_cfg["optuna"]["n_trials"] - done)
     print(f"{done} finished trials in storage, {remaining} to run", flush=True)
-    study.optimize(objective, n_trials=remaining)
+    with keep_awake():
+        study.optimize(objective, n_trials=remaining)
 
     study.trials_dataframe().to_csv(TRIALS_FILE, index=False)
     BEST_PARAMS_FILE.parent.mkdir(parents=True, exist_ok=True)
