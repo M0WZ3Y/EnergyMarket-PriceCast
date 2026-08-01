@@ -796,6 +796,15 @@ gameplan the week-5 checkpoint selects can start immediately.
 - Process change: before launching any long run, check the process list
   for an existing instance. A stale log tail and a stalled row count are
   evidence about the artifact, not about the process.
+- **Repaired 2026-08-02, same session.** The surviving run was stopped
+  cleanly (no `run_full_baselines` processes left), the file backed up,
+  then de-duplicated on (origin, hour) keeping the first occurrence.
+  Guarded by three assertions that had to hold before the write: zero
+  duplicate pairs with conflicting `y_pred`/`y_true`, every origin at
+  exactly 24 rows afterwards, and no origin lost. 2,184 rows -> 1,920,
+  exactly the 264 expected removals, 80 origins preserved. All four
+  validation files now read clean (naive/SARIMAX/LEAR-LASSO complete at
+  357 origins; LightGBM at 80/357, resuming at origin 81).
 
 ---
 
