@@ -722,6 +722,49 @@ gameplan the week-5 checkpoint selects can start immediately.
   between LightGBM's +1.523 and LEAR-LASSO's +0.891, so the regime story
   holds across all three ML models rather than being a LightGBM quirk.
 
+## Week 7
+
+### 2026-08-02 — The "offline" test command was never offline
+
+- The suite flaked twice on 07-31, on two different Energy-Charts tests
+  (`test_energycharts_fetch_renewables_month`,
+  `test_energycharts_fetch_exog_schema_matches_benchmark`), each passing
+  in isolation. Diagnosis: not flaky tests — the wrong deselect.
+- `pytest.ini` already defines a `network` marker and all five live-API
+  loader tests already carry `@pytest.mark.network`. But the command in
+  use everywhere, `-m "not epftoolbox"`, does not deselect it, so every
+  "offline" run was hitting api.energy-charts.info.
+- **Correct offline invocation is `-m "not epftoolbox and not network"`**
+  — 81 passed, 8 deselected, deterministic. Use this one from now on;
+  earlier entries in this file quoting `-m "not epftoolbox"` predate the
+  correction.
+- No code change was needed. Worth recording because the failure mode was
+  self-concealing: intermittent failures in a suite believed to be
+  offline get written off as flakes, which is exactly how a real
+  regression would slip through.
+
+### 2026-08-02 — keep_awake() is NOT sufficient on Modern Standby
+
+- The LightGBM/LSTM validation run launched 07-31 ~23:40 died at 51 of
+  357 origins. System log: connected standby entered 07-31 23:45:23,
+  exited 08-02 00:00:35 — over 24 hours asleep.
+- This run held `keep_awake()` (`ES_CONTINUOUS | ES_SYSTEM_REQUIRED`),
+  so the 07-31 fix did not prevent it. Correction to that entry: on
+  Modern Standby (S0) an execution-state request is advisory, not
+  binding; it does not hold off the idle transition the way it did under
+  the old S3 model.
+- What actually governs it is the power policy: `standby-timeout` is 0
+  (never) on AC but 300 s on battery. The machine was on AC at the time
+  of writing this entry, so the run either began on battery or the lid
+  was closed.
+- Operating rule for long runs: **AC power, lid open** — that, not
+  `keep_awake()`, is the real protection. `keep_awake()` stays as
+  defence-in-depth; it costs nothing and does help where the request is
+  honoured. Setting `standby-timeout-dc` to 0 would remove the battery
+  hazard but is a machine-wide policy change, so it is the user's call.
+- Third run lost to this cause. All were fully recoverable thanks to
+  per-origin checkpointing, at a cost of wall-clock time only.
+
 ---
 
 Pages banked: 0 / quota 0 | Results table: n/a | Backup: [ ]
