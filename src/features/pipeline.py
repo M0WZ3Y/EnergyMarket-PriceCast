@@ -129,3 +129,34 @@ def build_features(
     X.index.name = "target_day"
     Y.index.name = "target_day"
     return X, Y
+
+
+def daily_target(Y: pd.DataFrame) -> pd.Series:
+    """Daily baseload target: the mean of a day's 24 hourly prices.
+
+    This is the label for the DIRECT daily route — a model trained on
+    this Series predicts the baseload in one shot. The AGGREGATED route
+    instead averages a model's 24 hourly forecasts after the fact
+    (`src/evaluation/results.daily_baseload`). Comparing the two answers
+    RQ4, so both must mean the same thing: an unweighted mean over all
+    24 hours of the target day, and nothing else.
+
+    X is unchanged between the two routes — the same leakage-audited
+    feature matrix from build_features() feeds both, so any difference in
+    results is attributable to the target, not the inputs.
+    """
+    expected = [f"y_h{h:02d}" for h in range(24)]
+    if list(Y.columns) != expected:
+        raise ValueError(
+            "daily_target: Y must have exactly build_features()'s 24 target "
+            f"columns in order (got {len(Y.columns)}: {list(Y.columns)[:3]}...)"
+        )
+    if Y.isna().any().any():
+        raise ValueError(
+            "daily_target: Y contains NaN -- a partial day's mean is not a "
+            "baseload; build_features() should already have dropped these"
+        )
+    out = Y.mean(axis=1)
+    out.name = "y_daily"
+    out.index.name = Y.index.name
+    return out
