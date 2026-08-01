@@ -765,6 +765,38 @@ gameplan the week-5 checkpoint selects can start immediately.
 - Third run lost to this cause. All were fully recoverable thanks to
   per-origin checkpointing, at a cost of wall-clock time only.
 
+### 2026-08-02 — INCIDENT: two concurrent writers on validation_preds/lightgbm.csv
+
+- Cause: the validation run launched 07-31 23:42 was assumed dead after
+  the 24-hour standby, on the evidence of a log whose tail showed only
+  warnings and a CSV at 51/357 origins. It was not dead — it had been
+  suspended with the machine and resumed when the machine woke at
+  08-02 00:00:35. A second instance was then launched at 00:18, and both
+  appended to the same file for ~10 minutes.
+- This is exactly the failure the task monitor's `avoid` list names first
+  ("launching a second run of the SAME model (would corrupt its CSV)").
+  The rule was there; the mistake was inferring process death from
+  artifact state instead of checking the process list.
+- Damage: 11 origins written twice (48 rows each), 264 duplicate
+  (origin, hour) pairs, 1,824 rows across 65 distinct origins.
+- Mitigating fact: **all 264 duplicate pairs carry identical `y_pred`**
+  — LightGBM is deterministic at seed 42 with a fixed `n_jobs`, so both
+  writers computed the same numbers. The repair is therefore an
+  unambiguous de-duplication, not a choice between conflicting values.
+  The determinism rule paid for itself here.
+- Resolution: the duplicate process was stopped; the original was left to
+  finish, since its todo list was computed when the file was empty and it
+  will therefore write every origin. De-duplication runs after it
+  completes — repairing a file that is being appended to would risk worse
+  corruption than the duplicates.
+- Note on the resume logic: `completed_origins()` counts only origins with
+  exactly 24 rows, so a 48-row origin reads as NOT done and would be run
+  again on any future resume, appending a third copy. De-duplicating
+  before the next resume is therefore mandatory, not cosmetic.
+- Process change: before launching any long run, check the process list
+  for an existing instance. A stale log tail and a stalled row count are
+  evidence about the artifact, not about the process.
+
 ---
 
 Pages banked: 0 / quota 0 | Results table: n/a | Backup: [ ]
