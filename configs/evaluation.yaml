@@ -19,6 +19,14 @@ walk_forward:
 validation:
   validation_days: 364
 
+# Regime definition for the regime-aware ensemble (sanctioned 2026-07-11).
+# Threshold is train mean + 3*std from the week-2 EDA (notebooks/01_eda.ipynb,
+# logs/decisions.md 2026-07-05) — computed on train data only, no test
+# leakage. A day is labeled 'spike' when the PREVIOUS day's realized prices
+# breached it (regime_labels() enforces the previous-day-only rule).
+regime:
+  spike_threshold_eur_mwh: 84.04
+
 optuna:
   n_trials: 50
 

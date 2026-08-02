@@ -32,7 +32,13 @@ from src.data.loader import BenchmarkLoader, load_config
 from src.evaluation.walk_forward import load_evaluation_config, walk_forward_splits
 from src.features.pipeline import build_features, daily_target
 from src.models import load_models_config
-from src.models.daily import DailyLightGBMModel, DailyNaiveModel
+from src.models.daily import (
+    DailyLEARLassoModel,
+    DailyLightGBMModel,
+    DailyLSTMModel,
+    DailyNaiveModel,
+    DailySARIMAXModel,
+)
 from src.runtime import keep_awake
 
 OUT_DIR = REPO_ROOT / "data" / "processed" / "daily_direct"
@@ -93,9 +99,18 @@ def main(only=None, first_origin=None, last_origin=None, out_dir=OUT_DIR) -> Non
     if first_origin is None:
         first_origin = df_test.index.min().normalize()
 
+    # Same five models as the hourly route -- RQ4 compares the two routes,
+    # so a different model list on one side would confound it. LightGBM and
+    # LSTM read their own `daily_*` config entries, tuned against the daily
+    # target by scripts/tune_daily.py; SARIMAX and LEAR-LASSO reuse the
+    # hourly entries because neither has a separate Optuna search (see the
+    # comment above `daily_lightgbm:` in configs/models.yaml).
     models = {
         "naive": DailyNaiveModel(models_cfg["naive"]),
-        "DailyLightGBM": DailyLightGBMModel(models_cfg["lightgbm"]),
+        "DailySARIMAX": DailySARIMAXModel(models_cfg["sarimax"]),
+        "DailyLEAR-LASSO": DailyLEARLassoModel(models_cfg["lear_lasso"]),
+        "DailyLightGBM": DailyLightGBMModel(models_cfg["daily_lightgbm"]),
+        "DailyLSTM": DailyLSTMModel(models_cfg["daily_lstm"]),
     }
     if only:
         models = {k: v for k, v in models.items() if k in only}

@@ -17,7 +17,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.evaluation.results import daily_baseload
 from src.features.pipeline import build_features, daily_target
-from src.models.daily import DailyLightGBMModel, DailyNaiveModel
+from src.models.daily import (
+    DailyLEARLassoModel,
+    DailyLightGBMModel,
+    DailyLSTMModel,
+    DailyNaiveModel,
+    DailySARIMAXModel,
+)
 from src.models.naive import NaiveModel
 
 
@@ -40,6 +46,15 @@ def _synthetic_hourly(n_days=200, seed=42):
 @pytest.fixture(scope="module")
 def features():
     return build_features(_synthetic_hourly())
+
+
+@pytest.fixture(scope="module")
+def features_large():
+    """LEAR's LassoLarsIC step needs more training samples than features
+    (247 with the default 2-exog feature config), so its numerical tests
+    need a longer synthetic history than everything else here — the same
+    reason test_models.py sizes its LEAR fixture at 280 days."""
+    return build_features(_synthetic_hourly(320))
 
 
 def test_daily_target_is_the_unweighted_mean_of_the_24_hours(features):
@@ -142,6 +157,184 @@ def test_daily_lightgbm_is_deterministic(features):
     a = DailyLightGBMModel().fit(X.loc[train], daily.loc[train]).predict(X.loc[[origin]])
     b = DailyLightGBMModel().fit(X.loc[train], daily.loc[train]).predict(X.loc[[origin]])
     assert a["y_daily"].iloc[0] == b["y_daily"].iloc[0]
+
+
+# --------------------------------------------------------------------------
+# SARIMAX / LEAR-LASSO / LSTM daily-direct variants
+#
+# These complete the model list for the direct route, so that RQ4 compares
+# the same five models on both routes rather than a subset. Each is checked
+# for the daily output contract (one row, one 'y_daily' column, finite) and
+# for the single-row predict guard; the estimator-specific behaviour is
+# already covered for the hourly wrappers in test_models.py.
+# --------------------------------------------------------------------------
+
+
+def test_daily_sarimax_predicts_one_value_per_origin(features):
+    X, Y = features
+    daily = daily_target(Y)
+    train, origin = X.index[:120], X.index[120]
+
+    model = DailySARIMAXModel({"refit_every_n_days": 1})
+    out = model.fit(X.loc[train], daily.loc[train]).predict(X.loc[[origin]])
+
+    assert list(out.columns) == ["y_daily"]
+    assert len(out) == 1
+    assert np.isfinite(out["y_daily"].iloc[0])
+
+
+def test_daily_sarimax_exog_is_the_daily_mean_of_the_hourly_d0_columns(features):
+    """The direct and aggregated routes must differ only in the target, so
+    the daily exog has to be the same averaging operation the target
+    applies to the 24 prices."""
+    X, _ = features
+    model = DailySARIMAXModel()
+    exog = model._daily_exog(X)
+
+    assert list(exog.columns) == ["exog_1_D0", "exog_2_D0"]
+    expected = X[[f"exog_1_D0_h{h:02d}" for h in range(24)]].mean(axis=1)
+    assert np.allclose(exog["exog_1_D0"].to_numpy(), expected.to_numpy())
+
+
+def test_daily_sarimax_holds_parameters_between_refits(features):
+    """Cadence > 1 must reuse the fitted parameters, not silently refit
+    every origin -- the same contract the hourly wrapper documents."""
+    X, Y = features
+    daily = daily_target(Y)
+    train = X.index[:120]
+
+    model = DailySARIMAXModel({"refit_every_n_days": 7})
+    model.fit(X.loc[train], daily.loc[train])
+    first_refit = model._last_refit_end
+    model.fit(X.loc[X.index[:123]], daily.loc[X.index[:123]])
+
+    assert model._last_refit_end == first_refit
+
+
+def test_daily_sarimax_predict_rejects_multiple_rows(features):
+    X, Y = features
+    daily = daily_target(Y)
+    train = X.index[:120]
+    model = DailySARIMAXModel().fit(X.loc[train], daily.loc[train])
+    with pytest.raises(ValueError, match="exactly one"):
+        model.predict(X.iloc[-3:])
+
+
+@pytest.mark.epftoolbox
+def test_daily_lear_lasso_predicts_one_value_per_origin(features_large):
+    X, Y = features_large
+    daily = daily_target(Y)
+    train, origin = X.index[:-1], X.index[-1]
+
+    model = DailyLEARLassoModel()
+    out = model.fit(X.loc[train], daily.loc[train]).predict(X.loc[[origin]])
+
+    assert list(out.columns) == ["y_daily"]
+    assert len(out) == 1
+    assert np.isfinite(out["y_daily"].iloc[0])
+
+
+@pytest.mark.epftoolbox
+def test_daily_lear_lasso_beats_a_constant_mean_forecast(features_large):
+    X, Y = features_large
+    daily = daily_target(Y)
+    train, test = X.index[:-30], X.index[-30:]
+
+    model = DailyLEARLassoModel().fit(X.loc[train], daily.loc[train])
+    preds = np.array([model.predict(X.loc[[o]])["y_daily"].iloc[0] for o in test])
+
+    mae_model = np.mean(np.abs(daily.loc[test].to_numpy() - preds))
+    mae_const = np.mean(np.abs(daily.loc[test].to_numpy() - daily.loc[train].mean()))
+    assert mae_model <= mae_const
+
+
+@pytest.mark.epftoolbox
+def test_daily_lear_lasso_does_not_mutate_the_callers_frame(features_large):
+    """LEAR's scalers write back into the array they are handed; the
+    wrapper must copy first or the harness's X is silently rescaled."""
+    X, Y = features_large
+    daily = daily_target(Y)
+    train, origin = X.index[:-1], X.index[-1]
+
+    model = DailyLEARLassoModel().fit(X.loc[train], daily.loc[train])
+    before = X.loc[[origin]].to_numpy(dtype=float, copy=True)
+    model.predict(X.loc[[origin]])
+    assert np.allclose(X.loc[[origin]].to_numpy(dtype=float), before)
+
+
+@pytest.mark.epftoolbox
+def test_daily_lear_lasso_predict_rejects_multiple_rows(features_large):
+    X, Y = features_large
+    daily = daily_target(Y)
+    model = DailyLEARLassoModel().fit(X, daily)
+    with pytest.raises(ValueError, match="exactly one"):
+        model.predict(X.iloc[-3:])
+
+
+def test_daily_lstm_predicts_one_value_per_origin(features):
+    X, Y = features
+    daily = daily_target(Y)
+    train, origin = X.index[:-1], X.index[-1]
+
+    model = DailyLSTMModel({"units": 4, "epochs": 2, "batch_size": 32})
+    out = model.fit(X.loc[train], daily.loc[train]).predict(X.loc[[origin]])
+
+    assert list(out.columns) == ["y_daily"]
+    assert len(out) == 1
+    assert np.isfinite(out["y_daily"].iloc[0])
+
+
+def test_daily_lstm_output_layer_has_one_unit(features):
+    """The daily head must be width 1 -- a 24-wide head would silently
+    make predict() return the first hour rather than the baseload."""
+    X, Y = features
+    daily = daily_target(Y)
+    model = DailyLSTMModel({"units": 4, "epochs": 1}).fit(X.iloc[:60], daily.iloc[:60])
+    assert model._net.output_shape[-1] == 1
+
+
+def test_daily_lstm_is_deterministic(features):
+    X, Y = features
+    daily = daily_target(Y)
+    train, origin = X.index[:-1], X.index[-1]
+    cfg = {"units": 4, "epochs": 2}
+    a = DailyLSTMModel(cfg).fit(X.loc[train], daily.loc[train]).predict(X.loc[[origin]])
+    b = DailyLSTMModel(cfg).fit(X.loc[train], daily.loc[train]).predict(X.loc[[origin]])
+    assert a["y_daily"].iloc[0] == b["y_daily"].iloc[0]
+
+
+def test_daily_lstm_predict_rejects_multiple_rows(features):
+    X, Y = features
+    daily = daily_target(Y)
+    model = DailyLSTMModel({"units": 4, "epochs": 1}).fit(X.iloc[:60], daily.iloc[:60])
+    with pytest.raises(ValueError, match="exactly one"):
+        model.predict(X.iloc[-3:])
+
+
+def test_daily_lstm_save_load_roundtrip(features, tmp_path):
+    X, Y = features
+    daily = daily_target(Y)
+    origin = X.index[-1]
+    model = DailyLSTMModel({"units": 4, "epochs": 2}).fit(X.iloc[:-1], daily.iloc[:-1])
+    before = model.predict(X.loc[[origin]])["y_daily"].iloc[0]
+
+    path = tmp_path / "daily_lstm.pkl"
+    model.save(path)
+    after = DailyLSTMModel().load(path).predict(X.loc[[origin]])["y_daily"].iloc[0]
+    assert before == after
+
+
+def test_daily_sarimax_save_load_roundtrip(features, tmp_path):
+    X, Y = features
+    daily = daily_target(Y)
+    train, origin = X.index[:120], X.index[120]
+    model = DailySARIMAXModel().fit(X.loc[train], daily.loc[train])
+    before = model.predict(X.loc[[origin]])["y_daily"].iloc[0]
+
+    path = tmp_path / "daily_sarimax.pkl"
+    model.save(path)
+    after = DailySARIMAXModel().load(path).predict(X.loc[[origin]])["y_daily"].iloc[0]
+    assert before == after
 
 
 def test_daily_model_save_load_roundtrip(features, tmp_path):
