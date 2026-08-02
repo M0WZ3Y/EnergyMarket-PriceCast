@@ -806,6 +806,93 @@ gameplan the week-5 checkpoint selects can start immediately.
   validation files now read clean (naive/SARIMAX/LEAR-LASSO complete at
   357 origins; LightGBM at 80/357, resuming at origin 81).
 
+### 2026-08-02 — Daily-direct route completed: SARIMAX, LEAR-LASSO, LSTM
+
+- `src/models/daily.py` had only `DailyNaiveModel` and
+  `DailyLightGBMModel`, so the direct arm of RQ4 covered two of the five
+  models. Added `DailySARIMAXModel`, `DailyLEARLassoModel` and
+  `DailyLSTMModel`; all five are now registered in
+  `scripts/run_daily_direct.py`, reusing the same `configs/models.yaml`
+  entries as the hourly route so the two routes differ only in the target.
+- **LEAR is a transposition, not a reimplementation.** epftoolbox's `LEAR`
+  class loops `for h in range(24)` and cannot take a scalar target, so the
+  daily arm cannot call it. Every numerically significant piece is still
+  taken from epftoolbox itself: `scaling(..., 'Invariant')` (asinh-median)
+  on the target and on all inputs except the 7 dow dummies,
+  `LassoLarsIC(criterion='aic', max_iter=2500)` for lambda, then
+  `Lasso(max_iter=2500, alpha=lambda)`. Verified line-by-line against
+  `epftoolbox/models/_lear.py`. The only difference is that the 24-fit loop
+  collapses to one fit. Rejected alternative: drop LEAR from the direct
+  arm — declined because RQ4 then compares different model sets on the two
+  routes, which confounds the very thing it measures.
+- **SARIMAX daily exog = the daily mean of the same `exog_*_D0` columns.**
+  One model on the baseload series rather than 24 (the baseload is a single
+  series, so this is by construction, not simplification). Averaging the D0
+  forecasts mirrors exactly what the target does to the 24 prices; it stays
+  legal since a D0 forecast is known before the origin and averaging cannot
+  import later information. Seasonal period stays 7 — on a daily series
+  that is the same weekly cycle the hourly models capture.
+- **LSTM subclasses the hourly wrapper read-only**, overriding only the
+  output head (width 1), the target's shape going in, and the frame schema
+  coming out. The audited hourly path that produced the committed results
+  is untouched — the reason `daily.py` exists as parallel code at all.
+- 24 tests in `tests/test_daily.py`, all passing. Smoke-tested end to end
+  on real benchmark data (3 origins, all five models, plausible
+  predictions against identical `y_true`).
+- **DECIDED (same day, user's call: optimize for accuracy): the daily
+  models get their own Optuna pass against the daily target.** Reusing the
+  hourly models' tuned hyperparameters would make any direct-vs-aggregated
+  difference partly a difference in tuning effort rather than in the
+  target — precisely the confound RQ4 exists to measure around.
+  `scripts/tune_daily.py` added: same protocol as the hourly searches (50
+  trials, TPE seeded 42, one static fit per trial, validation window
+  hard-asserted before the test period), identical search-space bounds so
+  neither route is allowed to look harder than the other. New
+  `daily_lightgbm` / `daily_lstm` entries in `configs/models.yaml` point at
+  `configs/tuned/daily_*_params.yaml`; the wrappers fall back to the
+  untuned defaults until those files exist.
+- **Only LightGBM and LSTM are tuned, and that is not a cost compromise.**
+  They are the only two models with an Optuna search anywhere in this
+  project. LEAR-LASSO selects its own lambda per fit via `LassoLarsIC` —
+  that IS its tuning, and it re-runs against the daily target
+  automatically. SARIMAX's (p,d,q)(P,D,Q,s) order is fixed by
+  `configs/models.yaml` on both routes, so both arms already share one
+  convention. `DailySARIMAX` and `DailyLEAR-LASSO` therefore keep reading
+  the hourly `sarimax` / `lear_lasso` entries.
+- Sequencing: the daily tuning pass and the daily walk-forward run both
+  wait for the LightGBM/LSTM validation run to finish — one heavy job on
+  the machine at a time (user's call, 2026-08-02), given that every run
+  incident so far traces to concurrency or power state.
+- Red-first TDD was not possible here: a PostToolUse hook runs the offline
+  suite after every edit and blocks any edit that leaves it failing, which
+  is exactly what a failing-test-first edit does. Implementation was
+  written before tests as a result. Noted so the coverage guarantee that
+  the red phase normally provides is not assumed to hold.
+
+### 2026-08-02 — Ensemble runner built; spike threshold moved into config
+
+- `scripts/run_ensemble.py` added: fits static weights and calm/spike
+  weight sets on `data/processed/validation_preds/`, applies them to
+  `data/processed/baselines/`, and writes `ensemble_static.csv` /
+  `ensemble_regime.csv` in the same long-frame schema as every model, so
+  `dm_matrix()` and the canonical results table consume them unchanged.
+  `fit_weights` is always given `test_days`, so the leakage contract is
+  checked rather than documented.
+- The runner refuses to fit on a partial file: every member must cover an
+  identical origin set with exactly 24 rows each and no duplicate
+  (origin, hour). This is a direct response to the 08-02 concurrent-writer
+  incident — weights silently fitted on a truncated or duplicated window
+  would be a wrong result that still looks like a result.
+- Guard on the regime arm: fewer than 20 validation days in either regime
+  aborts with an explanation rather than fitting a weight set on noise.
+- The 84.04 EUR/MWh spike threshold now lives in
+  `configs/evaluation.yaml` under `regime.spike_threshold_eur_mwh` instead
+  of only in a docstring, per the project's config-driven convention. Its
+  provenance (train mean + 3*std, week-2 EDA, train-only) is recorded in
+  the config comment so the no-test-leakage property travels with the
+  number.
+- Not yet run: blocked on the LightGBM/LSTM validation-window pass.
+
 ---
 
 Pages banked: 0 / quota 0 | Results table: n/a | Backup: [ ]

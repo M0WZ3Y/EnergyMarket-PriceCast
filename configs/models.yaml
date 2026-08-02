@@ -56,6 +56,40 @@ lstm:
   learning_rate: 0.001
   tuned_params_file: "configs/tuned/lstm_params.yaml"
 
+# Direct daily-baseload variants (src/models/daily.py). Separate entries
+# only where a separate Optuna search exists: tuning the daily models on
+# the hourly target's best params would make any direct-vs-aggregated gap
+# partly a difference in tuning effort rather than in the target (RQ4's
+# central confound). See scripts/tune_daily.py and decisions.md 2026-08-02.
+#
+# DailySARIMAX and DailyLEAR-LASSO deliberately have no entry here and
+# reuse `sarimax`/`lear_lasso` above: SARIMAX's order is fixed by config on
+# both routes, and LEAR selects its own lambda per fit via LassoLarsIC,
+# which re-runs against the daily target automatically.
+daily_lightgbm:
+  refit_every_n_days: 1
+  params:
+    objective: regression_l1
+    n_estimators: 500
+    learning_rate: 0.05
+    num_leaves: 63
+    min_child_samples: 20
+    feature_fraction: 0.8
+    bagging_fraction: 0.8
+    bagging_freq: 1
+    lambda_l1: 0.0
+    lambda_l2: 0.0
+  tuned_params_file: "configs/tuned/daily_lightgbm_params.yaml"
+
+daily_lstm:
+  refit_every_n_days: 7
+  sequence_lags: [7, 3, 2, 1]
+  units: 64
+  epochs: 50
+  batch_size: 32
+  learning_rate: 0.001
+  tuned_params_file: "configs/tuned/daily_lstm_params.yaml"
+
 lear_lasso:
   # null -> fall back to configs/evaluation.yaml's
   # walk_forward.calibration_window_days (single source of truth). Set an
