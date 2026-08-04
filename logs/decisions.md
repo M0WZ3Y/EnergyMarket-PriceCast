@@ -1132,13 +1132,26 @@ hour of live data. Ensemble weights are likewise the frozen
 validation-fitted ones — refitting them on the live window would leak the
 OOD period into its own evaluation.
 
-**BLOCKER: no outbound HTTPS from the workstation.** Every HTTPS request
-fails with `SSLError(SSLEOFError)` — not only Energy-Charts but also
-pypi.org and example.com, so it is environment-level, not an API problem
-and not a code defect. The fetch stage is therefore unrun and **no OOD
-numbers exist yet**. To finish: run
-`python scripts/run_ood_stress.py --fetch --start 2026-01-01` from a network
-with outbound HTTPS, then re-run with no flags.
+**~~BLOCKER: no outbound HTTPS from the workstation.~~ RETRACTED the same
+day — this diagnosis was WRONG.** The original claim was that every HTTPS
+request failed (Energy-Charts, pypi.org, example.com alike) and that the
+cause was therefore environment-level rather than an API or code problem.
+That conclusion was drawn from a handful of consecutive failures during one
+bad window. Pushing the `v1.0-results` tag minutes later succeeded over
+HTTPS to GitHub, which contradicted it outright; a retest then reached
+every host, Energy-Charts included, with status 200.
+
+What was actually happening: `api.energy-charts.info` intermittently drops
+TLS mid-handshake (`SSLEOFError`, `DECRYPTION_FAILED_OR_BAD_RECORD_MAC`),
+especially under sustained use, and the failures clustered enough to look
+categorical. The correct lesson is the opposite of the one first recorded —
+this is a *flaky remote host* to be retried through, not a dead network to
+work around. See the retry fix in the follow-up entry.
+
+Generalisable: "all N of my samples failed" is evidence of a failure, not
+evidence of its scope. Diagnosing an environment-level cause needs a
+successful control from a different code path — here, git's own HTTPS stack
+would have falsified it immediately.
 
 **Reproducibility requirement, deliberately built in.** The live API returns
 different data every day, so an uncached OOD result could never be
@@ -1170,4 +1183,89 @@ recalibrating the threshold, which would destroy the frozen-model premise.
 
 ---
 
-Pages banked: 0 / quota 0 | Results table: n/a | Backup: [ ]
+### 2026-08-04 — OOD stress test RUN; frozen models fall below naive on 2026 data
+
+Supersedes the "blocked" status in the previous entry and in the
+`v1.0-results` tag message. The tag is already pushed and is NOT being
+rewritten: it froze the benchmark-era results, which this does not touch.
+The OOD arm evaluates ALREADY-frozen models and cannot change any tagged
+number, so it lands as the addendum `v1.1-ood`.
+
+**Setup.** Models frozen on 2015-01-05 -> 2017-12-31, evaluated on live
+DE-LU from `EnergyChartsLoader`, 173 complete days 2026-01-08 -> 2026-06-29
+(4343 cached hours, no gaps). No refitting of any kind; ensemble weights are
+the frozen validation-fitted ones. Live price mean **98.67 EUR/MWh vs 34.69**
+at training time — a 2.84x level shift, consistent with the 3x flagged in
+the week-1 smoke test.
+
+| model | MAE | RMSE | sMAPE | rMAE | MAE vs benchmark |
+|-------|-----|------|-------|------|------------------|
+| naive | 29.18 | 48.73 | 45.90 | **0.808** | 3.8x |
+| LEAR-LASSO | 39.27 | 65.31 | 49.72 | 1.087 | 10.1x |
+| SARIMAX | 41.39 | 56.50 | 50.18 | 1.145 | 9.5x |
+| Ensemble (regime-aware) | 42.17 | 53.38 | 59.40 | 1.167 | 11.9x |
+| Ensemble (static) | 44.43 | 55.52 | 61.70 | 1.230 | 12.4x |
+| LSTM | 54.93 | 67.51 | 79.16 | 1.520 | 14.2x |
+| LightGBM | 66.06 | 77.35 | 92.50 | 1.828 | 16.6x |
+
+**Finding 1 — every trained model is worse than naive (rMAE > 1).** This is
+the headline, and rMAE is what makes it defensible: it rescales by a naive
+forecast fitted to the live data itself, so it cannot be dismissed as "2026
+is simply a harder market". naive alone stays below 1.0 because it carries
+no frozen parameters — it re-reads the current price level for free, while
+every trained model is anchored to a 35 EUR/MWh world.
+
+**Finding 2 — the ranking inverts.** LightGBM and LSTM were the strongest
+single models in-era and degrade the WORST (16.6x, 14.2x); SARIMAX and
+LEAR-LASSO were mid-table in-era and degrade the LEAST (9.5x, 10.1x). The
+flexible learners absorbed the price regime itself; the structured ones
+carried less of it. Directly relevant to the Plan A/Plan B framing and to
+the LSTM-vs-LEAR tie in the frozen DM table: the neural model's in-era
+advantage was not only statistically indistinguishable, it also proves the
+more fragile of the two.
+
+**Finding 3 — the regime switch degenerates.** The frozen threshold
+(62.6989 EUR/MWh, from 2012-14 prices) labels **171/173 live days stressed
+(98.8%)**, collapsing the regime-aware ensemble to a single weight set. This
+was predicted before running and is confirmed. It must NOT be fixed by
+recalibrating the threshold — doing so would destroy the frozen-model
+premise. It is reported as a limitation of threshold-based regime switching
+under distribution shift.
+
+**Honest caveat.** The regime-aware ensemble still edges the static one
+here (42.17 vs 44.43), but with 98.8% of days in one regime that is
+essentially the stressed weight set applied throughout, not regime
+switching doing work. Do not present it as the regime mechanism succeeding
+out of distribution.
+
+### 2026-08-04 — Debug sweep: four bugs fixed
+
+Systematic one-by-one check of the whole system. Frozen results verified
+untouched throughout (`reports/tables/` regenerates to a zero diff).
+
+1. **`EnergyChartsLoader._get` retried only on HTTP 429**, not on
+   connection-level failures — so transient TLS drops killed whole chunks of
+   a long fetch permanently. This silently lost all of May 2026 from the
+   first OOD fetch. Now retries `RequestException` with the same backoff.
+   This is the fix that the retracted "no HTTPS" diagnosis should have been.
+2. **`fetch_live` overwrote the cache instead of merging**, so retrying to
+   fill a hole would have discarded the chunks that had already succeeded.
+   Now merges and warns about hours still missing.
+3. **sMAPE returned NaN for the entire 173-day series** because one hour
+   (2026-05-29 12:00) had actual == predicted == 0.0 — a perfect forecast of
+   a zero price, routine in a 2026 solar-glut market, and epftoolbox's sMAPE
+   divides by `(|a|+|p|)/2`. Fixed with a zero-safe variant LOCAL to the OOD
+   script: the shared `metrics.smape` wrapper is deliberately untouched so
+   no frozen number can move. No such hour exists in 2016-17.
+4. **A `Path.relative_to` call inside a print string crashed `fetch_live`**
+   when the cache sat outside the repo, aborting the function after its work
+   was complete. Replaced with a fallback helper.
+
+Sweep clean elsewhere: 122 offline tests pass, 6 network tests pass (was 2
+failing), 13/13 scripts parse, 8/8 configs parse, every processed artifact
+has correct origin counts with no duplicates or NaN, all `src` modules
+import, no TODO/FIXME.
+
+---
+
+Pages banked: 0 / quota 0 | Results table: v1.0-results + v1.1-ood | Backup: [ ]

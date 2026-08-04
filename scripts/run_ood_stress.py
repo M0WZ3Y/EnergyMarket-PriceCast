@@ -81,6 +81,20 @@ VAL_FILES = {
 }
 
 
+def _rel(path: Path) -> str:
+    """Repo-relative path for display, falling back to the absolute path.
+
+    Path.relative_to raises when the target sits outside the repo — which
+    happens whenever these paths are redirected (tests, --cache). A
+    cosmetic display call must never abort a function that has already done
+    its work.
+    """
+    try:
+        return str(Path(path).relative_to(REPO_ROOT))
+    except ValueError:
+        return str(path)
+
+
 def _build_models(models_cfg: dict) -> dict:
     """Same construction as run_full_baselines.py, so the frozen models are
     the same models the benchmark results describe."""
@@ -119,7 +133,7 @@ def fit_frozen() -> None:
         model.fit(X.loc[train_days], Y.loc[train_days])
         path = FROZEN_DIR / name.lower().replace("-", "_")
         model.save(path)
-        print(f"  froze {name} -> {path.relative_to(REPO_ROOT)}")
+        print(f"  froze {name} -> {_rel(path)}")
 
     meta = {
         "frozen_on": str(train_days.max().date()),
@@ -130,7 +144,7 @@ def fit_frozen() -> None:
         "benchmark_price_std": float(df["price"].loc[: train_days.max()].std()),
     }
     (FROZEN_DIR / "metadata.json").write_text(json.dumps(meta, indent=2))
-    print(f"  wrote {(FROZEN_DIR / 'metadata.json').relative_to(REPO_ROOT)}")
+    print(f"  wrote {_rel(FROZEN_DIR / 'metadata.json')}")
 
 
 # --------------------------------------------------------------------------
@@ -161,6 +175,15 @@ def fetch_live(start: str, end: str, chunk_days: int = 30) -> None:
             # the chunks already fetched. Report it loudly instead.
             print(f"    FAILED: {type(exc).__name__}: {exc}", flush=True)
 
+    # Merge with whatever is already cached instead of overwriting. Chunks
+    # fail independently (429s and transient TLS errors are routine here),
+    # so a retry must be able to fill holes without discarding the chunks
+    # that already succeeded.
+    if LIVE_CACHE.exists():
+        existing = pd.read_csv(LIVE_CACHE, index_col=0, parse_dates=True)
+        print(f"merging into {len(existing)} already-cached rows")
+        parts.append(existing)
+
     if not parts:
         raise SystemExit("live fetch returned nothing — check connectivity/date range")
 
@@ -170,11 +193,21 @@ def fetch_live(start: str, end: str, chunk_days: int = 30) -> None:
     if df.empty:
         raise SystemExit("live fetch returned no rows — check the date range")
 
+    full = pd.date_range(df.index.min(), df.index.max(), freq="h")
+    missing = full.difference(df.index)
+    if len(missing):
+        days = sorted({t.date() for t in missing})
+        print(
+            f"WARNING: {len(missing)} hours still missing across {len(days)} day(s), "
+            f"{days[0]} .. {days[-1]}. Re-run --fetch for that range to fill them; "
+            "incomplete days are dropped by the feature pipeline."
+        )
+
     LIVE_CACHE.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(LIVE_CACHE)
     print(
         f"cached {len(df)} hourly rows "
-        f"({df.index.min()} -> {df.index.max()}) -> {LIVE_CACHE.relative_to(REPO_ROOT)}"
+        f"({df.index.min()} -> {df.index.max()}) -> {_rel(LIVE_CACHE)}"
     )
     print(f"ATTRIBUTION REQUIRED IN THESIS: {loader.attribution}")
 
@@ -182,14 +215,44 @@ def fetch_live(start: str, end: str, chunk_days: int = 30) -> None:
 # --------------------------------------------------------------------------
 # stage 3: replay
 # --------------------------------------------------------------------------
+def _smape_zero_safe(real: np.ndarray, pred: np.ndarray) -> float:
+    """sMAPE with the 0/0 case defined as zero error.
+
+    epftoolbox's sMAPE returns NaN for the whole series if any single hour
+    has actual == predicted == 0, because the denominator (|a|+|p|)/2 is
+    zero there. That hour is a PERFECT forecast, so its contribution should
+    be 0, not undefined — one exactly-zero price should not delete the
+    metric for 173 days.
+
+    This is not applied to the frozen benchmark results: no such hour
+    occurs in 2016-17, so the shared metrics.smape wrapper is deliberately
+    left untouched rather than risk perturbing tagged numbers. Exactly-zero
+    day-ahead prices are a live-market phenomenon (2026 solar gluts).
+    """
+    num = np.abs(real - pred)
+    den = (np.abs(real) + np.abs(pred)) / 2.0
+    both_zero = den == 0
+    ratio = np.divide(num, den, out=np.zeros_like(num, dtype=float), where=~both_zero)
+    return float(ratio.mean() * 100)
+
+
 def _metrics(frame: pd.DataFrame) -> dict:
     ts = pd.DatetimeIndex(frame["origin"] + pd.to_timedelta(frame["hour"], unit="h"))
     real = pd.Series(frame["y_true"].values, index=ts).sort_index().to_frame("price")
     pred = pd.Series(frame["y_pred"].values, index=ts).sort_index().to_frame("price")
+
+    smape_std = smape(real.values, pred.values) * 100
+    smape_safe = _smape_zero_safe(real.values.ravel(), pred.values.ravel())
+    if not np.isfinite(smape_std):
+        n_zero = int((((np.abs(real.values) + np.abs(pred.values)) / 2) == 0).sum())
+        print(
+            f"    note: epftoolbox sMAPE is NaN ({n_zero} hour(s) with "
+            f"actual == predicted == 0); reporting the zero-safe variant"
+        )
     return {
         "MAE": mae(real.values, pred.values),
         "RMSE": rmse(real.values, pred.values),
-        "sMAPE": smape(real.values, pred.values) * 100,
+        "sMAPE": smape_safe,
         "rMAE": rmae(real, pred, m="W"),
     }
 
@@ -328,7 +391,7 @@ def replay(cache: Path = LIVE_CACHE) -> None:
     )
 
     table.to_csv(OUT_DIR / "ood_summary.csv")
-    print(f"\nwrote {(OUT_DIR / 'ood_summary.csv').relative_to(REPO_ROOT)}")
+    print(f"\nwrote {_rel(OUT_DIR / 'ood_summary.csv')}")
 
 
 def _benchmark_reference() -> pd.DataFrame:
