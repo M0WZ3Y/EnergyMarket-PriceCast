@@ -20,7 +20,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from src.evaluation.metrics import diebold_mariano
+from src.evaluation.metrics import diebold_mariano, diebold_mariano_hac
 
 LONG_COLUMNS = ["origin", "hour", "y_true", "y_pred", "model"]
 
@@ -53,12 +53,23 @@ def _pivot_24(frame: pd.DataFrame, col: str) -> pd.DataFrame:
     return frame.pivot(index="origin", columns="hour", values=col).sort_index()
 
 
-def dm_matrix(frames: dict[str, pd.DataFrame]) -> pd.DataFrame:
+def dm_matrix(frames: dict[str, pd.DataFrame], method: str = "hac") -> pd.DataFrame:
     """Pairwise one-sided DM p-values on the multivariate (24-h, L1 norm)
     loss differential. Cell [row, col] = p-value for the alternative
     hypothesis that ROW's forecasts are more accurate than COL's; the
     diagonal is NaN. All frames must cover identical origin sets.
+
+    method='hac' (default, REPORTED) applies a Newey-West correction;
+    method='uncorrected' is epftoolbox's own DM, kept for comparability
+    with Lago et al. Loss differentials between day-ahead price forecasts
+    are serially dependent, so the uncorrected statistic is
+    anti-conservative — publishing a corrected p for one comparison and an
+    uncorrected p for the rest of the table would not be defensible
+    (decision 2026-08-04).
     """
+    if method not in ("hac", "uncorrected"):
+        raise ValueError(f"dm_matrix: method must be 'hac' or 'uncorrected', got {method!r}")
+    test = diebold_mariano_hac if method == "hac" else diebold_mariano
     names = list(frames)
     pivots_pred = {m: _pivot_24(frames[m], "y_pred") for m in names}
     pivots_true = {m: _pivot_24(frames[m], "y_true") for m in names}
@@ -91,9 +102,10 @@ def dm_matrix(frames: dict[str, pd.DataFrame]) -> pd.DataFrame:
         for m2 in names:
             if m1 == m2:
                 continue
-            # epftoolbox DM: small p-value supports "p_pred_2 more
-            # accurate than p_pred_1" -> row model goes in as p_pred_2.
-            out.loc[m1, m2] = diebold_mariano(
+            # Both variants share epftoolbox's convention: a small p-value
+            # supports "p_pred_2 more accurate than p_pred_1", so the row
+            # model goes in as p_pred_2.
+            out.loc[m1, m2] = test(
                 p_real=p_real.values,
                 p_pred_1=pivots_pred[m2].values,
                 p_pred_2=pivots_pred[m1].values,

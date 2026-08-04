@@ -31,7 +31,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from scipy import stats
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
@@ -40,7 +39,12 @@ SEED = 42
 N_BOOT = 20000
 
 from src.evaluation.ensemble import regime_labels
-from src.evaluation.metrics import diebold_mariano, mae
+from src.evaluation.metrics import (
+    diebold_mariano,
+    diebold_mariano_hac,
+    loss_differential,
+    mae,
+)
 from src.evaluation.results import dm_matrix, load_long_frame
 from src.evaluation.walk_forward import load_evaluation_config
 
@@ -83,26 +87,10 @@ def _block_bootstrap_p(d: np.ndarray, block: int) -> float:
     return (1.0 + hits) / (N_BOOT + 1.0)
 
 
-def _newey_west_p(d: np.ndarray) -> tuple[float, int]:
-    """One-sided HAC (Newey-West) DM p-value for H0: mean(d) <= 0.
-
-    An analytic alternative to the bootstrap that corrects the same defect
-    by a different route. Bandwidth by the standard 4*(n/100)**(2/9) rule.
-    Reported alongside the bootstrap because the two disagree materially on
-    the stressed subset, and a single 'corrected' number would hide that.
-    """
-    n = len(d)
-    dbar = d.mean()
-    e = d - dbar
-    L = max(1, int(np.floor(4 * (n / 100.0) ** (2.0 / 9.0))))
-    gamma0 = float(e @ e) / n
-    var = gamma0
-    for k in range(1, L + 1):
-        gk = float(e[k:] @ e[:-k]) / n
-        var += 2.0 * (1.0 - k / (L + 1.0)) * gk
-    var = max(var, 1e-12)
-    stat = dbar / np.sqrt(var / n)
-    return float(1.0 - stats.norm.cdf(stat)), L
+def _bandwidth(n: int) -> int:
+    """Newey-West 1994 rule, mirrored from metrics.diebold_mariano_hac so
+    the report can print the bandwidth it used."""
+    return min(max(1, int(np.floor(4 * (n / 100.0) ** (2.0 / 9.0)))), n - 1)
 
 
 def _report(piv, truth, days, name: str) -> float:
@@ -141,12 +129,12 @@ def _report(piv, truth, days, name: str) -> float:
     # epftoolbox DM: small p supports "p_pred_2 more accurate than p_pred_1",
     # so the regime-aware forecasts go in as p_pred_2.
     p_naive = diebold_mariano(p_real=real.values, p_pred_1=ps.values, p_pred_2=pr.values)
+    p_hac = diebold_mariano_hac(p_real=real.values, p_pred_1=ps.values, p_pred_2=pr.values)
 
     # Per-day multivariate L1 loss differential: positive => regime better.
-    d = (np.abs(real.values - ps.values).mean(axis=1)
-         - np.abs(real.values - pr.values).mean(axis=1))
+    d = loss_differential(real.values, ps.values, pr.values, norm=1)
     n = len(d)
-    p_hac, bandwidth = _newey_west_p(d)
+    bandwidth = _bandwidth(n)
     blocks = [b for b in (3, 4, 5, 7, 9, 10) if b < n]
     sweep = {b: _block_bootstrap_p(d, b) for b in blocks}
 

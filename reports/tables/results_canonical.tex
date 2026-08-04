@@ -1,0 +1,39 @@
+\begin{table}[htbp]
+\caption{Forecast accuracy by model and target, EPEX-DE test period 2016-01-04 to 2017-12-31 (728 origins). Best value per column in bold; naive is a reference row, not a competitor. Daily-direct is unavailable for the ensembles, whose members are hourly.}
+\label{tab:results-canonical}
+\begin{tabular}{llrrrr}
+\toprule
+ &  & MAE & RMSE & sMAPE & rMAE \\
+model & target &  &  &  &  \\
+\midrule
+\multirow[t]{3}{*}{naive} & hourly & 7.75 & 13.26 & 28.60 & 0.85 \\
+ & daily-direct & 6.36 & 10.68 & 23.58 & 0.79 \\
+ & daily-aggregated & 6.36 & 10.68 & 23.58 & 0.79 \\
+\cline{1-6}
+\multirow[t]{3}{*}{SARIMAX} & hourly & 4.35 & 7.12 & 18.03 & 0.48 \\
+ & daily-direct & 3.20 & 5.17 & 13.52 & 0.40 \\
+ & daily-aggregated & 3.27 & 5.08 & 13.65 & 0.41 \\
+\cline{1-6}
+\multirow[t]{3}{*}{LEAR-LASSO} & hourly & 3.90 & \textbf{6.47} & 16.66 & 0.43 \\
+ & daily-direct & \textbf{2.90} & \textbf{4.38} & 13.68 & \textbf{0.36} \\
+ & daily-aggregated & 2.84 & \textbf{4.41} & 12.73 & 0.35 \\
+\cline{1-6}
+\multirow[t]{3}{*}{LightGBM} & hourly & 3.97 & 7.50 & 15.72 & 0.43 \\
+ & daily-direct & 3.30 & 6.08 & \textbf{12.49} & 0.41 \\
+ & daily-aggregated & 2.99 & 5.58 & 11.61 & 0.37 \\
+\cline{1-6}
+\multirow[t]{3}{*}{LSTM} & hourly & 3.87 & 7.02 & 15.60 & 0.42 \\
+ & daily-direct & 3.18 & 5.25 & 12.73 & 0.40 \\
+ & daily-aggregated & 2.78 & 5.05 & 11.39 & 0.35 \\
+\cline{1-6}
+\multirow[t]{3}{*}{Ensemble (static)} & hourly & 3.57 & 6.61 & 14.67 & 0.39 \\
+ & daily-direct & -- & -- & -- & -- \\
+ & daily-aggregated & 2.68 & 4.77 & 11.14 & 0.33 \\
+\cline{1-6}
+\multirow[t]{3}{*}{Ensemble (regime-aware)} & hourly & \textbf{3.56} & 6.56 & \textbf{14.64} & \textbf{0.39} \\
+ & daily-direct & -- & -- & -- & -- \\
+ & daily-aggregated & \textbf{2.65} & 4.71 & \textbf{11.08} & \textbf{0.33} \\
+\cline{1-6}
+\bottomrule
+\end{tabular}
+\end{table}

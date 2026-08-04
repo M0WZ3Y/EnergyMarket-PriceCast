@@ -1,0 +1,17 @@
+\begin{table}[htbp]
+\caption{Pairwise one-sided Diebold-Mariano p-values, multivariate (24-hour vector, $L_1$ norm), Newey-West HAC corrected. Cell (row, column) tests the alternative that the row model is more accurate than the column model.}
+\label{tab:dm-tests}
+\begin{tabular}{lrrrrrrr}
+\toprule
+ & naive & SARIMAX & LEAR-LASSO & LightGBM & LSTM & Ensemble (static) & Ensemble (regime-aware) \\
+\midrule
+naive & -- & $>$0.999 & $>$0.999 & $>$0.999 & $>$0.999 & $>$0.999 & $>$0.999 \\
+SARIMAX & $<$0.001 & -- & $>$0.999 & $>$0.999 & $>$0.999 & $>$0.999 & $>$0.999 \\
+LEAR-LASSO & $<$0.001 & $<$0.001 & -- & 0.266 & 0.596 & $>$0.999 & $>$0.999 \\
+LightGBM & $<$0.001 & $<$0.001 & 0.734 & -- & 0.960 & $>$0.999 & $>$0.999 \\
+LSTM & $<$0.001 & $<$0.001 & 0.404 & 0.040 & -- & $>$0.999 & $>$0.999 \\
+Ensemble (static) & $<$0.001 & $<$0.001 & $<$0.001 & $<$0.001 & $<$0.001 & -- & 0.977 \\
+Ensemble (regime-aware) & $<$0.001 & $<$0.001 & $<$0.001 & $<$0.001 & $<$0.001 & 0.023 & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
