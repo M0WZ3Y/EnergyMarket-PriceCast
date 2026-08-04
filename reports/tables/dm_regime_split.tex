@@ -1,0 +1,14 @@
+\begin{table}[htbp]
+\caption{Regime-aware versus static ensemble by regime, with Newey-West HAC corrected Diebold-Mariano p-values. The improvement is concentrated on stressed days, where it is significant under every dependence correction applied ($p$ between 0.006 and 0.044). Over the full test period it is significant under HAC ($p=0.023$) but not robust across block-bootstrap block lengths (0.013 to 0.057), and is therefore not claimed. The calm subset is a sanity check that the regime switch does not fire where it should not, not independent corroboration. Block-bootstrap sensitivity is reported by scripts/run\_dm\_ensembles.py.}
+\label{tab:dm-regime-split}
+\begin{tabular}{lrrrr}
+\toprule
+ & days & MAE regime-aware & MAE static & DM p (HAC) \\
+subset &  &  &  &  \\
+\midrule
+all & 728 & 3.557 & 3.574 & 0.023 \\
+stressed & 77 & 5.513 & 5.683 & 0.006 \\
+calm & 651 & 3.326 & 3.325 & 0.847 \\
+\bottomrule
+\end{tabular}
+\end{table}

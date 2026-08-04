@@ -59,6 +59,52 @@ def test_dm_matrix_shape_and_diagonal():
     assert dm.loc["b", "a"] > 0.5
 
 
+def test_dm_matrix_hac_is_more_conservative_on_dependent_errors():
+    """The HAC variant must not be a relabelled copy of the uncorrected one.
+
+    With positively autocorrelated loss differentials the uncorrected DM
+    understates standard errors, so HAC p-values must come out LARGER.
+    Constructed with a persistent (AR-like) error advantage so the
+    dependence is unambiguous.
+    """
+    rng = np.random.default_rng(42)
+    n_days = 120
+    origins = pd.date_range("2021-01-01", periods=n_days, freq="D")
+
+    # Shared truth; model 'a' is better, but its advantage persists in runs
+    # rather than being redrawn independently each day.
+    advantage = np.zeros(n_days)
+    for i in range(1, n_days):
+        advantage[i] = 0.9 * advantage[i - 1] + rng.normal(0, 1)
+    advantage += 3.0
+
+    rows_a, rows_b = [], []
+    for i, o in enumerate(origins):
+        y_true = rng.normal(50, 10, size=24)
+        err_a = rng.normal(0, 1, size=24)
+        err_b = rng.normal(0, 1, size=24) + advantage[i]
+        for h in range(24):
+            rows_a.append(dict(origin=o, hour=h, y_true=y_true[h],
+                               y_pred=y_true[h] + err_a[h], model="a"))
+            rows_b.append(dict(origin=o, hour=h, y_true=y_true[h],
+                               y_pred=y_true[h] + err_b[h], model="b"))
+    frames = {"a": pd.DataFrame(rows_a), "b": pd.DataFrame(rows_b)}
+
+    p_hac = dm_matrix(frames, method="hac").loc["a", "b"]
+    p_unc = dm_matrix(frames, method="uncorrected").loc["a", "b"]
+    assert p_hac > p_unc, (
+        f"HAC p ({p_hac:.6f}) should exceed uncorrected p ({p_unc:.6f}) when "
+        "loss differentials are positively autocorrelated"
+    )
+    assert dm_matrix(frames).loc["a", "b"] == pytest.approx(p_hac), "default must be HAC"
+
+
+def test_dm_matrix_rejects_unknown_method():
+    frames = {"a": _long_frame("a"), "b": _long_frame("b", seed=7)}
+    with pytest.raises(ValueError, match="method"):
+        dm_matrix(frames, method="newey")
+
+
 def test_dm_matrix_rejects_frames_whose_y_true_disagrees():
     """p_real is read from one arbitrary frame, so a stale y_true there
     would define reality for every p-value in the matrix. Twin of the
