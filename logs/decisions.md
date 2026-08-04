@@ -1014,38 +1014,57 @@ predecessor breaching the threshold, so stressed days arrive in runs (77
 days in only 31 runs, mean run 2.48, max 7; lag-1 autocorrelation +0.36).
 Treating clustered days as independent understates the standard error.
 
-Reported statistic is now a **moving-block bootstrap** (20 000 resamples,
-seed 42, block = n**(1/3) per the standard rule), with the uncorrected DM
-shown alongside for comparability with Lago et al.
+**Two independent corrections are reported as a RANGE**, not one number
+(revised again after code review — see the block-length note below):
+Newey-West HAC DM, and a circular block bootstrap (20 000 resamples, seed
+42) swept over block lengths 3-10. The uncorrected DM is shown for
+comparability with Lago et al. but is not a reported result.
 
-| Subset | MAE regime | MAE static | Delta | DM (uncorr.) | **bootstrap** |
-|--------|-----------|------------|-------|--------------|---------------|
-| All 728 days | 3.5569 | 3.5742 | -0.0173 (-0.48%) | 0.0009 | **0.0549** (block 9) |
-| 77 stressed days | 5.5132 | 5.6830 | -0.1698 (-2.99%) | 0.0003 | **0.0169** (block 4) |
-| 651 calm days | 3.3255 | 3.3248 | +0.0007 (+0.02%) | 0.8624 | 0.8170 (block 9) |
+| Subset | Delta MAE | DM (uncorr.) | HAC | bootstrap sweep b=3..10 |
+|--------|-----------|--------------|-----|--------------------------|
+| All 728 days | -0.0173 (-0.48%) | 0.0009 | 0.0226 | 0.0129 - 0.0571 |
+| 77 stressed days | -0.1698 (-2.99%) | 0.0003 | **0.0063** | **0.0081 - 0.0439** |
+| 651 calm days | +0.0007 (+0.02%) | 0.8624 | 0.8465 | 0.8399 - 0.8525 |
 
-Block-length sensitivity is recorded by the script; on the stressed subset p
-runs 0.0095 (block 3) to 0.0693 (block 10), so the result is significant at
-5% across the plausible range but never at 1%.
+**Why a range and not a single p.** No block rule is authoritative here.
+The usual n**(1/3) rule would give the stressed subset a SHORTER block (4)
+than the full sample (9) despite its STRONGER dependence (lag-1 +0.356 vs
++0.290), purely because it is shorter — so the "significant" headline would
+have been partly an artifact of subset size. Conversely, blocks beyond ~7
+exceed the longest observed run of stressed days (max 7, mean 2.48), which
+over-corrects by treating months-apart runs as dependent. The claim is
+therefore made against the WORST case of the sweep, not the best.
 
-**Claim discipline for chapter 4 — narrower than first written.** The
-supportable claim is: *regime-aware weighting significantly improves
-accuracy on stressed days (-3.0% MAE, block-bootstrap p=0.017), while over
-the full test period the improvement is not statistically significant at the
-5% level (p=0.055).* Both halves must be stated together. Do NOT claim
-overall significance, and do NOT claim 1% significance anywhere.
+**Claim discipline for chapter 4.** The supportable claim is: *regime-aware
+weighting significantly improves accuracy on stressed days (-3.0% MAE;
+p between 0.006 and 0.044 across HAC and every block length tried, i.e.
+significant at the 5% level under every dependence correction applied),
+while over the full test period the improvement is NOT robustly significant
+(p 0.013-0.057, straddling 0.05).* Both halves must be stated together.
+Never quote the uncorrected 0.0003, and never claim 1% significance.
+
+Multiplicity: three subsets are reported, but they are not three independent
+hypotheses (all-days is the union of the other two), so a Bonferroni
+correction over them would be inappropriately conservative rather than
+merely strict. Note the multiplicity in the text and let the worst-case
+range carry the honesty, rather than applying a correction that does not fit
+the design.
 
 This is coherent rather than contradictory: a mechanism that fires on 10.6%
-of days is diluted below detectability when averaged over all days. The calm
-subset (p=0.82) confirms the switch does not fire where it should not — but
-report that as a sanity check, not as independent corroboration, since the
-same threshold defines both the estimator's switch and the evaluation
+of days is diluted toward non-detectability when averaged over all days. The
+calm subset (p~0.85) confirms the switch does not fire where it should not —
+but report that as a sanity check, not as independent corroboration, since
+the same threshold defines both the estimator's switch and the evaluation
 partition, making the calm-day null partly mechanical.
 
-Bonferroni over the three reported subset tests leaves the stressed result
-at 0.017 x 3 = 0.051 — borderline. Say so in chapter 4 rather than waiting
-to be asked; the honest framing is that the stressed-day effect is
-suggestive-to-significant, not established beyond doubt.
+**Methodological caveat to carry into chapter 3.** The loss differential is
+severely right-skewed (skewness +7.9 on all days, +2.1 on stressed), so an
+unstudentized bootstrap of a raw mean converges slowly and is mildly
+oversized. Reporting HAC alongside partially covers this: the two methods
+bracket the stressed result at 0.006-0.044 and agree on its direction and
+significance level, which is stronger evidence than either alone. A
+studentized block-t bootstrap would tighten this further and is the obvious
+extension if a reviewer presses.
 
 **Other DM results worth carrying into chapter 4.**
 - Both ensembles beat every single model at p ~ 0.0000 — the strongest

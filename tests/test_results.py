@@ -59,6 +59,18 @@ def test_dm_matrix_shape_and_diagonal():
     assert dm.loc["b", "a"] > 0.5
 
 
+def test_dm_matrix_rejects_frames_whose_y_true_disagrees():
+    """p_real is read from one arbitrary frame, so a stale y_true there
+    would define reality for every p-value in the matrix. Twin of the
+    ensemble guard; without this test the error path is untested and a
+    refactor could delete it silently."""
+    frames = {"a": _long_frame("a"), "b": _long_frame("b", seed=7)}
+    frames["b"] = frames["b"].copy()
+    frames["b"].loc[0, "y_true"] += 5.0
+    with pytest.raises(ValueError, match="y_true"):
+        dm_matrix(frames)
+
+
 def test_dm_matrix_requires_aligned_origins():
     frames = {"a": _long_frame("a"), "b": _long_frame("b").iloc[24:]}  # b missing day 1
     with pytest.raises(ValueError, match="align"):

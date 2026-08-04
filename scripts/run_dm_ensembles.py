@@ -31,6 +31,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from scipy import stats
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
@@ -60,31 +61,76 @@ STATIC = "Ensemble (static)"
 
 
 def _block_bootstrap_p(d: np.ndarray, block: int) -> float:
-    """One-sided moving-block bootstrap p-value for H0: mean(d) <= 0.
+    """One-sided CIRCULAR block bootstrap p-value for H0: mean(d) <= 0.
 
-    Resampling contiguous blocks preserves the serial dependence that the
-    plain DM statistic ignores. The null is imposed by centring d before
-    resampling. Deterministic under SEED.
+    Resampling contiguous blocks preserves the serial dependence the plain
+    DM statistic ignores. The null is imposed by centring d. Wrapping the
+    index (`% n`) makes every observation appear in equally many blocks,
+    removing the edge under-weighting of the non-circular variant.
+
+    p is (1 + #{resamples >= observed}) / (N_BOOT + 1) so it can never be
+    exactly 0 — a literal "p = 0.0000" in a thesis table is indefensible.
+    Deterministic under SEED.
     """
-    rng = np.random.default_rng(SEED)
     n = len(d)
+    block = max(1, min(block, n - 1))
+    rng = np.random.default_rng(SEED)
     d0 = d - d.mean()
     nblocks = int(np.ceil(n / block))
-    starts = rng.integers(0, n - block + 1, size=(N_BOOT, nblocks))
-    idx = (starts[:, :, None] + np.arange(block)[None, None, :]).reshape(N_BOOT, -1)[:, :n]
-    return float((d0[idx].mean(axis=1) >= d.mean()).mean())
+    starts = rng.integers(0, n, size=(N_BOOT, nblocks))
+    idx = (starts[:, :, None] + np.arange(block)[None, None, :]).reshape(N_BOOT, -1)[:, :n] % n
+    hits = int((d0[idx].mean(axis=1) >= d.mean()).sum())
+    return (1.0 + hits) / (N_BOOT + 1.0)
+
+
+def _newey_west_p(d: np.ndarray) -> tuple[float, int]:
+    """One-sided HAC (Newey-West) DM p-value for H0: mean(d) <= 0.
+
+    An analytic alternative to the bootstrap that corrects the same defect
+    by a different route. Bandwidth by the standard 4*(n/100)**(2/9) rule.
+    Reported alongside the bootstrap because the two disagree materially on
+    the stressed subset, and a single 'corrected' number would hide that.
+    """
+    n = len(d)
+    dbar = d.mean()
+    e = d - dbar
+    L = max(1, int(np.floor(4 * (n / 100.0) ** (2.0 / 9.0))))
+    gamma0 = float(e @ e) / n
+    var = gamma0
+    for k in range(1, L + 1):
+        gk = float(e[k:] @ e[:-k]) / n
+        var += 2.0 * (1.0 - k / (L + 1.0)) * gk
+    var = max(var, 1e-12)
+    stat = dbar / np.sqrt(var / n)
+    return float(1.0 - stats.norm.cdf(stat)), L
 
 
 def _report(piv, truth, days, name: str) -> float:
     """MAE of both ensembles on `days`, the uncorrected DM p-value, and the
     block-bootstrap p-value that is the reported statistic.
 
-    Why the bootstrap leads (decision 2026-08-04): epftoolbox's DM is
-    mean(d)/sqrt(var(d)/N) with no HAC correction, but the loss differential
-    is strongly autocorrelated — stressed days are DEFINED by their
-    predecessor breaching the threshold, so they arrive in runs. Treating
-    clustered days as independent understates the standard error. The block
-    length follows the standard n**(1/3) rule.
+    Why a RANGE rather than one number (decision 2026-08-04, revised after
+    code review): epftoolbox's DM is mean(d)/sqrt(var(d)/N) with no HAC
+    correction, but the loss differential is strongly autocorrelated —
+    stressed days are DEFINED by their predecessor breaching the threshold,
+    so they arrive in runs. Treating clustered days as independent
+    understates the standard error.
+
+    Two independent corrections are reported because they materially
+    disagree on the stressed subset, and collapsing them to a single
+    "corrected p" would hide that disagreement. The block bootstrap is also
+    sensitive to block length, and no block rule is authoritative here: the
+    n**(1/3) rule would hand the stressed subset a SHORTER block (4) than
+    the full sample (9) despite its STRONGER dependence, purely because it
+    is shorter. Block lengths beyond ~7 also exceed the longest observed run
+    of stressed days, over-correcting by treating months-apart runs as
+    dependent. So the sweep is reported and the claim is made against its
+    worst case, not its best.
+
+    NOTE on the subsets: for the stressed/calm calls `d` is a FILTERED
+    series, so adjacent entries are not always calendar-adjacent. Blocks
+    then preserve within-run dependence (the real structure) but not a
+    clean time series — another reason to read the sweep as a range.
     """
     idx = pd.DatetimeIndex(days)
     real = truth.loc[idx]
@@ -99,22 +145,29 @@ def _report(piv, truth, days, name: str) -> float:
     # Per-day multivariate L1 loss differential: positive => regime better.
     d = (np.abs(real.values - ps.values).mean(axis=1)
          - np.abs(real.values - pr.values).mean(axis=1))
-    block = max(2, int(round(len(d) ** (1 / 3))))
-    p_boot = _block_bootstrap_p(d, block)
+    n = len(d)
+    p_hac, bandwidth = _newey_west_p(d)
+    blocks = [b for b in (3, 4, 5, 7, 9, 10) if b < n]
+    sweep = {b: _block_bootstrap_p(d, b) for b in blocks}
 
     diff = np.abs(pr.values - ps.values)
-    print(f"\n{name}  (n={len(idx)} days)")
+    print(f"\n{name}  (n={n} days)")
     print(
         f"  MAE regime-aware {mae_r:.4f} | static {mae_s:.4f} | "
         f"delta {mae_r - mae_s:+.4f} ({100 * (mae_r - mae_s) / mae_s:+.2f}%)"
     )
     print(f"  mean |pred difference| {diff.mean():.4f} EUR/MWh, max {diff.max():.4f}")
-    print(f"  lag-1 autocorrelation of loss differential: {pd.Series(d).autocorr(1):+.4f}")
-    print(f"  DM p, uncorrected (epftoolbox, for comparability): {p_naive:.4f}")
-    print(f"  >> DM p, moving-block bootstrap (block={block}, seed={SEED}): {p_boot:.4f}  [REPORTED]")
-    for b in (3, 5, 7, 10):
-        print(f"     sensitivity: block={b:2d} -> p={_block_bootstrap_p(d, b):.4f}")
-    return p_boot
+    print(
+        f"  lag-1 autocorr {pd.Series(d).autocorr(1):+.4f} | "
+        f"skewness {float(pd.Series(d).skew()):+.2f}"
+    )
+    print(f"  p, uncorrected DM (epftoolbox; ignores dependence): {p_naive:.4f}")
+    print(f"  p, Newey-West HAC DM (bandwidth {bandwidth}):        {p_hac:.4f}")
+    print("  p, circular block bootstrap by block length:")
+    print("      " + "  ".join(f"b={b}:{sweep[b]:.4f}" for b in blocks))
+    lo, hi = min(sweep.values()), max(sweep.values())
+    print(f"  >> REPORTED RANGE across dependence corrections: {min(lo, p_hac):.4f} - {hi:.4f}")
+    return sweep, p_hac
 
 
 def main() -> None:

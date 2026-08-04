@@ -8,6 +8,7 @@ claim is checked here instead of trusted (leakage review, 2026-08-04).
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import numpy as np
@@ -30,6 +31,25 @@ def _cfg() -> dict:
         return yaml.safe_load(f)
 
 
+def _require_raw_data() -> None:
+    """Skip when the benchmark CSV is absent, but FAIL when the environment
+    declares that full data should be present.
+
+    data/raw/ is gitignored, so on a fresh clone these tests would skip —
+    and the one test that actually checks the leakage property would report
+    green while checking nothing. Setting THESIS_FULL_DATA=1 (CI, or before
+    tagging v1.0-results) turns that silence into a failure.
+    """
+    if RAW_DE.exists():
+        return
+    if os.environ.get("THESIS_FULL_DATA") == "1":
+        pytest.fail(
+            f"{RAW_DE} missing while THESIS_FULL_DATA=1: the regime-threshold "
+            "provenance check cannot run, and must not pass silently"
+        )
+    pytest.skip("benchmark CSV not cached locally (set THESIS_FULL_DATA=1 to require it)")
+
+
 def test_stress_threshold_matches_train_only_statistics():
     """The configured threshold must equal train mean + 1.5*std computed on
     data strictly before every window that could contaminate it.
@@ -37,8 +57,7 @@ def test_stress_threshold_matches_train_only_statistics():
     A drifting threshold, or one silently recomputed over a window that
     reaches into validation/test, is a leak that no other test would catch.
     """
-    if not RAW_DE.exists():
-        pytest.skip("benchmark CSV not cached locally")
+    _require_raw_data()
 
     prices = pd.read_csv(RAW_DE, index_col=0, parse_dates=True).iloc[:, 0]
     train = prices.loc[:TRAIN_CUTOFF]
@@ -53,13 +72,47 @@ def test_stress_threshold_matches_train_only_statistics():
     )
 
 
-def test_train_cutoff_precedes_every_downstream_window():
-    """Pin the ordering the threshold's provenance depends on."""
-    cutoff = pd.Timestamp(TRAIN_CUTOFF)
-    optuna_window_start = pd.Timestamp("2015-01-05")
-    weight_fitting_start = pd.Timestamp("2015-01-12")
-    assert cutoff < optuna_window_start
-    assert cutoff < weight_fitting_start
+def test_train_cutoff_precedes_the_derived_tuning_window():
+    """The cutoff must precede the tuning window as the CONFIG derives it.
+
+    Comparing two hardcoded dates would be tautological: it could never
+    fail, yet the property it claims depends on
+    walk_forward.calibration_window_days and the data start. Shortening the
+    calibration window would open the tuning window before the cutoff while
+    a hardcoded test stayed green. So derive the window start here.
+    """
+    _require_raw_data()
+
+    prices = pd.read_csv(RAW_DE, index_col=0, parse_dates=True).iloc[:, 0]
+    data_start = prices.index.min().normalize()
+    calib_days = int(_cfg()["walk_forward"]["calibration_window_days"])
+
+    # First origin that has a full trailing calibration window behind it.
+    first_tuning_origin = data_start + pd.Timedelta(days=calib_days)
+    assert pd.Timestamp(TRAIN_CUTOFF) < first_tuning_origin, (
+        f"threshold cutoff {TRAIN_CUTOFF} does not precede the first tuning "
+        f"origin {first_tuning_origin.date()} implied by "
+        f"calibration_window_days={calib_days} and data start "
+        f"{data_start.date()} -- the train-only claim would be false"
+    )
+
+
+def test_train_cutoff_precedes_the_weight_fitting_window():
+    """The cutoff must precede the earliest ensemble weight-fitting origin,
+    read from the committed validation predictions rather than hardcoded."""
+    val_dir = REPO_ROOT / "data" / "processed" / "validation_preds"
+    frames = sorted(val_dir.glob("*.csv"))
+    if not frames:
+        pytest.skip("validation predictions not present")
+
+    earliest = min(
+        pd.read_csv(f, usecols=["origin"], parse_dates=["origin"])["origin"].min()
+        for f in frames
+    )
+    assert pd.Timestamp(TRAIN_CUTOFF) < earliest, (
+        f"threshold cutoff {TRAIN_CUTOFF} does not precede the first "
+        f"weight-fitting origin {earliest.date()}"
+    )
 
 
 def test_config_has_no_legacy_spike_key():
