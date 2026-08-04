@@ -75,7 +75,11 @@ def dm_matrix(frames: dict[str, pd.DataFrame]) -> pd.DataFrame:
     # comes from one arbitrary frame, so a stale y_true there would define
     # reality for every DM p-value in the matrix. Check, don't assume.
     for m in names[1:]:
-        if not np.allclose(pivots_true[names[0]].values, pivots_true[m].values, equal_nan=True):
+        # Explicit atol: prices reach exactly 0.0, where allclose's relative
+        # term vanishes (see the twin guard in ensemble._aligned_pivots).
+        if not np.allclose(
+            pivots_true[names[0]].values, pivots_true[m].values, atol=1e-6, equal_nan=True
+        ):
             raise ValueError(
                 f"dm_matrix: y_true of '{m}' disagrees with '{names[0]}' -- "
                 "frames must share identical realized prices"

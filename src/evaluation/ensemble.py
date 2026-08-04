@@ -40,8 +40,12 @@ def _aligned_pivots(frames: dict[str, pd.DataFrame]) -> tuple[pd.DataFrame, dict
     # exactly this shape of corruption, so agreement is checked, not assumed.
     for m in names[1:]:
         other = frames[m].pivot(index="origin", columns="hour", values="y_true")
-        if not np.allclose(truth.values, other.values, equal_nan=True):
-            bad = int((~np.isclose(truth.values, other.values, equal_nan=True)).sum())
+        # atol is explicit: the test data contains y_true cells at exactly
+        # 0.0 EUR/MWh, where allclose's relative term vanishes and only atol
+        # remains. The default 1e-8 would flag a member merely written with
+        # fewer decimals; 1e-6 still catches any real corruption.
+        if not np.allclose(truth.values, other.values, atol=1e-6, equal_nan=True):
+            bad = int((~np.isclose(truth.values, other.values, atol=1e-6, equal_nan=True)).sum())
             raise ValueError(
                 f"ensemble: y_true of '{m}' disagrees with '{names[0]}' in "
                 f"{bad} cell(s) -- member frames must share identical realized "
