@@ -1,0 +1,17 @@
+params:
+  objective: regression_l1
+  n_estimators: 776
+  learning_rate: 0.010033769363389839
+  num_leaves: 167
+  min_child_samples: 27
+  feature_fraction: 0.7749264539620603
+  bagging_fraction: 0.8125324369058139
+  bagging_freq: 1
+  lambda_l1: 8.29221818982359e-06
+  lambda_l2: 0.0003129088164289063
+validation_mae: 2.6103
+n_trials: 50
+target: daily_baseload
+validation_window: 2015-01-05 -> 2016-01-03
+fit_window: 2012-01-16 -> 2015-01-04
+sampler_seed: 42

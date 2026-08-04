@@ -33,6 +33,20 @@ def _aligned_pivots(frames: dict[str, pd.DataFrame]) -> tuple[pd.DataFrame, dict
                 "-- frames must cover identical origin sets"
             )
     truth = frames[names[0]].pivot(index="origin", columns="hour", values="y_true")
+
+    # The truth column is taken from ONE arbitrary member, so a stale or
+    # shifted y_true in that file would silently define reality for every
+    # metric downstream. The 2026-08-02 concurrent-writer incident produced
+    # exactly this shape of corruption, so agreement is checked, not assumed.
+    for m in names[1:]:
+        other = frames[m].pivot(index="origin", columns="hour", values="y_true")
+        if not np.allclose(truth.values, other.values, equal_nan=True):
+            bad = int((~np.isclose(truth.values, other.values, equal_nan=True)).sum())
+            raise ValueError(
+                f"ensemble: y_true of '{m}' disagrees with '{names[0]}' in "
+                f"{bad} cell(s) -- member frames must share identical realized "
+                "prices; one of these files is stale or corrupted"
+            )
     return truth, preds
 
 

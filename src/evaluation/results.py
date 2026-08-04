@@ -71,6 +71,16 @@ def dm_matrix(frames: dict[str, pd.DataFrame]) -> pd.DataFrame:
                 f"'{names[0]}' -- frames must cover identical origin sets"
             )
 
+    # Same single-source-of-truth hazard as ensemble._aligned_pivots: p_real
+    # comes from one arbitrary frame, so a stale y_true there would define
+    # reality for every DM p-value in the matrix. Check, don't assume.
+    for m in names[1:]:
+        if not np.allclose(pivots_true[names[0]].values, pivots_true[m].values, equal_nan=True):
+            raise ValueError(
+                f"dm_matrix: y_true of '{m}' disagrees with '{names[0]}' -- "
+                "frames must share identical realized prices"
+            )
+
     p_real = pivots_true[names[0]]
     out = pd.DataFrame(np.nan, index=names, columns=names)
     for m1 in names:

@@ -14,12 +14,19 @@ from src.evaluation.results import daily_baseload, dm_matrix, load_long_frame
 
 
 def _long_frame(model: str, n_days: int = 30, bias: float = 0.0, seed: int = 42) -> pd.DataFrame:
-    rng = np.random.default_rng(seed)
+    """Synthetic walk-forward long frame for one model.
+
+    y_true is drawn from a FIXED seed independent of `seed`: every model
+    records the same market outcome, as real walk-forward frames do. Only
+    y_pred varies with `seed`. dm_matrix() enforces this agreement.
+    """
+    truth_rng = np.random.default_rng(20210101)
+    pred_rng = np.random.default_rng(seed)
     origins = pd.date_range("2021-01-01", periods=n_days, freq="D")
     rows = []
     for o in origins:
-        y_true = rng.normal(50, 10, size=24)
-        y_pred = y_true + rng.normal(bias, 1, size=24)
+        y_true = truth_rng.normal(50, 10, size=24)
+        y_pred = y_true + pred_rng.normal(bias, 1, size=24)
         for h in range(24):
             rows.append(dict(origin=o, hour=h, y_true=y_true[h], y_pred=y_pred[h], model=model))
     return pd.DataFrame(rows)

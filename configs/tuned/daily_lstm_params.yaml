@@ -1,0 +1,11 @@
+params:
+  units: 61
+  epochs: 100
+  batch_size: 64
+  learning_rate: 0.0024260143988531374
+validation_mae: 2.8965
+n_trials: 50
+target: daily_baseload
+validation_window: 2015-01-05 -> 2016-01-03
+fit_window: 2012-01-16 -> 2015-01-04
+sampler_seed: 42
