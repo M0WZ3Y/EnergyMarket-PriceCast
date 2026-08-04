@@ -137,7 +137,7 @@ def _subset_by_regime(
 
 def main(dry_run: bool = False) -> None:
     eval_cfg = load_evaluation_config()
-    threshold = float(eval_cfg["regime"]["spike_threshold_eur_mwh"])
+    threshold = float(eval_cfg["regime"]["stress_threshold_eur_mwh"])
 
     val = _load_frames(VAL_DIR, MEMBERS, "validation")
     test = _load_frames(TEST_DIR, MEMBERS, "test")
@@ -151,7 +151,7 @@ def main(dry_run: bool = False) -> None:
         f"test:       {len(test_days)} origins "
         f"{test_days.min().date()} -> {test_days.max().date()}\n"
         f"members:    {list(MEMBERS)}\n"
-        f"spike threshold: {threshold} EUR/MWh (previous-day rule)\n"
+        f"stress threshold: {threshold} EUR/MWh (previous-day rule)\n"
     )
 
     # ---- static ensemble -------------------------------------------------
@@ -170,18 +170,22 @@ def main(dry_run: bool = False) -> None:
     counts = pd.Series(list(labels.values())).value_counts().to_dict()
     print(
         f"\nvalidation regime split: "
-        f"calm {counts.get('calm', 0)}, spike {counts.get('spike', 0)}"
+        f"calm {counts.get('calm', 0)}, stressed {counts.get('stressed', 0)}"
     )
 
     w_regime: dict[str, dict[str, float]] = {}
-    for regime in ("calm", "spike"):
+    for regime in ("calm", "stressed"):
         n = counts.get(regime, 0)
         if n < MIN_DAYS_PER_REGIME:
             raise SystemExit(
                 f"\nregime-aware ensemble not defensible: only {n} '{regime}' day(s) "
                 f"in the validation window (minimum {MIN_DAYS_PER_REGIME}).\n"
-                "Weights fitted on that few days would be noise. Options: widen the\n"
-                "validation window, or report the static ensemble alone and log why."
+                "Weights fitted on that few days would be noise. Widening the\n"
+                "validation window does NOT help on this data (a 730-day window\n"
+                "still holds only 4 stressed days at 3*std -- decision 2026-08-04);\n"
+                "the lever is regime.stress_threshold_eur_mwh in\n"
+                "configs/evaluation.yaml. Re-pick k by the validation-only rule\n"
+                "documented there -- never by which value looks best on test."
             )
         sub = _subset_by_regime(val, labels, regime)
         w_regime[regime] = fit_weights(sub, test_days=test_days)
@@ -189,8 +193,8 @@ def main(dry_run: bool = False) -> None:
     print("\nregime weights (fitted on validation, per regime):")
     header = "  " + " ".join(f"{m:>12}" for m in MEMBERS)
     print(header)
-    for regime in ("calm", "spike"):
-        print(f"  {regime:<5}" + " ".join(f"{w_regime[regime][m]:12.3f}" for m in MEMBERS))
+    for regime in ("calm", "stressed"):
+        print(f"  {regime:<9}" + " ".join(f"{w_regime[regime][m]:12.3f}" for m in MEMBERS))
 
     # ---- apply to the test period ---------------------------------------
     ens_static = combine_forecasts(test, w_static, name="Ensemble (static)")
@@ -202,7 +206,7 @@ def main(dry_run: bool = False) -> None:
     t_counts = pd.Series(list(test_labels.values())).value_counts().to_dict()
     print(
         f"\ntest regime split: calm {t_counts.get('calm', 0)}, "
-        f"spike {t_counts.get('spike', 0)}"
+        f"stressed {t_counts.get('stressed', 0)}"
     )
 
     # ---- results ---------------------------------------------------------
