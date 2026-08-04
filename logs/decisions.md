@@ -1111,4 +1111,63 @@ is genuinely ex-ante. Actioned from it:
 
 ---
 
+### 2026-08-04 — OOD stress test built; BLOCKED on network, result not yet produced
+
+`scripts/run_ood_stress.py` implements the sanctioned OOD arm (gameplan
+2026-07-11): frozen benchmark-era models evaluated on live Energy-Charts
+data. Three deliberately separate stages so the network is touched once:
+
+- `--fit` fits all five models on the FINAL 1092-day calibration window of
+  the benchmark data (2015-01-05 -> 2017-12-31 — exactly what the
+  walk-forward would have used for one more origin) and persists them to
+  `models/frozen/` with a `metadata.json` recording the freeze date and the
+  benchmark price level. **Done and committed.**
+- `--fetch` pulls the live window and CACHES it to `data/raw/`. **Blocked.**
+- default replays: frozen models + cached data -> predictions + metrics.
+  Implemented and validated; awaiting real data.
+
+**Why frozen, not refitted.** Refitting on live data would measure
+adaptation, not out-of-distribution degradation. The models never see an
+hour of live data. Ensemble weights are likewise the frozen
+validation-fitted ones — refitting them on the live window would leak the
+OOD period into its own evaluation.
+
+**BLOCKER: no outbound HTTPS from the workstation.** Every HTTPS request
+fails with `SSLError(SSLEOFError)` — not only Energy-Charts but also
+pypi.org and example.com, so it is environment-level, not an API problem
+and not a code defect. The fetch stage is therefore unrun and **no OOD
+numbers exist yet**. To finish: run
+`python scripts/run_ood_stress.py --fetch --start 2026-01-01` from a network
+with outbound HTTPS, then re-run with no flags.
+
+**Reproducibility requirement, deliberately built in.** The live API returns
+different data every day, so an uncached OOD result could never be
+reproduced — unacceptable under the post-tag freeze rule. The fetch stage
+writes a CSV to `data/raw/` that must be committed alongside whatever
+numbers it produces. Fetching is chunked (30-day windows) because the API
+read-times-out on multi-month ranges, and a failed chunk is reported rather
+than discarding the chunks already retrieved.
+
+**Guards, because a bad OOD run fails silently.** A window overlapping the
+freeze date would score models on their own training data and report
+flattering numbers under an OOD heading. `replay()` refuses it, and
+`tests/test_ood_stress.py` pins that guard plus the short-window,
+missing-cache and partial-freeze cases. Known limitation, recorded rather
+than papered over: **the guard compares dates, not content.** Validating the
+pipeline with benchmark test data shifted forward nine years passed the
+guard and produced an absurd LightGBM MAE of 1.67 (better than benchmark)
+precisely because the underlying rows were training data. Dates alone
+cannot detect that; only provenance can. Treat any OOD result whose metrics
+IMPROVE on the benchmark as suspect input, not as a finding.
+
+**Expectation to test, not to assume.** The frozen regime threshold
+(62.6989 EUR/MWh, from 2012-14 prices) will likely classify nearly every
+2026 day as stressed, degenerating the regime switch to a single weight set.
+The script detects and reports that explicitly. If it happens it is a
+genuine OOD finding — a threshold calibrated on a pre-crisis market does not
+partition a post-crisis one — and should be reported as such, not patched by
+recalibrating the threshold, which would destroy the frozen-model premise.
+
+---
+
 Pages banked: 0 / quota 0 | Results table: n/a | Backup: [ ]

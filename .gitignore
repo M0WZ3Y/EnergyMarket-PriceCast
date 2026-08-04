@@ -9,6 +9,15 @@ data/processed/*
 # Same rationale: validation-window predictions determine the ensemble
 # weights, so they are load-bearing for the freeze too
 !data/processed/validation_preds/
+# Daily-direct walk-forward predictions (RQ4's direct arm)
+!data/processed/daily_direct/
+# The OOD live-data cache is NOT re-downloadable: the Energy-Charts API
+# returns different data every day, so the exact window behind the reported
+# OOD numbers exists only here. Committing it is what makes that result
+# reproducible after the v1.0-results tag.
+!data/raw/live_ood_de.csv
+# OOD predictions + summary, derived from that cache
+!data/processed/ood/
 
 # Models & experiment artifacts
 models/*
