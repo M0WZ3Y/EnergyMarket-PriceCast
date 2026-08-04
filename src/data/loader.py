@@ -110,7 +110,23 @@ class EnergyChartsLoader:
         url = f"{self.base_url}/{endpoint.lstrip('/')}"
         for attempt in range(self._MAX_RETRIES + 1):
             logger.info("GET %s params=%s", url, params)
-            r = requests.get(url, params=params, timeout=30)
+            try:
+                r = requests.get(url, params=params, timeout=30)
+            except requests.exceptions.RequestException as exc:
+                # This host intermittently drops TLS mid-handshake
+                # (SSLEOFError / DECRYPTION_FAILED), especially under
+                # sustained use. Retrying only on 429 left those as hard
+                # failures and silently cost whole chunks of a long fetch,
+                # so connection-level errors get the same backoff.
+                if attempt >= self._MAX_RETRIES:
+                    raise
+                wait = 2.0 ** attempt
+                logger.warning(
+                    "%s from %s, retrying in %.1fs", type(exc).__name__, url, wait
+                )
+                time.sleep(wait)
+                continue
+
             if r.status_code == 429 and attempt < self._MAX_RETRIES:
                 wait = float(r.headers.get("Retry-After", 2 ** attempt))
                 logger.warning("429 from %s, retrying in %.1fs", url, wait)

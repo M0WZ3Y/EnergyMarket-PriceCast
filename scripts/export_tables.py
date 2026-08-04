@@ -186,6 +186,26 @@ def build_canonical() -> pd.DataFrame:
     return table.sort_values(["model", "target"]).set_index(["model", "target"])[METRICS]
 
 
+def build_ood() -> pd.DataFrame | None:
+    """OOD addendum table (v1.1-ood), if the OOD run has been performed.
+
+    Deliberately a separate table from results_canonical: these numbers come
+    from a different data source (live Energy-Charts) and a different
+    protocol (frozen models, no recalibration), and merging them into the
+    canonical table would invite reading a 2026 MAE against a 2016-17 MAE as
+    though they were comparable. They are not — the market level differs by
+    ~2.8x, which is the whole point.
+    """
+    summary = REPO_ROOT / "data" / "processed" / "ood" / "ood_summary.csv"
+    if not summary.exists():
+        return None
+    df = pd.read_csv(summary, index_col=0)
+    keep = [c for c in ["MAE", "RMSE", "sMAPE", "rMAE", "MAE ratio"] if c in df.columns]
+    df = df[keep].rename(columns={"MAE ratio": "MAE vs benchmark"})
+    order = [m for m in MODEL_ORDER if m in df.index]
+    return df.loc[order].sort_values("rMAE")
+
+
 def export(df: pd.DataFrame, stem: str, caption: str, label: str, dry_run: bool) -> None:
     csv_path, tex_path = OUT_DIR / f"{stem}.csv", OUT_DIR / f"{stem}.tex"
     if dry_run:
@@ -291,6 +311,30 @@ def main(dry_run: bool = False) -> None:
             "reported by scripts/run\\_dm\\_ensembles.py."
         ),
         label="tab:dm-regime-split",
+        dry_run=dry_run,
+    )
+
+    ood = build_ood()
+    if ood is None:
+        print("\n(no OOD summary found — skipping the addendum table)")
+        return
+    export(
+        ood,
+        "ood_stress",
+        caption=(
+            "OOD stress test (addendum v1.1-ood): models frozen on the "
+            "benchmark era (2015-01-05 to 2017-12-31) and applied without "
+            "recalibration to live DE-LU data, 173 days from 2026-01-08 to "
+            "2026-06-29. Mean price 98.67 versus 34.69 EUR/MWh at training "
+            "time. Every trained model exceeds rMAE 1.0, i.e. performs worse "
+            "than a naive forecast; naive alone stays below it because it "
+            "carries no frozen parameters. The in-era ranking inverts: "
+            "LightGBM and LSTM degrade most, SARIMAX and LEAR-LASSO least. "
+            "Sorted by rMAE. Not comparable row-for-row with the canonical "
+            "results table, which uses a different market period. "
+            "Data: Energy-Charts (Fraunhofer ISE) / SMARD.de, CC BY 4.0."
+        ),
+        label="tab:ood-stress",
         dry_run=dry_run,
     )
 

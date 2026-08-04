@@ -1,0 +1,18 @@
+\begin{table}[htbp]
+\caption{OOD stress test (addendum v1.1-ood): models frozen on the benchmark era (2015-01-05 to 2017-12-31) and applied without recalibration to live DE-LU data, 173 days from 2026-01-08 to 2026-06-29. Mean price 98.67 versus 34.69 EUR/MWh at training time. Every trained model exceeds rMAE 1.0, i.e. performs worse than a naive forecast; naive alone stays below it because it carries no frozen parameters. The in-era ranking inverts: LightGBM and LSTM degrade most, SARIMAX and LEAR-LASSO least. Sorted by rMAE. Not comparable row-for-row with the canonical results table, which uses a different market period. Data: Energy-Charts (Fraunhofer ISE) / SMARD.de, CC BY 4.0.}
+\label{tab:ood-stress}
+\begin{tabular}{lrrrrr}
+\toprule
+ & MAE & RMSE & sMAPE & rMAE & MAE vs benchmark \\
+model &  &  &  &  &  \\
+\midrule
+naive & 29.183 & 48.732 & 45.898 & 0.808 & 3.765 \\
+LEAR-LASSO & 39.267 & 65.314 & 49.717 & 1.087 & 10.071 \\
+SARIMAX & 41.391 & 56.504 & 50.177 & 1.145 & 9.514 \\
+Ensemble (regime-aware) & 42.171 & 53.375 & 59.404 & 1.167 & 11.856 \\
+Ensemble (static) & 44.433 & 55.519 & 61.695 & 1.230 & 12.431 \\
+LSTM & 54.929 & 67.506 & 79.163 & 1.520 & 14.181 \\
+LightGBM & 66.058 & 77.349 & 92.497 & 1.828 & 16.648 \\
+\bottomrule
+\end{tabular}
+\end{table}
