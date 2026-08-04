@@ -14,12 +14,21 @@ from src.evaluation.ensemble import combine_forecasts, fit_weights
 
 
 def _long_frame(model, n_days=20, bias=0.0, noise=1.0, seed=42):
-    rng = np.random.default_rng(seed)
+    """Synthetic walk-forward long frame for one member.
+
+    y_true is drawn from a FIXED seed independent of `seed`, so every member
+    sees identical realized prices — as real walk-forward frames do, since
+    they all record the same market outcome. Only y_pred varies with `seed`.
+    (Before 2026-08-04 each member also randomized y_true, which no real
+    frame does and which masked the y_true-agreement guard.)
+    """
+    truth_rng = np.random.default_rng(20210101)
+    pred_rng = np.random.default_rng(seed)
     origins = pd.date_range("2021-01-01", periods=n_days, freq="D")
     rows = []
     for o in origins:
-        y_true = rng.normal(50, 10, size=24)
-        y_pred = y_true + rng.normal(bias, noise, size=24)
+        y_true = truth_rng.normal(50, 10, size=24)
+        y_pred = y_true + pred_rng.normal(bias, noise, size=24)
         for h in range(24):
             rows.append(dict(origin=o, hour=h, y_true=y_true[h], y_pred=y_pred[h], model=model))
     return pd.DataFrame(rows)
@@ -40,6 +49,20 @@ def test_combine_normalizes_weights():
     out1 = combine_forecasts(frames, weights={"a": 3.0, "b": 1.0})
     out2 = combine_forecasts(frames, weights={"a": 0.75, "b": 0.25})
     assert np.allclose(out1["y_pred"].values, out2["y_pred"].values)
+
+
+def test_combine_rejects_frames_whose_y_true_disagrees():
+    """A member carrying different realized prices must be refused.
+
+    The truth column is read from one arbitrary member, so a stale or
+    shifted y_true there would silently define reality for every metric
+    downstream — the shape of the 2026-08-02 concurrent-writer corruption.
+    """
+    frames = {"a": _long_frame("a"), "b": _long_frame("b", seed=7)}
+    frames["b"] = frames["b"].copy()
+    frames["b"].loc[0, "y_true"] += 5.0  # one corrupted cell is enough
+    with pytest.raises(ValueError, match="y_true"):
+        combine_forecasts(frames, weights={"a": 0.5, "b": 0.5})
 
 
 def test_combine_rejects_misaligned_frames():
@@ -113,13 +136,19 @@ SYNTHETIC_THRESHOLD = 100.0
 
 
 def _frame_with_stressed_days(model, stressed_days, n_days=20, bias=0.0, seed=42):
-    rng = np.random.default_rng(seed)
+    """As _long_frame, but with chosen days pushed to a high price level.
+
+    y_true again comes from a fixed seed so all members share realized
+    prices; only y_pred varies with `seed`.
+    """
+    truth_rng = np.random.default_rng(20210101)
+    pred_rng = np.random.default_rng(seed)
     origins = pd.date_range("2021-01-01", periods=n_days, freq="D")
     rows = []
     for i, o in enumerate(origins):
         level = 200.0 if i in stressed_days else 50.0
-        y_true = rng.normal(level, 5, size=24)
-        y_pred = y_true + rng.normal(bias, 1, size=24)
+        y_true = truth_rng.normal(level, 5, size=24)
+        y_pred = y_true + pred_rng.normal(bias, 1, size=24)
         for h in range(24):
             rows.append(dict(origin=o, hour=h, y_true=y_true[h], y_pred=y_pred[h], model=model))
     return pd.DataFrame(rows)

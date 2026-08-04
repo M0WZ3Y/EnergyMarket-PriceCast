@@ -21,8 +21,18 @@ validation:
 
 # Regime definition for the regime-aware ensemble (sanctioned 2026-07-11).
 #
-# Threshold family: train mean + k*std, computed on data strictly before the
-# validation window starts (<= 2015-01-11: mean 37.61, std 16.70). k = 1.5.
+# Threshold family: train mean + k*std with k = 1.5, computed on price data
+# up to 2015-01-04 inclusive (mean 37.6876, std 16.6742).
+#
+# The cutoff is strictly before BOTH windows that could contaminate it:
+#   Optuna tuning window          2015-01-05 -> 2016-01-03
+#   ensemble weight-fitting window 2015-01-12 -> 2016-01-03
+# An earlier revision used <= 2015-01-11, which preceded the weight-fitting
+# window but overlapped the tuning window by 7 days. Tightened 2026-08-04;
+# the regime split is unchanged either way (validation 37/357, test 77/728),
+# so this buys provenance, not a different result.
+# tests/test_regime_threshold.py asserts this value against the raw data —
+# the property is checked, not merely asserted in a comment.
 #
 # k is chosen by a VALIDATION-ONLY rule (decision 2026-08-04): take the
 # largest k in {3.0, 2.5, 2.0, 1.5} for which BOTH regimes hold at least
@@ -39,7 +49,7 @@ validation:
 # the threshold (regime_labels() enforces the previous-day-only rule). At
 # ~1.5 sigma this marks an ELEVATED day, not a price spike — hence 'stressed'.
 regime:
-  stress_threshold_eur_mwh: 62.65
+  stress_threshold_eur_mwh: 62.6989
 
 optuna:
   n_trials: 50

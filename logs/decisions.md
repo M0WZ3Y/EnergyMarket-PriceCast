@@ -916,12 +916,17 @@ exactly the years this thesis uses:
 | 2016 (test) | 6 / 366 |
 | 2017 (test) | 19 / 365 |
 
-**Why the validation window was not widened instead.** A 730-day window
-still yields only 4 stressed days; reaching 26 requires going back to
-~2013-04 (~643 extra origins x 5 models, a multi-day run). More decisively,
-the *test* window holds only 25/728 stressed days at 84.04 — so even with
-weights fitted, the regime arm could act on 3.4% of test days. Widening the
-validation window costs days of compute and does not fix the test surface.
+**Why the validation window was not widened instead.** Two validation-only
+grounds, both admissible: (i) widening does not rescue k=3.0 — a 730-day
+validation window still holds only 4 stressed days, so the >= 20 rule still
+fails and the threshold would have to move anyway; reaching 26 requires
+going back to ~2013-04, into a structurally different market era; (ii)
+compute cost — ~643 extra origins x 5 models, a multi-day walk-forward.
+
+(Correction, same day: an earlier revision of this entry argued the point
+"more decisively" from a test-window count. That was inconsistent with this
+entry's own rule that test data must not justify design choices, and has
+been removed. See the ex-post note below.)
 
 **Decision: keep the mean + k*std family, move k from 3.0 to 1.5**
 (= 62.65 EUR/MWh; train statistics on data <= 2015-01-11, mean 37.61,
@@ -937,11 +942,18 @@ k is chosen by a **validation-only rule**: take the largest k in
 | 2.0 | 71.00 | 10 / 357 (fails) | 44 / 728 |
 | **1.5** | **62.65** | **37 / 357** | **77 / 728** |
 
-The test column is recorded here for transparency only. It is NOT the
-justification, and must not become one: choosing a threshold by its test
-behavior is in-sample selection and would compromise every downstream
-number. The rule reads the validation window and pre-validation train
-statistics only.
+The test column is recorded **ex post, after k was fixed**, for
+transparency only. It is NOT the justification and must not become one:
+choosing a threshold by its test behaviour is in-sample selection and would
+compromise every downstream number. The rule reads the validation window and
+pre-validation train statistics only.
+
+Full disclosure, since the audit trail should not overstate the analyst's
+ignorance: the test counts WERE known at decision time (they were computed
+while diagnosing the blocker). The defence is not ignorance but determinism
+— the selection rule is a total function of validation counts and would
+return k=1.5 with the test column blacked out. k=2.0, the next candidate up,
+fails the >= 20 rule at 10 validation days regardless of anything on test.
 
 **Scope of the supersession.** 84.04 is superseded as a *regime switch*
 only. It is not retracted as a descriptive statistic — the week-2 EDA
@@ -979,8 +991,11 @@ resolved in the next entry.
 
 Interpretable side-result worth a sentence in chapter 4: under stress the
 weights shift toward LEAR-LASSO (0.237 -> 0.375) and away from SARIMAX
-(0.140 -> 0.063), with LSTM up (0.235 -> 0.281) — the linear
-high-dimensional model earns its weight when prices are elevated.
+(0.140 -> 0.063), with LSTM up (0.235 -> 0.281). Phrase this as a shift in
+*fitted weights*, not as evidence that LEAR-LASSO is intrinsically better
+under stress — the weights are fitted on the same window the members were
+tuned on (see the leakage-review note in the 2026-08-04 DM entry), so they
+partly reflect relative overfitting of that window.
 
 ---
 
@@ -990,29 +1005,47 @@ Ran the pairwise DM test (multivariate, 24-h vector, L1 norm — the
 epftoolbox/Lago protocol) on the test period, plus a focused
 regime-aware-vs-static comparison split by regime.
 
-| Subset | MAE regime-aware | MAE static | Delta | DM p |
-|--------|------------------|------------|-------|------|
-| All 728 days | 3.5569 | 3.5742 | -0.0173 (-0.48%) | **0.0009** |
-| 77 stressed days | 5.5132 | 5.6830 | -0.1698 (-2.99%) | **0.0003** |
-| 651 calm days | 3.3255 | 3.3248 | +0.0007 (+0.02%) | 0.8624 |
+**REVISED the same day after the leakage review.** The first version of this
+entry reported the uncorrected epftoolbox DM p-values (0.0009 / 0.0003) and
+claimed rejection at the 1% level. That claim is **withdrawn**. epftoolbox's
+DM is mean(d)/sqrt(var(d)/N) with no HAC correction, but the loss
+differential is strongly autocorrelated — a stressed day is *defined* by its
+predecessor breaching the threshold, so stressed days arrive in runs (77
+days in only 31 runs, mean run 2.48, max 7; lag-1 autocorrelation +0.36).
+Treating clustered days as independent understates the standard error.
 
-**The earlier "report as marginal" caveat (previous entry) is withdrawn.**
-The aggregate gain is small but the DM test rejects equality at the 1%
-level, and the subset split explains why the aggregate understates it: the
-improvement is concentrated exactly where the mechanism acts (stressed
-days) and is statistically indistinguishable from zero where it does not
-(calm days, p=0.86). A diffuse noise advantage would not localize this way.
-Mean |prediction difference| corroborates the mechanism: 0.59 EUR/MWh on
-stressed days vs 0.022 on calm days.
+Reported statistic is now a **moving-block bootstrap** (20 000 resamples,
+seed 42, block = n**(1/3) per the standard rule), with the uncorrected DM
+shown alongside for comparability with Lago et al.
 
-**Claim discipline for chapter 4.** Significant is not the same as large.
-The supportable claim is: *regime-aware weighting produces a statistically
-significant accuracy gain over static weighting, concentrated on stressed
-days (-3.0% MAE, p=0.0003), with no effect on calm days.* Do NOT write that
-regime-awareness substantially improves forecasting overall — the aggregate
-is -0.48%, capped by stressed days being only 10.6% of the test window.
-State that cap explicitly so a small aggregate is not misread as a weak
-mechanism.
+| Subset | MAE regime | MAE static | Delta | DM (uncorr.) | **bootstrap** |
+|--------|-----------|------------|-------|--------------|---------------|
+| All 728 days | 3.5569 | 3.5742 | -0.0173 (-0.48%) | 0.0009 | **0.0549** (block 9) |
+| 77 stressed days | 5.5132 | 5.6830 | -0.1698 (-2.99%) | 0.0003 | **0.0169** (block 4) |
+| 651 calm days | 3.3255 | 3.3248 | +0.0007 (+0.02%) | 0.8624 | 0.8170 (block 9) |
+
+Block-length sensitivity is recorded by the script; on the stressed subset p
+runs 0.0095 (block 3) to 0.0693 (block 10), so the result is significant at
+5% across the plausible range but never at 1%.
+
+**Claim discipline for chapter 4 — narrower than first written.** The
+supportable claim is: *regime-aware weighting significantly improves
+accuracy on stressed days (-3.0% MAE, block-bootstrap p=0.017), while over
+the full test period the improvement is not statistically significant at the
+5% level (p=0.055).* Both halves must be stated together. Do NOT claim
+overall significance, and do NOT claim 1% significance anywhere.
+
+This is coherent rather than contradictory: a mechanism that fires on 10.6%
+of days is diluted below detectability when averaged over all days. The calm
+subset (p=0.82) confirms the switch does not fire where it should not — but
+report that as a sanity check, not as independent corroboration, since the
+same threshold defines both the estimator's switch and the evaluation
+partition, making the calm-day null partly mechanical.
+
+Bonferroni over the three reported subset tests leaves the stressed result
+at 0.017 x 3 = 0.051 — borderline. Say so in chapter 4 rather than waiting
+to be asked; the honest framing is that the stressed-day effect is
+suggestive-to-significant, not established beyond doubt.
 
 **Other DM results worth carrying into chapter 4.**
 - Both ensembles beat every single model at p ~ 0.0000 — the strongest
@@ -1023,9 +1056,39 @@ mechanism.
   reported — it is directly relevant to the Plan A/Plan B framing and
   omitting it would overstate the deep model's standing.
 
-Exploratory script (not committed): scratchpad `dm_ensembles.py`. The
-canonical DM table is exported via the export-results skill before the
-v1.0-results tag.
+Reproduce with `scripts/run_dm_ensembles.py` (reads only committed
+artifacts). The canonical DM table is exported via the export-results skill
+before the v1.0-results tag.
+
+**Leakage review, 2026-08-04** (leakage-reviewer agent, ensemble changes).
+No test-set contamination found in code: `fit_weights` never sees a test
+origin, `combine_regime_aware` carries only the scalar threshold and the
+weight vectors across from validation, and the previous-day labelling rule
+is genuinely ex-ante. Actioned from it:
+- Threshold slice tightened from <= 2015-01-11 to <= 2015-01-04 so it
+  precedes the Optuna tuning window (opens 01-05) as well as the
+  weight-fitting window (opens 01-12). Value 62.6522 -> 62.6989; regime
+  split unchanged (37/357, 77/728) and all reported metrics unchanged, so
+  this is provenance only.
+- `tests/test_regime_threshold.py` added: asserts the configured threshold
+  equals train mean + 1.5*std on data <= 2015-01-04, pins the window
+  ordering, and rejects a legacy `spike_threshold_eur_mwh` key. The
+  train-only property is now checked rather than asserted in a comment.
+- `y_true` agreement across member frames is now enforced in
+  `ensemble._aligned_pivots` and `results.dm_matrix`. Both took the truth
+  column from one arbitrary member, so a stale file would have silently
+  defined reality for every metric — the shape of the 2026-08-02
+  concurrent-writer corruption. Synthetic test fixtures were randomising
+  y_true per member, which no real frame does; they now share a fixed
+  truth seed, which is also more faithful.
+- Confirmed NOT actioned: ensemble weights are fitted on the same window
+  the members were Optuna-tuned on (2015-01-05 -> 2016-01-03), so the
+  validation predictions are not out-of-sample w.r.t. hyperparameter
+  selection. Not a leak (no post-origin or test information), and fixing it
+  needs a nested tuning/weighting split plus another walk-forward pass.
+  **Disclose in chapter 3**, and soften the interpretive claim below
+  accordingly — the weight vector is not an unbiased estimate of relative
+  model quality.
 
 ---
 

@@ -35,6 +35,9 @@ import pandas as pd
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
+SEED = 42
+N_BOOT = 20000
+
 from src.evaluation.ensemble import regime_labels
 from src.evaluation.metrics import diebold_mariano, mae
 from src.evaluation.results import dm_matrix, load_long_frame
@@ -56,9 +59,33 @@ REGIME = "Ensemble (regime-aware)"
 STATIC = "Ensemble (static)"
 
 
+def _block_bootstrap_p(d: np.ndarray, block: int) -> float:
+    """One-sided moving-block bootstrap p-value for H0: mean(d) <= 0.
+
+    Resampling contiguous blocks preserves the serial dependence that the
+    plain DM statistic ignores. The null is imposed by centring d before
+    resampling. Deterministic under SEED.
+    """
+    rng = np.random.default_rng(SEED)
+    n = len(d)
+    d0 = d - d.mean()
+    nblocks = int(np.ceil(n / block))
+    starts = rng.integers(0, n - block + 1, size=(N_BOOT, nblocks))
+    idx = (starts[:, :, None] + np.arange(block)[None, None, :]).reshape(N_BOOT, -1)[:, :n]
+    return float((d0[idx].mean(axis=1) >= d.mean()).mean())
+
+
 def _report(piv, truth, days, name: str) -> float:
-    """MAE of both ensembles on `days`, plus the one-sided DM p-value for
-    'regime-aware is more accurate than static'."""
+    """MAE of both ensembles on `days`, the uncorrected DM p-value, and the
+    block-bootstrap p-value that is the reported statistic.
+
+    Why the bootstrap leads (decision 2026-08-04): epftoolbox's DM is
+    mean(d)/sqrt(var(d)/N) with no HAC correction, but the loss differential
+    is strongly autocorrelated — stressed days are DEFINED by their
+    predecessor breaching the threshold, so they arrive in runs. Treating
+    clustered days as independent understates the standard error. The block
+    length follows the standard n**(1/3) rule.
+    """
     idx = pd.DatetimeIndex(days)
     real = truth.loc[idx]
     pr, ps = piv[REGIME].loc[idx], piv[STATIC].loc[idx]
@@ -67,7 +94,13 @@ def _report(piv, truth, days, name: str) -> float:
     mae_s = mae(real.values.ravel(), ps.values.ravel())
     # epftoolbox DM: small p supports "p_pred_2 more accurate than p_pred_1",
     # so the regime-aware forecasts go in as p_pred_2.
-    p = diebold_mariano(p_real=real.values, p_pred_1=ps.values, p_pred_2=pr.values)
+    p_naive = diebold_mariano(p_real=real.values, p_pred_1=ps.values, p_pred_2=pr.values)
+
+    # Per-day multivariate L1 loss differential: positive => regime better.
+    d = (np.abs(real.values - ps.values).mean(axis=1)
+         - np.abs(real.values - pr.values).mean(axis=1))
+    block = max(2, int(round(len(d) ** (1 / 3))))
+    p_boot = _block_bootstrap_p(d, block)
 
     diff = np.abs(pr.values - ps.values)
     print(f"\n{name}  (n={len(idx)} days)")
@@ -76,8 +109,12 @@ def _report(piv, truth, days, name: str) -> float:
         f"delta {mae_r - mae_s:+.4f} ({100 * (mae_r - mae_s) / mae_s:+.2f}%)"
     )
     print(f"  mean |pred difference| {diff.mean():.4f} EUR/MWh, max {diff.max():.4f}")
-    print(f"  DM p (regime-aware more accurate than static): {p:.4f}")
-    return p
+    print(f"  lag-1 autocorrelation of loss differential: {pd.Series(d).autocorr(1):+.4f}")
+    print(f"  DM p, uncorrected (epftoolbox, for comparability): {p_naive:.4f}")
+    print(f"  >> DM p, moving-block bootstrap (block={block}, seed={SEED}): {p_boot:.4f}  [REPORTED]")
+    for b in (3, 5, 7, 10):
+        print(f"     sensitivity: block={b:2d} -> p={_block_bootstrap_p(d, b):.4f}")
+    return p_boot
 
 
 def main() -> None:
