@@ -973,16 +973,59 @@ iteration loop still said `("calm", "spike")`, and only a test caught it.
 | naive | 7.750 | 13.257 | 28.595 | 0.849 |
 
 Both ensembles beat the best single model (LSTM) by ~0.30 MAE — the solid
-result. **The regime-aware gain over static is 0.017 MAE (0.48%) and should
-be reported as marginal until the DM test rules on it.** Do not present
-regime-awareness as a decisive win on this evidence; the honest framing is
-that ensembling is the win and regime-awareness is a small refinement whose
-significance is an open question for the DM table.
+result. The regime-aware gain over static is 0.017 MAE (0.48%) in
+aggregate; its significance was left open here pending the DM test and is
+resolved in the next entry.
 
 Interpretable side-result worth a sentence in chapter 4: under stress the
 weights shift toward LEAR-LASSO (0.237 -> 0.375) and away from SARIMAX
 (0.140 -> 0.063), with LSTM up (0.235 -> 0.281) — the linear
 high-dimensional model earns its weight when prices are elevated.
+
+---
+
+### 2026-08-04 — DM test resolves the regime-aware ensemble: significant, and localized
+
+Ran the pairwise DM test (multivariate, 24-h vector, L1 norm — the
+epftoolbox/Lago protocol) on the test period, plus a focused
+regime-aware-vs-static comparison split by regime.
+
+| Subset | MAE regime-aware | MAE static | Delta | DM p |
+|--------|------------------|------------|-------|------|
+| All 728 days | 3.5569 | 3.5742 | -0.0173 (-0.48%) | **0.0009** |
+| 77 stressed days | 5.5132 | 5.6830 | -0.1698 (-2.99%) | **0.0003** |
+| 651 calm days | 3.3255 | 3.3248 | +0.0007 (+0.02%) | 0.8624 |
+
+**The earlier "report as marginal" caveat (previous entry) is withdrawn.**
+The aggregate gain is small but the DM test rejects equality at the 1%
+level, and the subset split explains why the aggregate understates it: the
+improvement is concentrated exactly where the mechanism acts (stressed
+days) and is statistically indistinguishable from zero where it does not
+(calm days, p=0.86). A diffuse noise advantage would not localize this way.
+Mean |prediction difference| corroborates the mechanism: 0.59 EUR/MWh on
+stressed days vs 0.022 on calm days.
+
+**Claim discipline for chapter 4.** Significant is not the same as large.
+The supportable claim is: *regime-aware weighting produces a statistically
+significant accuracy gain over static weighting, concentrated on stressed
+days (-3.0% MAE, p=0.0003), with no effect on calm days.* Do NOT write that
+regime-awareness substantially improves forecasting overall — the aggregate
+is -0.48%, capped by stressed days being only 10.6% of the test window.
+State that cap explicitly so a small aggregate is not misread as a weak
+mechanism.
+
+**Other DM results worth carrying into chapter 4.**
+- Both ensembles beat every single model at p ~ 0.0000 — the strongest
+  claim available in the results.
+- LSTM beats LightGBM (p=0.0337), but **LSTM vs LEAR-LASSO is a tie
+  (p=0.381)**: the best single neural model is not statistically
+  distinguishable from the classical linear benchmark. This must be
+  reported — it is directly relevant to the Plan A/Plan B framing and
+  omitting it would overstate the deep model's standing.
+
+Exploratory script (not committed): scratchpad `dm_ensembles.py`. The
+canonical DM table is exported via the export-results skill before the
+v1.0-results tag.
 
 ---
 
