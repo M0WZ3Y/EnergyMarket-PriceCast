@@ -20,12 +20,26 @@ validation:
   validation_days: 364
 
 # Regime definition for the regime-aware ensemble (sanctioned 2026-07-11).
-# Threshold is train mean + 3*std from the week-2 EDA (notebooks/01_eda.ipynb,
-# logs/decisions.md 2026-07-05) — computed on train data only, no test
-# leakage. A day is labeled 'spike' when the PREVIOUS day's realized prices
-# breached it (regime_labels() enforces the previous-day-only rule).
+#
+# Threshold family: train mean + k*std, computed on data strictly before the
+# validation window starts (<= 2015-01-11: mean 37.61, std 16.70). k = 1.5.
+#
+# k is chosen by a VALIDATION-ONLY rule (decision 2026-08-04): take the
+# largest k in {3.0, 2.5, 2.0, 1.5} for which BOTH regimes hold at least
+# MIN_DAYS_PER_REGIME (20) days in the validation window. k=2.0 yields 10
+# stressed days, k=1.5 yields 37. The test window is never consulted —
+# picking a threshold by how it behaves on test would be in-sample selection.
+#
+# This supersedes the week-2 EDA's 3*std = 84.04 value FOR REGIME SWITCHING
+# only: at 3*std the validation window holds just 3 stressed days, too few to
+# fit a weight set on (see logs/decisions.md 2026-08-04). The 84.04 figure
+# remains valid as a descriptive statistic; it is only rejected as a switch.
+#
+# A day is labeled 'stressed' when the PREVIOUS day's realized prices breached
+# the threshold (regime_labels() enforces the previous-day-only rule). At
+# ~1.5 sigma this marks an ELEVATED day, not a price spike — hence 'stressed'.
 regime:
-  spike_threshold_eur_mwh: 84.04
+  stress_threshold_eur_mwh: 62.65
 
 optuna:
   n_trials: 50

@@ -1,6 +1,6 @@
 """Static weighted ensemble — src/evaluation/ensemble.py
 
-Week-7 scope, first arm (static ensemble; the regime-aware calm/spike
+Week-7 scope, first arm (static ensemble; the regime-aware calm/stressed
 variant builds on top of this). Operates on walk-forward long frames
 ([origin, hour, y_true, y_pred, model]) rather than on model objects:
 the member models already produce their predictions independently under
@@ -67,10 +67,12 @@ def combine_forecasts(
 def regime_labels(
     frame: pd.DataFrame, threshold: float, default: str = "calm"
 ) -> dict[pd.Timestamp, str]:
-    """Label each origin day 'calm' or 'spike' using ONLY information
-    known before that origin: day D is 'spike' iff the PREVIOUS day's
-    realized prices contain at least one hour above `threshold` (the
-    84.04 EUR/MWh train-only threshold from the week-2 EDA). The first
+    """Label each origin day 'calm' or 'stressed' using ONLY information
+    known before that origin: day D is 'stressed' iff the PREVIOUS day's
+    realized prices contain at least one hour above `threshold`. The
+    threshold is train-only (train mean + k*std, k fixed by a
+    validation-only rule) and comes from configs/evaluation.yaml under
+    regime.stress_threshold_eur_mwh -- never hardcode it here. The first
     origin, having no previous day inside the frame, gets `default`.
     Never reads day D's own outcome -- that would leak the label.
     """
@@ -81,7 +83,7 @@ def regime_labels(
         if pd.isna(prev):
             labels[origin] = default
         else:
-            labels[origin] = "spike" if prev > threshold else "calm"
+            labels[origin] = "stressed" if prev > threshold else "calm"
     return labels
 
 
@@ -92,23 +94,36 @@ def combine_regime_aware(
     name: str = "regime-ensemble",
 ) -> pd.DataFrame:
     """Regime-aware convex combination: each origin day uses the weight
-    set of its regime ('calm'/'spike' keys in `weights`), with the
+    set of its regime ('calm'/'stressed' keys in `weights`), with the
     regime decided by regime_labels() (previous-day information only).
     """
-    if set(weights) != {"calm", "spike"}:
-        raise ValueError("regime weights must have exactly the keys 'calm' and 'spike'")
+    if set(weights) != {"calm", "stressed"}:
+        raise ValueError(
+            "regime weights must have exactly the keys 'calm' and 'stressed' "
+            f"(got {sorted(weights)}). The 'spike' label was renamed to "
+            "'stressed' on 2026-08-04 when the threshold moved to mean+1.5*std."
+        )
 
     first = frames[next(iter(frames))]
     labels = regime_labels(first, threshold)
 
     parts = []
-    for regime in ("calm", "spike"):
+    for regime in ("calm", "stressed"):
         days = [o for o, lab in labels.items() if lab == regime]
         if not days:
             continue
         sub = {m: f[f["origin"].isin(days)] for m, f in frames.items()}
         parts.append(combine_forecasts(sub, weights[regime], name=name))
     out = pd.concat(parts, ignore_index=True)
+
+    # Every input origin must survive the regime split. A label the loop
+    # does not iterate over would silently drop those days from the output
+    # instead of failing -- the exact defect the rename introduced.
+    if len(out) != sum(len(f) for f in frames.values()) // len(frames):
+        raise ValueError(
+            f"regime split lost origins: {len(labels)} labeled, "
+            f"{out['origin'].nunique()} in output -- unhandled regime label?"
+        )
     return out.sort_values(["origin", "hour"]).reset_index(drop=True)
 
 

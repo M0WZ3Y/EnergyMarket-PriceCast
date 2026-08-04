@@ -895,4 +895,95 @@ gameplan the week-5 checkpoint selects can start immediately.
 
 ---
 
+### 2026-08-04 — Regime threshold recalibrated to mean+1.5*std; 'spike' renamed 'stressed'
+
+**Validation run completed.** The detached 08-02 run finished. All five
+models cover 357 origins (2015-01-12 -> 2016-01-03), exactly 24 rows per
+origin, no duplicate (origin, hour), no NaN. Nothing needed rerunning.
+
+**The blocker.** At the registered 84.04 EUR/MWh threshold (train mean +
+3*std, week-2 EDA, this file 2026-07-05) the validation window holds only
+**3** stressed days, against the runner's `MIN_DAYS_PER_REGIME = 20`. The
+guard fired correctly and was NOT weakened. Spike days are near-absent from
+exactly the years this thesis uses:
+
+| Year | Days over threshold (84.04) |
+|------|------|
+| 2012 | 26 / 358 |
+| 2013 | 38 / 365 |
+| 2014 | 1 / 365 |
+| 2015 (validation) | 3 / 365 |
+| 2016 (test) | 6 / 366 |
+| 2017 (test) | 19 / 365 |
+
+**Why the validation window was not widened instead.** A 730-day window
+still yields only 4 stressed days; reaching 26 requires going back to
+~2013-04 (~643 extra origins x 5 models, a multi-day run). More decisively,
+the *test* window holds only 25/728 stressed days at 84.04 — so even with
+weights fitted, the regime arm could act on 3.4% of test days. Widening the
+validation window costs days of compute and does not fix the test surface.
+
+**Decision: keep the mean + k*std family, move k from 3.0 to 1.5**
+(= 62.65 EUR/MWh; train statistics on data <= 2015-01-11, mean 37.61,
+std 16.70 — strictly before the validation window, so still train-only).
+
+k is chosen by a **validation-only rule**: take the largest k in
+{3.0, 2.5, 2.0, 1.5} for which both regimes hold >= 20 validation days.
+
+| k | Threshold | Validation stressed | Test stressed |
+|---|-----------|--------------------|---------------|
+| 3.0 | 84.04 | 3 / 357 (fails) | 25 / 728 |
+| 2.5 | 79.35 | 5 / 357 (fails) | 32 / 728 |
+| 2.0 | 71.00 | 10 / 357 (fails) | 44 / 728 |
+| **1.5** | **62.65** | **37 / 357** | **77 / 728** |
+
+The test column is recorded here for transparency only. It is NOT the
+justification, and must not become one: choosing a threshold by its test
+behavior is in-sample selection and would compromise every downstream
+number. The rule reads the validation window and pre-validation train
+statistics only.
+
+**Scope of the supersession.** 84.04 is superseded as a *regime switch*
+only. It is not retracted as a descriptive statistic — the week-2 EDA
+finding stands; it is simply the wrong switch for this data, because the
+2014-2016 German market barely produced 3-sigma days.
+
+**Rename `spike` -> `stressed`.** At ~1.5 sigma the label marks an elevated
+day, not a price spike; calling it a spike would misdescribe the mechanism
+in the thesis. Renamed in `configs/evaluation.yaml`
+(`regime.stress_threshold_eur_mwh`), `src/evaluation/ensemble.py`,
+`scripts/run_ensemble.py`, `tests/test_ensemble.py`, and CLAUDE.md.
+`combine_regime_aware()` now raises on a legacy `{'calm','spike'}` weights
+dict, with a test pinning it: silently falling through to the calm weight
+set for every day would emit a static ensemble mislabeled as regime-aware.
+A post-split origin-count assertion was added for the same reason — the
+rename initially dropped all stressed days from the output because the
+iteration loop still said `("calm", "spike")`, and only a test caught it.
+
+**Results (test period 2016-01-04 -> 2017-12-31, 728 origins).**
+
+| model | MAE | RMSE | sMAPE | rMAE |
+|-------|-----|------|-------|------|
+| Ensemble (regime-aware) | 3.557 | 6.557 | 14.644 | 0.390 |
+| Ensemble (static) | 3.574 | 6.610 | 14.671 | 0.392 |
+| LSTM | 3.873 | 7.020 | 15.599 | 0.424 |
+| LEAR-LASSO | 3.899 | 6.475 | 16.657 | 0.427 |
+| LightGBM | 3.968 | 7.502 | 15.722 | 0.435 |
+| SARIMAX | 4.351 | 7.117 | 18.035 | 0.477 |
+| naive | 7.750 | 13.257 | 28.595 | 0.849 |
+
+Both ensembles beat the best single model (LSTM) by ~0.30 MAE — the solid
+result. **The regime-aware gain over static is 0.017 MAE (0.48%) and should
+be reported as marginal until the DM test rules on it.** Do not present
+regime-awareness as a decisive win on this evidence; the honest framing is
+that ensembling is the win and regime-awareness is a small refinement whose
+significance is an open question for the DM table.
+
+Interpretable side-result worth a sentence in chapter 4: under stress the
+weights shift toward LEAR-LASSO (0.237 -> 0.375) and away from SARIMAX
+(0.140 -> 0.063), with LSTM up (0.235 -> 0.281) — the linear
+high-dimensional model earns its weight when prices are elevated.
+
+---
+
 Pages banked: 0 / quota 0 | Results table: n/a | Backup: [ ]

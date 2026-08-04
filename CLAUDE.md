@@ -38,9 +38,13 @@ separate journal article deliverable is English.
   EPEX-DE (the only fair "beat" claim).
 - Plan B (built regardless, weeks 5-8) = innovation-led defense, all
   sanctioned scope (not scope creep):
-  - Regime-aware ensemble weighting — calm/spike weight sets switched on
-    the 84.04 EUR/MWh spike threshold from the week-2 EDA.
-  - Calm-vs-spike + hourly-vs-daily SHAP comparison.
+  - Regime-aware ensemble weighting — calm/stressed weight sets switched
+    on `regime.stress_threshold_eur_mwh` in configs/evaluation.yaml
+    (62.65 EUR/MWh = train mean + 1.5*std). The week-2 EDA's 3-sigma
+    84.04 value left only 3 stressed validation days and was superseded
+    on 2026-08-04; k is fixed by a validation-only rule, never by test
+    behaviour — see logs/decisions.md 2026-08-04.
+  - Calm-vs-stressed + hourly-vs-daily SHAP comparison.
   - OOD stress test: frozen benchmark-era models evaluated on live 2026
     Energy-Charts data (tool-only loader, per the data rule above).
 - Stretch goal (week 7, third priority, only if ahead of schedule):
@@ -62,7 +66,7 @@ literature (Lago et al. protocol), hourly actually operationalized, fixed
 5-model list, live data feed, significance testing, SHAP as a real
 deliverable, the PriceCast tool, and a separate journal article. Also
 sanctioned (2026-07-11 gameplan decision, not scope creep): regime-aware
-ensemble weighting (calm/spike weight sets) and the OOD stress test of
+ensemble weighting (calm/stressed weight sets) and the OOD stress test of
 frozen models on live Energy-Charts data — see Gameplan section below.
 Don't scope-creep beyond this list without a logged decision.
 
