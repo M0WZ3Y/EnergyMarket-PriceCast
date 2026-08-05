@@ -8,7 +8,6 @@ claim is checked here instead of trusted (leakage review, 2026-08-04).
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import numpy as np
@@ -16,8 +15,11 @@ import pandas as pd
 import pytest
 import yaml
 
+from conftest import require_thesis_data, thesis_data_path
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
-RAW_DE = REPO_ROOT / "data" / "raw" / "DE.csv"
+RAW_DE = thesis_data_path("raw", "DE.csv")
+VALIDATION_PREDS = thesis_data_path("processed", "validation_preds")
 EVAL_CFG = REPO_ROOT / "configs" / "evaluation.yaml"
 
 # Strictly before BOTH the Optuna tuning window (opens 2015-01-05) and the
@@ -32,22 +34,16 @@ def _cfg() -> dict:
 
 
 def _require_raw_data() -> None:
-    """Skip when the benchmark CSV is absent, but FAIL when the environment
-    declares that full data should be present.
+    """Require the benchmark CSV; FAIL if it is absent.
 
-    data/raw/ is gitignored, so on a fresh clone these tests would skip —
-    and the one test that actually checks the leakage property would report
-    green while checking nothing. Setting THESIS_FULL_DATA=1 (CI, or before
-    tagging v1.0-results) turns that silence into a failure.
+    data/raw/ is gitignored, so on a fresh clone these tests used to skip —
+    and the one test that actually checks the leakage property reported
+    green while checking nothing. Strict is now the default (see
+    tests/conftest.py): missing data fails, and only an explicit
+    THESIS_ALLOW_MISSING_DATA=1 downgrades that to a loudly-reported skip.
+    THESIS_FULL_DATA=1 remains accepted as a no-op alias.
     """
-    if RAW_DE.exists():
-        return
-    if os.environ.get("THESIS_FULL_DATA") == "1":
-        pytest.fail(
-            f"{RAW_DE} missing while THESIS_FULL_DATA=1: the regime-threshold "
-            "provenance check cannot run, and must not pass silently"
-        )
-    pytest.skip("benchmark CSV not cached locally (set THESIS_FULL_DATA=1 to require it)")
+    require_thesis_data(RAW_DE, "benchmark price CSV (DE.csv)")
 
 
 def test_stress_threshold_matches_train_only_statistics():
@@ -100,10 +96,10 @@ def test_train_cutoff_precedes_the_derived_tuning_window():
 def test_train_cutoff_precedes_the_weight_fitting_window():
     """The cutoff must precede the earliest ensemble weight-fitting origin,
     read from the committed validation predictions rather than hardcoded."""
-    val_dir = REPO_ROOT / "data" / "processed" / "validation_preds"
+    val_dir = require_thesis_data(
+        VALIDATION_PREDS, "committed validation predictions", non_empty_dir=True
+    )
     frames = sorted(val_dir.glob("*.csv"))
-    if not frames:
-        pytest.skip("validation predictions not present")
 
     earliest = min(
         pd.read_csv(f, usecols=["origin"], parse_dates=["origin"])["origin"].min()

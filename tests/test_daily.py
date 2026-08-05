@@ -337,6 +337,49 @@ def test_daily_sarimax_save_load_roundtrip(features, tmp_path):
     assert before == after
 
 
+def test_daily_naive_save_load_roundtrip(features, tmp_path):
+    """The naive wrapper carries no estimator, so a broken save() would go
+    unnoticed until a frozen replay produced a model that is 'fitted' but
+    predicts nothing. Round-tripped like every other wrapper."""
+    X, Y = features
+    daily = daily_target(Y)
+    origin = X.index[-1]
+    model = DailyNaiveModel().fit(X, daily)
+    before = model.predict(X.loc[[origin]])
+
+    path = tmp_path / "daily_naive.pkl"
+    model.save(path)
+    loaded = DailyNaiveModel().load(path)
+    assert loaded.is_fitted
+    after = loaded.predict(X.loc[[origin]])
+
+    assert list(after.columns) == ["y_daily"]
+    np.testing.assert_allclose(after.to_numpy(dtype=float), before.to_numpy(dtype=float))
+
+
+@pytest.mark.epftoolbox
+def test_daily_lear_lasso_save_load_roundtrip(features_large, tmp_path):
+    """LEAR's fitted state is a Lasso plus TWO scalers (X and y). Dropping
+    either from the pickle still loads and still predicts — just with
+    different numbers — which is exactly the failure the frozen-model replay
+    could not detect on its own."""
+    X, Y = features_large
+    daily = daily_target(Y)
+    train, origin = X.index[:-1], X.index[-1]
+    model = DailyLEARLassoModel().fit(X.loc[train], daily.loc[train])
+    before = model.predict(X.loc[[origin]])
+
+    path = tmp_path / "daily_lear.pkl"
+    model.save(path)
+    loaded = DailyLEARLassoModel().load(path)
+    assert loaded.is_fitted
+    after = loaded.predict(X.loc[[origin]])
+
+    assert list(after.columns) == ["y_daily"]
+    assert np.isfinite(after["y_daily"].iloc[0])
+    np.testing.assert_allclose(after.to_numpy(dtype=float), before.to_numpy(dtype=float))
+
+
 def test_daily_model_save_load_roundtrip(features, tmp_path):
     X, Y = features
     daily = daily_target(Y)
