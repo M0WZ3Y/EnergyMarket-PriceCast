@@ -1,0 +1,22 @@
+\begin{table}[htbp]
+\caption{Mean |SHAP| attribution per feature family (EUR/MWh), LightGBM, over 728 unseen test days from 2016-01-04 to 2017-12-31. The explained models are interpretation-only fits trained on 1092 days ending 2016-01-03, strictly before the test period, so no explained day was seen in training. Hourly columns average the 24 per-hour models; daily columns are the direct baseload model. Regimes follow the ensemble definition (previous day's peak above 62.70 EUR/MWh): 651 calm and 77 stressed days. Note that the explained fit is STATIC, held fixed across the whole test period, whereas the models behind the chapter's accuracy results are recalibrated at every origin; these attributions therefore describe a first-origin fit and cannot show drift in feature reliance across 2016--2017. Data: Lago et al. (2021) open EPEX-DE benchmark via epftoolbox.}
+\label{tab:shap-importance}
+\begin{tabular}{lrrrr}
+\toprule
+ & Hourly calm & Hourly stressed & Daily calm & Daily stressed \\
+Feature family &  &  &  &  \\
+\midrule
+price\_D-1 & 3.48 & 6.15 & 3.11 & 5.13 \\
+price\_D-2 & 0.86 & 1.25 & 0.38 & 0.52 \\
+price\_D-3 & 0.83 & 1.03 & 0.33 & 0.39 \\
+price\_D-7 & 1.75 & 2.15 & 1.08 & 1.48 \\
+exog\_1\_D-1 & 0.66 & 0.67 & 0.25 & 0.26 \\
+exog\_1\_D-7 & 0.71 & 0.75 & 0.37 & 0.40 \\
+exog\_1\_D0 & 3.52 & 3.37 & 3.44 & 3.01 \\
+exog\_2\_D-1 & 0.99 & 0.92 & 0.41 & 0.40 \\
+exog\_2\_D-7 & 0.67 & 0.78 & 0.22 & 0.28 \\
+exog\_2\_D0 & 5.84 & 5.98 & 4.49 & 5.04 \\
+dow & 0.15 & 0.14 & 0.04 & 0.04 \\
+\bottomrule
+\end{tabular}
+\end{table}

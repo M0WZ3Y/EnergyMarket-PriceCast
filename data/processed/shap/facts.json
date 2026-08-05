@@ -1,0 +1,20 @@
+{
+  "n_test_days": 728,
+  "test_start": "2016-01-04",
+  "test_end": "2017-12-31",
+  "n_calm": 651,
+  "n_stressed": 77,
+  "threshold": 62.6989,
+  "train_start": "2013-01-07",
+  "train_end": "2016-01-03",
+  "n_train_days": 1092,
+  "beeswarm_hour": 18,
+  "waterfall_day": "2017-01-24",
+  "waterfall_selection": "highest predicted daily baseload (no outcome used)",
+  "waterfall_baseload": 101.92166666666668,
+  "waterfall_prediction": 56.478165129436,
+  "waterfall_regime": "stressed",
+  "top_decile_bias": -9.568133374136854,
+  "n_top_decile": 73,
+  "daily_expected_value": 34.09762852086446
+}
