@@ -135,9 +135,40 @@ class EnergyChartsLoader:
             r.raise_for_status()
             return r.json()
 
+    @staticmethod
+    def _observations_per_hour(index: pd.DatetimeIndex) -> int:
+        """How many sub-hourly observations a complete hour should contain.
+
+        Derived from the modal spacing of the index rather than the minimum
+        spacing: the modal step survives a single irregular jump (one absent
+        timestamp, or a resolution change part-way through a long fetch)
+        instead of declaring every ordinary hour incomplete. A frame that is
+        already hourly — the common case for the older parts of the archive —
+        yields 1, so the completeness rule below is a no-op for it.
+        """
+        if len(index) < 2:
+            return 1
+        steps = pd.Series(index).diff().dropna()
+        steps = steps[steps > pd.Timedelta(0)]
+        if steps.empty:
+            return 1
+        step = steps.mode().iloc[0]
+        if step > pd.Timedelta(hours=1):
+            return 1
+        return max(1, int(round(pd.Timedelta(hours=1) / step)))
+
     def _resample(self, df: pd.DataFrame) -> pd.DataFrame:
         if self.cfg.get("resample_to_hourly", True):
-            df = df.resample("1h").mean()
+            # .mean() skips NaN, so a missing quarter-hour would be absorbed
+            # into the mean of its surviving siblings and an interior API gap
+            # would vanish — exactly the gap fetch_prices goes out of its way
+            # to preserve, because dropping it misaligns downstream lag
+            # features. Require every constituent observation to be present
+            # before an hour is aggregated; this is the same rule
+            # fetch_renewables applies across components with min_count.
+            expected = self._observations_per_hour(df.index)
+            grouped = df.resample("1h")
+            df = grouped.mean().where(grouped.count() >= expected)
         df.index.name = "timestamp"
         return df
 
@@ -229,6 +260,25 @@ class EnergyChartsLoader:
         )
         out = price.join(load, how="inner").join(renewables, how="inner")
         out.index.name = "timestamp"
+        # The three endpoints publish on their own schedules, so the inner
+        # join routinely trims a ragged tail. That trim is wanted — the OOD
+        # fetch path relies on it — but returning a shorter window than the
+        # caller asked for without saying so is not: lag features would be
+        # built off a silently shortened index. Report the loss instead of
+        # raising, so the fetch still succeeds.
+        dropped = len(price) - len(out)
+        if dropped > 0:
+            logger.warning(
+                "fetch_exog(%s, %s): inner join with load/renewables dropped "
+                "%d of %d price hours to align the three endpoints; returning "
+                "%s to %s",
+                start,
+                end,
+                dropped,
+                len(price),
+                out.index.min() if len(out) else None,
+                out.index.max() if len(out) else None,
+            )
         return out
 
     @property

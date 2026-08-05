@@ -32,6 +32,22 @@ def _aligned_pivots(frames: dict[str, pd.DataFrame]) -> tuple[pd.DataFrame, dict
                 f"ensemble: origins of '{m}' do not align with '{names[0]}' "
                 "-- frames must cover identical origin sets"
             )
+    # Hour LABELS must be checked before any value comparison. np.allclose
+    # below compares positionally, so a member whose hours are labelled 1..24
+    # instead of 0..23 lines up cell-for-cell and sails through the y_true
+    # agreement check -- and combine_forecasts then adds the pivots by column
+    # LABEL, where 0..23 and 1..24 share only 23 labels and the union columns
+    # come out all-NaN. An all-NaN forecast column is far worse than an error,
+    # so the label mismatch is caught here, first.
+    base_hours = preds[names[0]].columns
+    for m in names[1:]:
+        if not preds[m].columns.equals(base_hours):
+            raise ValueError(
+                f"ensemble: hour columns of '{m}' do not match '{names[0]}' "
+                f"({list(preds[m].columns)} vs {list(base_hours)}) -- member "
+                "frames must use identical hour labels"
+            )
+
     truth = frames[names[0]].pivot(index="origin", columns="hour", values="y_true")
 
     # The truth column is taken from ONE arbitrary member, so a stale or
@@ -95,13 +111,30 @@ def regime_labels(
     Never reads day D's own outcome -- that would leak the label.
     """
     day_max = frame.groupby("origin")["y_true"].max().sort_index()
-    prev_max = day_max.shift(1)
+
+    # The lookup is by CALENDAR DAY, not by position. A positional
+    # day_max.shift(1) reads "the previous ROW", which equals the previous
+    # day only when the origin set is gapless -- and it is not gapless after
+    # a partially re-run walk-forward, a filtered evaluation window, or any
+    # step_days > 1. In those cases the shift silently imports the regime of
+    # an arbitrarily old day (an 8-day-old spike, say) into today's label.
+    # Origins are normalized first so a timestamp carrying a time-of-day
+    # still resolves to its day.
+    by_day = day_max.copy()
+    by_day.index = pd.DatetimeIndex(by_day.index).normalize()
+    by_day = by_day.groupby(level=0).max()
+
     labels = {}
-    for origin, prev in prev_max.items():
-        if pd.isna(prev):
+    for origin in day_max.index:
+        prev_day = pd.Timestamp(origin).normalize() - pd.Timedelta(days=1)
+        if prev_day not in by_day.index:
+            # The previous calendar day is not in the frame, so yesterday's
+            # regime is unknowable here -- fall back to the documented
+            # default rather than reaching further back for a stale day.
             labels[origin] = default
-        else:
-            labels[origin] = "stressed" if prev > threshold else "calm"
+            continue
+        prev = by_day.loc[prev_day]
+        labels[origin] = "stressed" if prev > threshold else "calm"
     return labels
 
 
@@ -165,6 +198,24 @@ def fit_weights(
     from src.evaluation.walk_forward import assert_validation_before_test
 
     names = list(frames)
+
+    # NaN screening comes first, and it is not cosmetic. SLSQP evaluates a
+    # NaN objective, cannot compare it to anything, and returns its STARTING
+    # POINT -- equal weights -- with res.success False. Without this check a
+    # single non-converged SARIMAX hour anywhere in the validation frames
+    # would turn the tuned ensemble into a plain unweighted average while
+    # every downstream table still labelled it "MAE-optimal weights".
+    for m in names:
+        f = frames[m]
+        for col in ("y_pred", "y_true"):
+            n_nan = int(f[col].isna().sum())
+            if n_nan:
+                raise ValueError(
+                    f"fit_weights: member '{m}' has {n_nan} NaN value(s) in "
+                    f"'{col}' -- weights cannot be fitted on NaN (the optimiser "
+                    "would silently return its equal-weight starting point)"
+                )
+
     truth, preds = _aligned_pivots(frames)
     if test_days is not None:
         assert_validation_before_test(truth.index, test_days)
@@ -182,6 +233,25 @@ def fit_weights(
         bounds=[(0.0, 1.0)] * n,
         constraints=[{"type": "eq", "fun": lambda w: w.sum() - 1.0}],
     )
+    # A non-converged SLSQP run returns x0 -- the equal-weight start -- which
+    # is a perfectly plausible-looking weight vector and therefore the most
+    # dangerous possible failure mode: the caller gets an unweighted average
+    # labelled "MAE-optimal". Never return a solution the optimiser did not
+    # claim to have found.
+    if not res.success:
+        raise ValueError(
+            f"fit_weights: SLSQP did not converge ({res.message!r}); refusing "
+            "to return the equal-weight starting point as an optimum"
+        )
+
     w = np.clip(res.x, 0.0, None)
-    w = w / w.sum()
+    # Clipping can in principle zero out every component (an all-negative x),
+    # and w/0 would hand back silent NaN weights. Fail loudly instead.
+    total = w.sum()
+    if not np.isfinite(total) or total <= 0:
+        raise ValueError(
+            f"fit_weights: optimiser returned weights that do not sum to a "
+            f"positive number (sum={total}); cannot normalize to the simplex"
+        )
+    w = w / total
     return {m: float(wi) for m, wi in zip(names, w)}

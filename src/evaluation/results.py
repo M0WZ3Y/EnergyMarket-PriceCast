@@ -34,12 +34,32 @@ def daily_baseload(frame: pd.DataFrame) -> pd.DataFrame:
     hourly prices per origin day). Refuses incomplete days: a partial
     day's mean is not a baseload and would silently skew daily metrics.
     """
-    counts = frame.groupby("origin").size()
+    # The guard must group by the SAME keys the aggregation below uses. A
+    # frame holding k models has 24*k rows per origin, so counting by
+    # 'origin' alone rejected exactly the multi-model input this function
+    # exists to aggregate -- and made the 'model' half of its own groupby
+    # unreachable.
+    group_keys = ["origin", "model"]
+    counts = frame.groupby(group_keys).size()
     bad = counts[counts != 24]
     if len(bad):
         raise ValueError(
-            f"daily_baseload: {len(bad)} origin day(s) do not have exactly "
-            f"24 hourly rows (first: {bad.index[0]} with {bad.iloc[0]})"
+            f"daily_baseload: {len(bad)} (origin, model) group(s) do not have "
+            f"exactly 24 hourly rows (first: {bad.index[0]} with {bad.iloc[0]})"
+        )
+
+    # A row COUNT is not completeness. Hours [0..22, 22] is 24 rows with one
+    # hour duplicated and hour 23 missing, so the count guard passes while the
+    # mean silently double-weights hour 22 and drops the evening peak -- a
+    # wrong baseload that looks entirely normal. Require 24 DISTINCT hours.
+    distinct = frame.groupby(group_keys)["hour"].nunique()
+    dup = distinct[distinct != 24]
+    if len(dup):
+        raise ValueError(
+            f"daily_baseload: {len(dup)} (origin, model) group(s) have 24 rows "
+            f"but not 24 distinct hours (first: {dup.index[0]} with "
+            f"{dup.iloc[0]} distinct hour(s)) -- a duplicated hour is hiding a "
+            "missing one"
         )
     daily = (
         frame.groupby(["origin", "model"], as_index=False)[["y_true", "y_pred"]]
