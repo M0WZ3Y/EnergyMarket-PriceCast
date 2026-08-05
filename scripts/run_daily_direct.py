@@ -52,7 +52,28 @@ def completed_origins(out_path: Path) -> set[pd.Timestamp]:
     return {pd.Timestamp(o) for o in done["origin"]}
 
 
+def validate_origin_range(first_origin, last_origin) -> None:
+    """Reject an inverted --first-origin/--last-origin pair.
+
+    Without this, the range filter removes every split, the loop body never
+    executes, and the script prints "0 of 0 origins" and exits 0 -- having
+    produced nothing while reporting success. An exit code of 0 meaning
+    "nothing failed" rather than "everything ran" already cost this project
+    a deliverable once (logs/decisions.md, 2026-08-04). Both bounds are
+    optional, so only a genuinely inverted pair is an error.
+    """
+    if first_origin is None or last_origin is None:
+        return
+    if pd.Timestamp(last_origin) < pd.Timestamp(first_origin):
+        raise ValueError(
+            f"origin range is inverted: --last-origin {pd.Timestamp(last_origin).date()} "
+            f"is before --first-origin {pd.Timestamp(first_origin).date()}; "
+            "this would silently run zero origins and still exit 0"
+        )
+
+
 def run_one(model_name, model, X, y, eval_cfg, first_origin, last_origin, out_dir) -> None:
+    validate_origin_range(first_origin, last_origin)
     out_path = out_dir / f"{model_name.lower().replace('-', '_')}.csv"
     done = completed_origins(out_path)
     if done:

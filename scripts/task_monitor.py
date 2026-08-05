@@ -33,7 +33,28 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 BASELINES_DIR = REPO_ROOT / "data" / "processed" / "baselines"
 TUNING_DIR = REPO_ROOT / "data" / "processed" / "tuning"
 
-EXPECTED_ORIGINS = 728  # 2016-01-04 -> 2017-12-31 benchmark test period
+
+def expected_origins_from_config() -> int:
+    """Number of walk-forward origins the benchmark test period contains.
+
+    Derived, not hardcoded: every progress bar and every DONE/STALLED verdict
+    in this monitor is a comparison against this number, so a literal would
+    go silently wrong the moment configs/data.yaml changes market or
+    years_test (the France stretch goal changes exactly that file).
+
+    epftoolbox's read_data defines a "year" as 52 weeks = 364 days and carves
+    the trailing `24 * 364 * years_test` hours off as the test split
+    (epftoolbox/data/_datasets.py). One origin per test day, step_days=1, so
+    the origin count is years_test * 364 — 728 for the current DE config
+    (2016-01-04 -> 2017-12-31).
+    """
+    days_per_year = 364  # epftoolbox's 52-week year, not 365
+    with open(REPO_ROOT / "configs" / "data.yaml") as f:
+        years_test = int(yaml.safe_load(f)["benchmark"]["years_test"])
+    return years_test * days_per_year
+
+
+EXPECTED_ORIGINS = expected_origins_from_config()
 STALL_SECONDS = 300  # no file write for 5 min while incomplete = stalled
 
 
@@ -180,7 +201,9 @@ def render(activities: list[Activity]) -> str:
     )
     lines = [header, "-" * len(header.splitlines()[-1])]
     for a in activities:
-        rate = f"{a.rate_s:.1f}s/unit" if a.rate_s else "-"
+        # `is not None`, not truthiness: a rate of exactly 0.0s/unit is a
+        # legitimate (very fast) measurement, and "-" means "not measurable".
+        rate = f"{a.rate_s:.1f}s/unit" if a.rate_s is not None else "-"
         spent = _fmt_dur(a.last_write - a.started)
         eta = _fmt_dur(a.eta_s)
         finishes = (
@@ -212,13 +235,18 @@ def render(activities: list[Activity]) -> str:
             lines.append("  avoid:")
             lines.extend(f"    - {item}" for item in rules["avoid"])
             if a.state == "STALLED":
+                cmd = resume_command_for(a.name)
                 lines.append(
                     "  recommended: run has stopped writing -- resume it with:"
                 )
-                lines.append(
-                    f"    .venv\\Scripts\\python.exe scripts\\run_full_baselines.py"
-                    f" {a.name.split(':')[1].strip()}"
-                )
+                if cmd:
+                    printable = " ".join(arg.replace("/", "\\") for arg in cmd)
+                    lines.append(f"    .venv\\Scripts\\python.exe {printable}")
+                else:
+                    lines.append(
+                        f"    (no resume command known for '{a.name}' -- "
+                        "add one to RESUME_COMMANDS)"
+                    )
     else:
         lines.append("")
         lines.append("PROCEED? YES — no incomplete activities; all results are final.")
@@ -234,14 +262,59 @@ RESUME_COMMANDS = {
     "sarimax": ["scripts/run_full_baselines.py", "SARIMAX"],
     "lear_lasso": ["scripts/run_full_baselines.py", "LEAR-LASSO"],
     "lightgbm": ["scripts/run_full_baselines.py", "LightGBM"],
+    # The LSTM walk-forward is the longest-running and most-interrupted job
+    # in the project, so it is the one entry that must not be missing.
+    "lstm": ["scripts/run_full_baselines.py", "LSTM"],
+    # run_ensemble.py rewrites BOTH ensemble frames in a single pass -- there
+    # is no per-frame argument and no append-resume, so either stem maps to
+    # the same whole-script re-run. It is seconds of work, not hours.
+    "ensemble_static": ["scripts/run_ensemble.py"],
+    "ensemble_regime": ["scripts/run_ensemble.py"],
     "tuning: lightgbm": ["scripts/tune_lightgbm.py"],
     "tuning: lstm": ["scripts/tune_lstm.py"],
 }
-_PROC_PATTERN = "run_full_baselines|tune_lightgbm|tune_lstm"
+_PROC_PATTERN = "run_full_baselines|tune_lightgbm|tune_lstm|run_ensemble"
+
+
+def _resume_key(name: str) -> str:
+    """Normalize an activity name or CSV/DB stem to a RESUME_COMMANDS key.
+
+    Accepts "lstm", "walk-forward: lstm" and "tuning: lstm". A tuning
+    activity keeps its "tuning: " prefix because it resumes with tune_*.py,
+    never with the walk-forward runner -- dropping the prefix would map it
+    onto the wrong script entirely.
+    """
+    key = name.strip()
+    if key.startswith("tuning"):
+        return f"tuning: {key.split(':', 1)[1].strip()}" if ":" in key else key
+    return key.split(":", 1)[1].strip() if ":" in key else key
+
+
+def resume_command_for(name: str) -> list[str] | None:
+    """Resume command args (everything after the venv python), or None.
+
+    The single source of resume advice: both the STALLED hint in render()
+    and _resume_incomplete() route through here. They used to derive the
+    model name independently, and disagreed -- render() built the name by
+    lowercasing the CSV stem, producing 'sarimax'/'lear_lasso'/'lightgbm',
+    all of which run_full_baselines.py rejects with "no matching models",
+    and it pointed tuning activities at the walk-forward runner. One lookup
+    means the two paths cannot drift apart again.
+    """
+    return RESUME_COMMANDS.get(_resume_key(name))
 
 
 def _find_run_pids() -> list[int]:
-    """PIDs of python processes running this project's long jobs."""
+    """PIDs of python processes running this project's long jobs.
+
+    Raises RuntimeError if the probe itself fails. Returning [] on failure
+    would fail OPEN: a PowerShell timeout happens precisely when the
+    machine is loaded by a live run, and an empty list reads as "nothing is
+    running", which lets _resume_incomplete launch a DUPLICATE process
+    appending to the same CSV (the corruption PROCEED_RULES warns about;
+    it hit validation_preds/lightgbm.csv on 2026-08-02). Unknown must never
+    mean "not running".
+    """
     import subprocess
 
     try:
@@ -259,8 +332,10 @@ def _find_run_pids() -> list[int]:
             timeout=30,
         ).stdout
         return [int(line) for line in out.split() if line.strip().isdigit()]
-    except Exception:
-        return []
+    except Exception as exc:
+        raise RuntimeError(
+            f"could not determine whether project jobs are running: {exc!r}"
+        ) from exc
 
 
 def _pause_all() -> None:
@@ -270,7 +345,15 @@ def _pause_all() -> None:
     shutting the machine down."""
     import subprocess
 
-    pids = _find_run_pids()
+    try:
+        pids = _find_run_pids()
+    except RuntimeError as exc:
+        # "no processes found" and "could not look" are different answers;
+        # reporting the second as the first would tell the user it is safe
+        # to shut the machine down while a run may still be writing.
+        print(f"cannot pause -- process probe failed: {exc}", flush=True)
+        print("re-run the probe, or check Task Manager before shutting down.", flush=True)
+        return
     if not pids:
         print("nothing to pause -- no project job processes found", flush=True)
         return
@@ -289,7 +372,20 @@ def _resume_incomplete(activities) -> None:
     logs/runs/<name>.log."""
     import subprocess
 
-    if _find_run_pids():
+    try:
+        running_pids = _find_run_pids()
+    except RuntimeError as exc:
+        # Fail closed: without a trustworthy answer we cannot rule out a
+        # live process, and a duplicate appending to the same CSV is far
+        # worse than a resume that has to be re-triggered by hand.
+        print(f"refusing to resume -- {exc}", flush=True)
+        print(
+            "nothing was launched. Re-try once the machine is responsive, "
+            "or start the run manually after checking Task Manager.",
+            flush=True,
+        )
+        return
+    if running_pids:
         print("job process(es) already running -- not spawning duplicates", flush=True)
         return
     launched = 0
@@ -299,8 +395,8 @@ def _resume_incomplete(activities) -> None:
     for a in activities:
         if a.state == "DONE":
             continue
-        key = a.name if a.name.startswith("tuning") else a.name.split(":")[-1].strip()
-        cmd = RESUME_COMMANDS.get(key)
+        key = _resume_key(a.name)
+        cmd = resume_command_for(a.name)
         if not cmd:
             print(f"no resume command known for '{a.name}' -- skipped", flush=True)
             continue
@@ -393,13 +489,17 @@ def main() -> None:
             prev = prev_states.get(a.name)
             if prev is not None and prev != a.state:
                 if a.state == "STALLED":
+                    cmd = resume_command_for(a.name)
+                    how = (
+                        f"Resume: python {' '.join(cmd)}"
+                        if cmd
+                        else "No resume command known -- see RESUME_COMMANDS."
+                    )
                     _notify(
                         "Background run STOPPED",
                         f"{a.name} stopped at {a.done}/{a.total} "
                         f"({100 * a.done / a.total:.0f}%). It is no longer "
-                        f"writing output -- likely crashed or was killed. "
-                        f"Resume: python scripts/run_full_baselines.py "
-                        f"{a.name.split(':')[-1].strip()}",
+                        f"writing output -- likely crashed or was killed. {how}",
                     )
                 elif a.state == "DONE" and prev == "RUNNING":
                     _notify("Background run finished", f"{a.name} completed {a.total}/{a.total}.")
