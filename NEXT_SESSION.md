@@ -1,39 +1,55 @@
 # Next session — paste this in
 
-Written 2026-08-04, end of the day the results froze. Updated 2026-08-05
-during the full debug sweep (see "Debug sweep" below). Copy everything inside
-the block.
+Written 2026-08-04, updated 2026-08-05 after the debug sweep, the SHAP run,
+the PriceCast MVP and the page-quota setup. Copy everything inside the block.
 
 ```
-Resume the MSc thesis EPF project. THE RESULTS ARE FROZEN AND SOUND; a
-code-integrity debug sweep is in progress on top of them. Every number the
-thesis needs exists and is frozen behind two pushed tags:
+Resume the MSc thesis EPF project. THE CODE IS ESSENTIALLY DONE. WRITING IS
+THE ONLY THING ON THE CRITICAL PATH. Every number the thesis needs exists and
+is frozen behind two pushed tags:
 
   v1.0-results  benchmark-era results (hourly, daily, ensembles, DM)
   v1.1-ood      OOD addendum (frozen models on live 2026 data)
 
-Working tree is clean and in sync with origin/main. Do NOT rerun or modify
-model results. A PreToolUse hook blocks Edit/Write under reports/figures,
-reports/tables, models and data/processed while those tags exist.
+Working tree clean. Do NOT rerun or modify model results. A PreToolUse hook
+blocks Edit/Write under reports/figures, reports/tables, models and
+data/processed while those tags exist. Suite: 282 tests (275 offline, 7
+network).
 
-Read logs/decisions.md from the 2026-08-04 entries onward — that is the
-state of play, including two corrections I had to make to my own earlier
-claims.
+Read logs/decisions.md from the 2026-08-04 entries onward for the state of
+play, including corrections I had to make to my own earlier claims.
 
 WHAT'S LEFT, in priority order:
 
-1. WRITING. This is now the binding constraint, not code. The standing
-   instruction to park drafting (2026-07-30) was conditional on results
-   being done — that condition is met. Pages banked: 0 of a 100-page Farsi
-   body. Chapters 3 (37pp) and 4 (29pp) are fully backed by frozen numbers
-   and reports/tables/*.tex. Week-9 partial review slot is booked for
-   2026-08-31..09-06.
-2. SHAP (thesis 4-6, 8pp). Correctly post-freeze: it explains already-fitted
-   models. Nothing imports `shap` yet. Frozen models are in models/frozen/
-   (gitignored, regenerate with `run_ood_stress.py --fit`, deterministic).
-   Planned split: calm-vs-stressed and hourly-vs-daily comparison.
-3. France stretch goal — third priority, still untouched, config change only
-   (dataset='FR'). Skip it unless genuinely ahead; it competes with writing.
+1. WRITING. The binding constraint, and now the only one. 0 of 100 Farsi
+   pages banked. The quota is finally set and tracked:
+     ./.venv/Scripts/python.exe scripts/page_quota.py            # status
+     ./.venv/Scripts/python.exe scripts/page_quota.py --add 12 --note "3-3"
+   Required pace: 2.31pp/day to the week-9 partial review (opens 2026-08-31),
+   3.03pp/day to the week-10 full-draft review (opens 2026-09-07). Both dates
+   are booked with the supervisor and do not move. See thesis/page-quota.md.
+   Record the page count in the official Amirkabir docx, not words written.
+
+   Suggested order (follows the frozen numbers, waits on nothing):
+   chapter 3 (37pp, sections 3-5 and 3-6 already drafted in thesis/drafts/),
+   then chapter 4 (29pp, every table and figure it needs now exists),
+   then chapters 1, 2, 5 (34pp).
+
+2. Thesis 5-3 screenshot of PriceCast. Not committed. Take it at a window
+   tall enough to show BOTH the accuracy warning and the chart -- a 5-3
+   figure that omits the warning is the wrong figure. Next free figure
+   number is 16.
+
+3. Decide on the week-7 pre-freeze reproducibility check (logs/decisions.md
+   data-source table, row 7). It never ran and the freeze already happened,
+   so it can no longer be what it was designed to be. Run it late, or log it
+   as deliberately skipped -- but decide, don't leave it marked Scheduled.
+
+4. France stretch (dataset='FR'). Untouched, config change only, and it
+   competes directly with 3 pages/day. Skip unless genuinely ahead.
+
+5. The English journal article and defense/ assets have no scheduled slot
+   anywhere in the log. Worth assigning one.
 
 CLAIM DISCIPLINE — do not restate these loosely in the thesis:
 - Regime-aware vs static: significant on the 77 stressed days (p 0.006-0.044
@@ -50,24 +66,29 @@ CLAIM DISCIPLINE — do not restate these loosely in the thesis:
 - OOD: the regime-aware ensemble still edges static (42.17 vs 44.43) but
   98.8% of live days are one regime, so that is the stressed weight set
   applied throughout, NOT regime switching working out of distribution.
+- SHAP (4-6): the explained model is a STATIC fit held fixed across the test
+  period, while the models behind chapter 4's accuracy numbers recalibrate at
+  every origin. Figure 10 is NOT the importance profile of the results model.
+  Say so; drift in feature reliance across 2016-2017 is invisible here.
+- SHAP case study (figure 15): the day is chosen by the MODEL'S OWN highest
+  prediction, deliberately not by the highest realized baseload. The
+  under-forecasting claim rests on the aggregate (-9.57 EUR/MWh mean signed
+  error over the 73 top-decile days), not on that one day.
 
 Gotchas:
 - ALWAYS run `./.venv/Scripts/python.exe`, never bare `python`. The `python`
   on PATH is a Windows Store 3.11 without epftoolbox or lightgbm; it fails
   collection on 5 test modules with ModuleNotFoundError that looks exactly
-  like broken code and is not. This cost real time on 2026-08-05.
-- Offline suite: `pytest -m "not network"` (the hook's own invocation) —
-  expect 122 passed before the debug sweep, more after (it adds tests). Set THESIS_FULL_DATA=1 to turn data-missing skips into
-  failures. `-m "not epftoolbox"` alone was never offline.
-- Network suite: `pytest -m "network"`, 6 tests. api.energy-charts.info
-  intermittently drops TLS; the loader now retries connection errors, so a
-  failure here is the API, not the code. DO NOT conclude the network is down
-  — I made exactly that mistake and it cost a deliverable (decisions.md
-  2026-08-04, retracted entry).
+  like broken code and is not.
+- Offline suite: `pytest -m "not network"` — expect 275 passed. Network
+  suite: `pytest -m "network"`, 7 tests. api.energy-charts.info intermittently
+  drops TLS; the loader retries, so a failure there is the API, not the code.
+  DO NOT conclude the network is down — that mistake already cost a
+  deliverable once (decisions.md 2026-08-04, retracted entry).
+- Missing data now FAILS by default (tests/conftest.py). Opt out only with
+  THESIS_ALLOW_MISSING_DATA=1, which prints a loud banner.
 - The freeze hook only intercepts Edit/Write TOOL calls, not scripts writing
-  the same paths. That is deliberate (it lets run_ood_stress.py work) but it
-  means a script can still overwrite frozen artifacts. Check `git diff` after
-  running anything that writes.
+  the same paths. Check `git diff` after running anything that writes.
 - Attribution required wherever live data appears: "Data: Energy-Charts
   (Fraunhofer ISE) / Bundesnetzagentur SMARD.de, CC BY 4.0".
 ```
@@ -78,9 +99,11 @@ Gotchas:
 
 ### Schedule
 
-Week 1 began 2026-07-06. Today is **week 5 of 12** (2026-08-03..08-09).
-The v1.0-results freeze was scheduled for end of week 7 (2026-08-23) and
-landed ~2.5 weeks early. The 12-week schedule ends 2026-09-27.
+Week 1 began 2026-07-06. Today is **week 5 of 12** (2026-08-03..08-09); the
+schedule ends 2026-09-27. Code is running ~3 weeks ahead of plan: the
+`v1.0-results` freeze and SHAP (planned week 8) both landed 19 days early, and
+the PriceCast MVP (planned week 11) is done. None of that slack helps unless
+it is spent on pages.
 
 ### Frozen headline numbers
 
@@ -104,39 +127,45 @@ OOD (173 live days, 2026): every trained model exceeds rMAE 1.0 — worse than
 naive (0.808). Ranking inverts: LightGBM worst (1.828), LSTM (1.520), while
 LEAR-LASSO (1.087) and SARIMAX (1.145) hold up best.
 
-### Exported tables (reports/tables/, .tex + .csv)
+### SHAP findings (section 4-6)
+
+Renewables day-ahead forecast (`exog_2_D0`) is the largest driver at 5.86
+EUR/MWh mean |SHAP|, then `price_D-1` (3.77) and the load forecast
+`exog_1_D0` (3.50); weekday dummies are negligible (0.15). The hour profile is
+physically coherent: load dominates the 07:00 ramp, renewables midday and the
+18:00 peak, yesterday's prices the overnight hours.
+
+**Under stress the model leans much harder on persistence** — `price_D-1`
+rises 3.48 → 6.15 (+77%) from calm to stressed while fundamentals barely move.
+That is an independent mechanism for why regime-aware weighting helped in 3-8.
+The split reproduced 651 calm / 77 stressed by delegating to
+`ensemble.regime_labels` — the same 77 days the DM regime tests use.
+
+### Exported artifacts
 
 | file | thesis section |
 |---|---|
-| results_canonical | 4-2, 4-3, 4-4 |
-| dm_tests | 4-5 |
-| dm_regime_split | 4-5 |
-| ood_stress | 4 / limitations + discussion |
+| reports/tables/results_canonical | 4-2, 4-3, 4-4 |
+| reports/tables/dm_tests, dm_regime_split | 4-5 |
+| reports/tables/ood_stress | 4 / limitations |
+| reports/tables/shap_importance | 4-6 |
+| reports/figures/01–09 | 3-3-3 (EDA) |
+| reports/figures/10–15 | 4-6 (SHAP) |
 
-All regenerate byte-identically via `scripts/export_tables.py` — verified at
-tagging. If that command ever produces a diff on the first three, a frozen
-number moved: investigate before doing anything else.
-
-### Two corrections I made to my own earlier claims (both in decisions.md)
-
-- **"No outbound HTTPS from this workstation, environment-level."** Wrong.
-  It was a flaky remote host clustering failures. Git's HTTPS worked the
-  whole time. Repeated failures through one client are one observation
-  repeated, not evidence of scope.
-- **"Regime-aware gain is significant at the 1% level."** Withdrawn. The
-  uncorrected DM ignores serial dependence; corrected p-values are an order
-  of magnitude larger. A later code review then caught that my first
-  correction was itself unsound (the block-length rule handed the small
-  subset a shorter block despite stronger dependence).
+The first four regenerate byte-identically via `scripts/export_tables.py
+--dry-run`. If that ever shows a diff on the first three, a frozen number
+moved: investigate before doing anything else.
 
 ### Scripts worth knowing
 
-- `run_ensemble.py` — static + regime weights, refuses partial/duplicated input
-- `run_dm_ensembles.py` — DM with HAC + circular block bootstrap sweep
-- `export_tables.py` — all four tables
+- `page_quota.py` — writing pace against the booked review dates
+- `run_shap.py --fit | --figures-only | (default compute+export)`
 - `run_ood_stress.py --fit | --fetch | (default replay)`
+- `export_tables.py --dry-run` — the four frozen tables
+- `run_ensemble.py`, `run_dm_ensembles.py`
 - `run_full_baselines.py`, `run_daily_direct.py`, `tune_daily.py` — long runs,
   need AC power and lid open (keep_awake() is advisory on Modern Standby)
+- `streamlit run app/pricecast.py` — the MVP
 
 ### Traps that already bit (still true)
 
@@ -145,38 +174,9 @@ number moved: investigate before doing anything else.
 - `.venv/Scripts/python.exe` is a launcher stub, so ONE run legitimately
   shows TWO PIDs. Distinguish a real second writer by CPU time and parentage.
 - An aggregate exit code of 0 means "nothing failed", not "everything ran".
-  A chained job reported success here while its second stage never started.
   Verify by artifact, never by exit status.
+- A green suite is not a sound codebase: 128/128 passed on 2026-08-04 while
+  ~30 real defects sat in the untested surface. Both later sessions found
+  further defects only by writing tests first and by actually opening the app.
 - Bash tool ≠ PowerShell tool: PowerShell here-strings in Bash corrupt commit
   messages; PowerShell 5.1 has no `<` stdin redirection and no `&&`.
-
-### Debug sweep (started 2026-08-05)
-
-A green suite is not a sound codebase. 128/128 passed while ~30 real defects
-sat in the untested surface — only 1 of 12 scripts had any test, and several
-existing tests were tautological. A three-agent read-only sweep of `src/`,
-`scripts/` and `tests/` found them; each is being closed test-first (write a
-reproducing test, watch it fail, fix, watch it pass).
-
-**The frozen numbers are unaffected. This was verified, not assumed:**
-
-- `data/raw/DE.csv` is tz-naive with exactly 24 hours on all 2184 days and no
-  duplicate timestamps → the DST hour-dropping bug never fired.
-- All 7 frozen `data/processed/baselines/*.csv` have 728 contiguous 1-day
-  origins and zero NaN → neither the ensemble weight-collapse nor the
-  previous-row-vs-previous-day regime bug could have fired.
-- `norm=2` has no call site (`run_dm_ensembles.py` uses `norm=1`) → the
-  epftoolbox convention mismatch never fired.
-- Frozen ensemble weights are non-uniform (LEAR-LASSO 0.237 → 0.375 across
-  regimes), independently ruling out an equal-weight collapse.
-
-So this is a code-integrity repair, not a results correction. Rule for the
-sweep: fix code, never touch artifacts. `git diff --stat -- reports/ data/
-models/` must stay empty.
-
-The worst finding is not any single bug but a structural one: the test that
-proves the regime threshold was computed on train-only data depends on
-gitignored `data/raw/DE.csv`, so **on a clean checkout the project's central
-non-leakage guard silently skips and the suite still reports green**. The
-`THESIS_FULL_DATA=1` escape hatch works mechanically but is set by nothing —
-no conftest, no CI, no `addopts`. That is being fixed.
