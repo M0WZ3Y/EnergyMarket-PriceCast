@@ -1268,4 +1268,105 @@ import, no TODO/FIXME.
 
 ---
 
+
+## 2026-08-05 — Full debug sweep: 30 defects closed test-first, frozen results proven unaffected
+
+**Trigger.** The suite reported 128/128 green after the v1.0-results freeze,
+which reads as "the code is sound". It was not. Three read-only agent sweeps of
+`src/`, `scripts/` and `tests/` found ~30 real defects. The reason a green suite
+missed them is structural: only 1 of 12 scripts had any test, and several
+existing tests were tautological.
+
+**The freeze question, answered with evidence rather than argument.** Several
+defects sat in code that produced the tagged numbers, so the first task was to
+determine whether any of them ever *fired* — a latent bug and a bug that fired
+demand different responses.
+
+- `data/raw/DE.csv`: tz-naive, 2184 days, **exactly 24 hours on every day**, no
+  duplicate timestamps → the DST hour-dropping bug never fired.
+- All 7 frozen `data/processed/baselines/*.csv`: **728 contiguous 1-day
+  origins, zero NaN** in `y_pred`/`y_true` → neither the ensemble
+  weight-collapse nor the previous-row-vs-previous-day regime bug could fire.
+- `norm=2` has no call site (`run_dm_ensembles.py` uses `norm=1`) → the
+  epftoolbox convention mismatch never fired.
+- Frozen ensemble weights are non-uniform (LEAR-LASSO 0.237 → 0.375) →
+  independently rules out an equal-weight collapse.
+- **Strongest evidence:** with every fix applied, `dm_matrix` re-derives the
+  frozen `dm_tests.csv` to a max absolute difference of **1.1e-16**, and all
+  four exported tables regenerate with **byte-identical bodies and CSVs**.
+
+Conclusion: this was a code-integrity repair, not a results correction. No
+model was re-run, no artifact regenerated. `git diff -- reports/ data/ models/`
+stayed empty throughout.
+
+**Defects that could have produced wrong numbers** (all now fixed, each with a
+reproducing test that failed first): `fit_weights` silently returned its
+equal-weight starting point as "MAE-optimal" whenever any member frame held a
+NaN (`res.success` was never checked); `regime_labels` used a positional
+`shift(1)` instead of a previous-calendar-day lookup, so with any gap in the
+origin set a day inherited a regime label from an arbitrarily older day;
+`_aligned_pivots` validated the index but not the hour columns, and its
+`np.allclose` check is positional, so mislabelled hours passed and then summed
+by label into all-NaN columns; `diebold_mariano_hac` floored a degenerate
+variance at 1e-12 and returned p == 0.0 from it; `daily_baseload`'s completeness
+guard grouped by different keys than its own aggregation, rejecting valid
+multi-model frames while accepting a duplicated hour that hid a missing one;
+`_resample` repaired the interior NaNs `fetch_prices` had deliberately
+preserved one line earlier.
+
+**Two documentation defects that would have misled a reader.**
+1. `diebold_mariano()`'s docstring claimed "is model 1 significantly more
+   accurate than model 2". Verified empirically to be backwards: a small p
+   supports **p_pred_2**. `dm_matrix` places the row model in `p_pred_2` and
+   is correct, so no published number was affected — but the wrong sentence sat
+   directly above the function the whole DM chapter rests on. Corrected.
+2. `reports/tables/ood_stress.tex`'s caption says "Mean price 98.67"; the data
+   gives 98.661573 → **98.66**. A hand-typed rounding error in a committed
+   thesis artifact. The exporter now interpolates every caption statistic it
+   can compute, so the class of error is gone. The frozen `.tex` was left
+   untouched per the freeze rule; the discrepancy has no bearing on any claim
+   (the point is that 2026 prices are ~2.8x training-era levels).
+
+**The most serious finding was structural, not a bug.** The only test verifying
+the regime stress threshold was computed on train-only data depends on
+gitignored `data/raw/DE.csv`. Reproduced: with that file absent the test SKIPS
+and the suite still reports green — so **on a clean checkout the non-leakage
+guard CLAUDE.md calls non-negotiable was silently not running**, exactly where
+an examiner would run it. `THESIS_FULL_DATA=1` worked mechanically but was set
+by nothing: no conftest, no CI, no addopts. **Decision: invert the honour
+system.** A new `tests/conftest.py` makes missing data FAIL by default, with an
+explicit `THESIS_ALLOW_MISSING_DATA=1` opt-out that prints a loud
+`!!! MISSING DATA !!!` terminal banner; `THESIS_FULL_DATA=1` is kept as an alias
+so NEXT_SESSION.md stays correct. `pytest.ini` gains `--strict-markers`, without
+which a typo'd `@pytest.mark.netwrok` silently ran in the offline set.
+
+**Tests strengthened, with mutation evidence.** The DM test asserted only
+`0 <= p <= 1` on data with an overwhelming accuracy gap — a constant-returning
+DM passed it. Interface tests asserted `isinstance` and then `hasattr`, which it
+entails. The OOD guard test asserted the *absence* of two magic substrings, so
+any reword de-fanged it silently. Nothing asserted that a model loaded from
+`models/frozen/` predicts what the fitted one did — the exact path the OOD
+chapter depends on; round-trips added for all 7 wrappers that lacked them. Each
+strengthened test was verified to FAIL against deliberately broken behaviour
+(constant p-value, reversed p-value, ignored bandwidth, RMSE-based norm=2,
+shifted walk-forward window, `save` dropping `_models`/`_scalers`).
+
+**Operational defects.** `task_monitor._find_run_pids` failed OPEN: its bare
+`except Exception: return []` meant a PowerShell timeout — which happens exactly
+when the machine is loaded by a live run — read as "nothing running", letting
+the resume path spawn a duplicate writer on the same CSV. That is the mechanism
+behind the 2026-08-02 `validation_preds/lightgbm.csv` corruption; the guard
+meant to prevent it is what permitted it. Now fails closed. Also:
+`run_full_baselines` never removed partial rows from a torn origin (34 rows for
+one day, permanently); `export_tables` crashed on the last table *after*
+overwriting the first three; `--last-origin` before `--first-origin` exited 0
+having done nothing; `fetch_live` ignored `--cache` and would overwrite the
+committed live cache the flag was meant to redirect.
+
+**Suite: 122 → 189 (183 offline + 6 network).** Every fix landed test-first:
+reproducing test written and observed failing with the specific wrong value,
+then fixed, then re-verified.
+
+---
+
 Pages banked: 0 / quota 0 | Results table: v1.0-results + v1.1-ood | Backup: [ ]

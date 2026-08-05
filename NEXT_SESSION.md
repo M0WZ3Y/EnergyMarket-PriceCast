@@ -1,10 +1,12 @@
 # Next session — paste this in
 
-Written 2026-08-04, end of the day the results froze. Copy everything inside
+Written 2026-08-04, end of the day the results froze. Updated 2026-08-05
+during the full debug sweep (see "Debug sweep" below). Copy everything inside
 the block.
 
 ```
-Resume the MSc thesis EPF project. THE CODE PHASE IS DONE. Every number the
+Resume the MSc thesis EPF project. THE RESULTS ARE FROZEN AND SOUND; a
+code-integrity debug sweep is in progress on top of them. Every number the
 thesis needs exists and is frozen behind two pushed tags:
 
   v1.0-results  benchmark-era results (hourly, daily, ensembles, DM)
@@ -50,8 +52,12 @@ CLAIM DISCIPLINE — do not restate these loosely in the thesis:
   applied throughout, NOT regime switching working out of distribution.
 
 Gotchas:
+- ALWAYS run `./.venv/Scripts/python.exe`, never bare `python`. The `python`
+  on PATH is a Windows Store 3.11 without epftoolbox or lightgbm; it fails
+  collection on 5 test modules with ModuleNotFoundError that looks exactly
+  like broken code and is not. This cost real time on 2026-08-05.
 - Offline suite: `pytest -m "not network"` (the hook's own invocation) —
-  expect 122 passed. Set THESIS_FULL_DATA=1 to turn data-missing skips into
+  expect 122 passed before the debug sweep, more after (it adds tests). Set THESIS_FULL_DATA=1 to turn data-missing skips into
   failures. `-m "not epftoolbox"` alone was never offline.
 - Network suite: `pytest -m "network"`, 6 tests. api.energy-charts.info
   intermittently drops TLS; the loader now retries connection errors, so a
@@ -143,3 +149,34 @@ number moved: investigate before doing anything else.
   Verify by artifact, never by exit status.
 - Bash tool ≠ PowerShell tool: PowerShell here-strings in Bash corrupt commit
   messages; PowerShell 5.1 has no `<` stdin redirection and no `&&`.
+
+### Debug sweep (started 2026-08-05)
+
+A green suite is not a sound codebase. 128/128 passed while ~30 real defects
+sat in the untested surface — only 1 of 12 scripts had any test, and several
+existing tests were tautological. A three-agent read-only sweep of `src/`,
+`scripts/` and `tests/` found them; each is being closed test-first (write a
+reproducing test, watch it fail, fix, watch it pass).
+
+**The frozen numbers are unaffected. This was verified, not assumed:**
+
+- `data/raw/DE.csv` is tz-naive with exactly 24 hours on all 2184 days and no
+  duplicate timestamps → the DST hour-dropping bug never fired.
+- All 7 frozen `data/processed/baselines/*.csv` have 728 contiguous 1-day
+  origins and zero NaN → neither the ensemble weight-collapse nor the
+  previous-row-vs-previous-day regime bug could have fired.
+- `norm=2` has no call site (`run_dm_ensembles.py` uses `norm=1`) → the
+  epftoolbox convention mismatch never fired.
+- Frozen ensemble weights are non-uniform (LEAR-LASSO 0.237 → 0.375 across
+  regimes), independently ruling out an equal-weight collapse.
+
+So this is a code-integrity repair, not a results correction. Rule for the
+sweep: fix code, never touch artifacts. `git diff --stat -- reports/ data/
+models/` must stay empty.
+
+The worst finding is not any single bug but a structural one: the test that
+proves the regime threshold was computed on train-only data depends on
+gitignored `data/raw/DE.csv`, so **on a clean checkout the project's central
+non-leakage guard silently skips and the suite still reports green**. The
+`THESIS_FULL_DATA=1` escape hatch works mechanically but is set by nothing —
+no conftest, no CI, no `addopts`. That is being fixed.
