@@ -50,6 +50,15 @@ def run_model(
                     model=model_name,
                 )
             )
+    # An empty run must still carry the documented schema. from_records([])
+    # yields a (0, 0) frame with NO columns, so load_long_frame, _pivot_24 and
+    # daily_baseload all die later with an opaque KeyError: 'origin', far from
+    # the real cause. Zero origins is reachable whenever Y is shorter than
+    # calibration_window_days or first_origin sits past the end of the data --
+    # a configuration mistake that should surface as an empty result, not as a
+    # missing column three modules downstream.
+    if not records:
+        return pd.DataFrame(columns=["origin", "hour", "y_true", "y_pred", "model"])
     return pd.DataFrame.from_records(records)
 
 

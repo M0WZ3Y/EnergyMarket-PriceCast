@@ -56,6 +56,32 @@ def _pivot_to_daily_wide(df: pd.DataFrame) -> pd.DataFrame:
     """
     day = df.index.normalize()
     hour = df.index.hour
+
+    # A (day, local hour) pair must identify exactly one observation. It does
+    # not on the October "fall back" day of a tz-aware local-time index, where
+    # local hour 02 occurs twice and the day has 25 hours. The .first() below
+    # would keep one of the two and discard the other real price with no NaN
+    # and no error: the day would look like an ordinary 24-hour day, survive
+    # the completeness mask, and carry a missing price into X, Y and every
+    # metric. A dropped price must fail loudly. Benchmark data is tz-naive
+    # with exactly 24 hours per day, so this never fires on that path.
+    pairs = pd.MultiIndex.from_arrays([day, hour], names=["day", "hour"])
+    if pairs.has_duplicates:
+        duplicated = pairs[pairs.duplicated()].unique()
+        examples = ", ".join(
+            f"{d.date()} hour {h:02d}" for d, h in list(duplicated)[:5]
+        )
+        raise ValueError(
+            f"{len(duplicated)} duplicate (day, hour) pair(s) in the hourly "
+            f"index: {examples}"
+            + (" ..." if len(duplicated) > 5 else "")
+            + ". This is the repeated local hour of a DST 'fall back' day on a "
+            "tz-aware index (or genuinely duplicated timestamps). Pivoting "
+            "would silently discard one real price per pair; convert the index "
+            "to UTC before calling build_features, or de-duplicate it "
+            "explicitly."
+        )
+
     wide_parts = []
     for col in df.columns:
         wide = df[col].groupby([day, hour]).first().unstack(level=-1)
