@@ -1496,4 +1496,53 @@ Decide explicitly: run it late, or log it as skipped.
 
 ---
 
+### 2026-08-05 — PriceCast MVP finished; week-11 live-path test CLOSED
+
+`streamlit run app/pricecast.py`. Three data sources (cached demo, live
+Energy-Charts, CSV upload), target-day picker, forecast-vs-actual chart,
+metrics, attribution. Driven end-to-end in a real browser, not just started:
+the demo path serves 173 forecastable days from the committed 2026 window —
+the same 173 days the OOD result covers.
+
+**The week-11 data-source test is closed.** The scheduled row ("full live path
+inside PriceCast: date picker → API fetch → forecast → chart, plus CSV-upload
+fallback") is now an automated `@pytest.mark.network` test that fetches a real
+window from Energy-Charts, builds features and produces a 24-hour forecast.
+Network suite 6 → 7, all passing.
+
+**The UI is obliged to tell the truth about accuracy, and does.** The served
+model is frozen on 2017-12-31; v1.1-ood put every trained model above rMAE 1.0
+on live 2026 data. On the demo day the tool forecasts a 48.42 EUR/MWh baseload
+against 143.21 realized — MAE 94.79. Presenting that without comment would
+misrepresent the research, so a warning renders before any chart, and its
+figures are READ from `data/processed/ood/ood_summary.csv` rather than typed
+in — the hand-typed-caption error class this project already hit once.
+
+**Design note worth keeping.** `build_features()` drops any day whose own 24
+prices contain NaN, correctly, which means it cannot build features for the day
+you actually want to forecast — tomorrow's prices do not exist. The service
+substitutes a placeholder into the target day's price column. That is only
+legitimate because no feature column ever reads the target day's own price, so
+the test proves it rather than trusting it: the same day is forecast with
+placeholders of -500 and +5000 and the outputs must be identical. If a future
+feature ever reads that price, the test fails instead of the app quietly
+forecasting from a constant.
+
+All logic lives in `app/forecast_service.py`, which imports no Streamlit;
+`app/pricecast.py` only arranges widgets. That is why 29 of the tests need no
+browser. Four defects were caught by writing the tests first: a DatetimeIndex
+comparison that already returns an ndarray, a non-numeric-CSV test whose token
+pandas silently parsed as NaN (so it exercised nothing), a deprecated
+`use_container_width` past its removal date, and truncated metric values in the
+rendered UI — the last one only visible because the app was actually opened.
+
+**Suite: 237 → 282 (275 offline + 7 network).**
+
+Still open for the MVP: the thesis 5-3 screenshot is not committed. The app was
+captured during verification, but a figure that omits the accuracy warning
+would be the wrong figure for that section — it should be taken at a window
+tall enough to show the banner and the chart together.
+
+---
+
 Pages banked: 0 / quota 60 by 2026-08-31 | Results table: v1.0-results + v1.1-ood | Backup: [ ]

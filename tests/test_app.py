@@ -27,13 +27,22 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
+from conftest import require_thesis_data
+
 from app.forecast_service import (
+    DEMO_CACHE_PATH,
     MIN_HISTORY_DAYS,
+    OOD_SUMMARY_PATH,
     ForecastResult,
     InsufficientHistory,
+    attribution,
+    fetch_live_window,
     forecast_for_day,
+    forecastable_days,
     history_window,
+    load_cached_demo,
     load_model,
+    ood_context,
     validate_uploaded_frame,
 )
 from src.features.pipeline import build_features
@@ -246,6 +255,140 @@ def test_upload_rejects_non_numeric_prices():
 def test_missing_model_names_the_command_that_creates_it(tmp_path):
     with pytest.raises(FileNotFoundError, match="run_ood_stress"):
         load_model(tmp_path / "absent")
+
+
+# ---------------------------------------------------------------------------
+# Selectable days
+# ---------------------------------------------------------------------------
+
+
+def test_forecastable_days_exclude_the_unbacked_head_of_the_series():
+    """The first 7 days can never be forecast — they lack the D-7 lag. Offering
+    them in the date picker would guarantee an error the user cannot fix."""
+    df = _hourly(40)
+    days = forecastable_days(df)
+
+    all_days = df.index.normalize().unique()
+    assert list(days) == list(all_days[MIN_HISTORY_DAYS - 1 :])
+    assert len(days) == 40 - (MIN_HISTORY_DAYS - 1)
+
+
+def test_forecastable_days_agree_with_what_forecasting_actually_accepts(model):
+    """The picker's offer and the forecaster's behaviour must not disagree:
+    every offered day must forecast, and the day just before the first offered
+    day must not."""
+    df = _hourly(20)
+    days = forecastable_days(df)
+
+    for day in list(days)[:3]:
+        forecast_for_day(df, day, model)
+
+    just_before = days[0] - pd.Timedelta(days=1)
+    with pytest.raises(InsufficientHistory):
+        forecast_for_day(df, just_before, model)
+
+
+def test_forecastable_days_skip_a_day_with_a_hole_and_the_week_after_it():
+    """A missing hour poisons that day and every day whose lag window contains
+    it — the picker must not offer any of them."""
+    df = _hourly(40)
+    victim = df.index.normalize().unique()[15]
+    holed = df.drop(df.index[(df.index.normalize() == victim) & (df.index.hour == 5)])
+
+    days = forecastable_days(holed)
+
+    assert victim not in days
+    for offset in range(1, MIN_HISTORY_DAYS):
+        assert victim + pd.Timedelta(days=offset) not in days
+
+
+def test_forecastable_days_tolerate_an_unpublished_price_on_the_target_day():
+    """The live case: tomorrow has exogenous forecasts but no prices yet, and
+    must still be offered."""
+    df = _hourly(40)
+    last = df.index.normalize().unique()[-1]
+    df.loc[df.index.normalize() == last, "price"] = np.nan
+
+    assert last in forecastable_days(df)
+
+
+def test_forecastable_days_require_the_exogenous_columns():
+    """Unlike price, a missing exog on the target day is fatal — exog_*_D0 are
+    required features."""
+    df = _hourly(40)
+    last = df.index.normalize().unique()[-1]
+    df.loc[df.index.normalize() == last, "exog_1"] = np.nan
+
+    assert last not in forecastable_days(df)
+
+
+# ---------------------------------------------------------------------------
+# Cached demo + attribution
+# ---------------------------------------------------------------------------
+
+
+def test_the_committed_demo_cache_loads_in_the_shared_schema():
+    require_thesis_data(DEMO_CACHE_PATH, "live OOD demo cache")
+    df = load_cached_demo()
+
+    assert list(df.columns) == ["price", "exog_1", "exog_2"]
+    assert isinstance(df.index, pd.DatetimeIndex)
+    assert len(forecastable_days(df)) > 0, "the demo cache must offer forecastable days"
+
+
+def test_ood_context_reads_the_frozen_numbers_rather_than_hardcoding_them():
+    """The app's honesty banner quotes rMAE figures. They must come from the
+    v1.1-ood artifact — a hand-typed statistic in a committed caption is an
+    error this project already made once."""
+    require_thesis_data(OOD_SUMMARY_PATH, "OOD summary")
+    ctx = ood_context()
+
+    assert ctx is not None
+    assert ctx["model_rmae"] > 1.0, "the served model is worse than naive on 2026 data"
+    assert ctx["naive_rmae"] < 1.0
+    frozen = pd.read_csv(OOD_SUMMARY_PATH, index_col=0)
+    assert ctx["model_rmae"] == pytest.approx(frozen.loc["LightGBM", "rMAE"])
+
+
+def test_ood_context_degrades_instead_of_crashing_when_absent(tmp_path):
+    from app.forecast_service import ood_context
+
+    assert ood_context(tmp_path / "nope.csv") is None
+
+
+def test_attribution_is_the_licence_required_string():
+    """CC BY 4.0 requires it wherever the live data appears; the app renders
+    it on every view. Sourced from the config, never retyped."""
+    text = attribution()
+    assert "Energy-Charts" in text
+    assert "CC BY 4.0" in text
+
+
+# ---------------------------------------------------------------------------
+# Live path — this test IS the week-11 data-source check
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.network
+def test_the_full_live_path_produces_a_forecast():
+    """decisions.md week-11 row: date picker -> API fetch -> forecast -> chart.
+
+    A failure here is the Energy-Charts API (it drops TLS intermittently), not
+    this code — the loader already retries connection errors.
+    """
+    target = pd.Timestamp.now('UTC').normalize().tz_localize(None) - pd.Timedelta(days=3)
+    start, end = history_window(target)
+
+    df = fetch_live_window(start, end)
+    assert list(df.columns) == ["price", "exog_1", "exog_2"]
+
+    days = forecastable_days(df)
+    assert len(days) > 0, f"no forecastable day in {start}..{end}"
+
+    model = load_model()
+    result = forecast_for_day(df, days[-1], model)
+    assert len(result.forecast) == 24
+    assert result.forecast.notna().all()
 
 
 def test_loaded_model_predicts_what_the_fitted_one_did(tmp_path, model):
