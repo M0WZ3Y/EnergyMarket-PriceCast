@@ -1457,4 +1457,43 @@ corresponding assertion.
 
 ---
 
-Pages banked: 0 / quota 0 | Results table: v1.0-results + v1.1-ood | Backup: [ ]
+### 2026-08-05 — Page quota set; writing is now the critical path
+
+Going through the schedule at week 5 of 12: every code deliverable through the
+original week 8 is done, and two landed 19 days early (the `v1.0-results`
+freeze on 08-04, SHAP today). The PriceCast service layer, planned for week 11,
+is also written. **None of that slack helps unless it is spent on pages.**
+Writing is at 0 of 100, and the two supervisor dates are fixed: week-9 partial
+review opens **2026-08-31**, week-10 full-draft review opens **2026-09-07**.
+That is 2.31 pp/day and 3.03 pp/day respectively.
+
+The README's standing rule ("45-60 min thesis writing daily before code, week
+2+, page quotas tracked") had lapsed, and this footer is why it went unnoticed:
+it read `quota 0` every week, so a quota of zero was always met. Fixed by
+setting the quota rather than restating the rule — `configs/schedule.yaml`
+holds the dates and targets, `thesis/page_ledger.csv` the daily record, and
+`scripts/page_quota.py` reports required pace against each milestone.
+
+The tracker is deliberately built not to flatter: a passed deadline raises
+instead of returning a negative rate, a deadline of today demands the whole
+remainder today instead of dividing by zero, and pages banked come from the
+LATEST ledger row rather than the maximum, so a cut section shows as a drop
+instead of leaving a high-water mark standing in for progress. It also warns
+when the ledger goes two days stale — the failure mode that produced this
+entry.
+
+Week-9 target is 60pp (chapters 3 and 4): both are fully backed by frozen
+numbers and `reports/tables/*.tex`, so they can be written now without waiting
+on anything.
+
+**Two stale schedule items found while reviewing.** The data-source test table
+above still marks row 4 (week-4 indirect re-test) as `Scheduled` although the
+2026-07-28 entry records it satisfied; and row 7, the **pre-freeze
+reproducibility check** (fresh environment, one model end-to-end from config),
+never ran — it was meant to precede the freeze, and the freeze happened on
+08-04. It can still be run, but it can no longer be what it was designed to be.
+Decide explicitly: run it late, or log it as skipped.
+
+---
+
+Pages banked: 0 / quota 60 by 2026-08-31 | Results table: v1.0-results + v1.1-ood | Backup: [ ]

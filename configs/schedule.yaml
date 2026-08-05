@@ -1,0 +1,45 @@
+# Writing schedule and page quota (standing rule, README: "45-60 min thesis
+# writing daily before code (week 2+), page quotas tracked").
+#
+# The rule lapsed: every weekly footer in logs/decisions.md reads
+# "Pages banked: 0 / quota 0" because the quota was never actually set. This
+# file sets it. scripts/page_quota.py reads only from here -- never hardcode a
+# date or a target in the script.
+
+# 12-week personal execution schedule (the formal university registration is
+# 12 months; that is paperwork, not this timeline).
+start_date: 2026-07-06
+end_date: 2026-09-27
+
+# Farsi body, mapped to the official Amirkabir template (thesis/outline.md).
+page_budget: 100
+
+# Used only to ESTIMATE drafted pages from thesis/drafts/*.md word counts.
+# The real page count comes from the docx in the official template, which
+# lives outside this repo -- so this is a sanity signal, not the ledger.
+# CALIBRATE THIS: draft one section, paste it into the template, and set this
+# to the word count divided by the pages it actually occupied.
+words_per_page: 250
+
+# Booked with the supervisor (logs/decisions.md, 2026-07-06 Admin entry).
+# Dates are the START of each booked slot -- the draft must exist by then,
+# not by the end of the slot.
+milestones:
+  - name: "Week-9 partial review"
+    date: 2026-08-31
+    pages: 60
+    note: >-
+      Chapters 3 and 4 substantially complete. Both are fully backed by the
+      frozen v1.0-results numbers and reports/tables/*.tex, so they are the
+      chapters a partial review can actually act on.
+  - name: "Week-10 full-draft review"
+    date: 2026-09-07
+    pages: 100
+    note: "Full 100-page Farsi body."
+  - name: "Schedule end"
+    date: 2026-09-27
+    pages: 100
+    note: "Revisions, journal article, defense assets."
+
+# Human-maintained: append one row per writing day. See thesis/page-quota.md.
+ledger: thesis/page_ledger.csv
