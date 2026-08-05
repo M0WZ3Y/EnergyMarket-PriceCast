@@ -18,6 +18,11 @@ data/processed/*
 !data/raw/live_ood_de.csv
 # OOD predictions + summary, derived from that cache
 !data/processed/ood/
+# SHAP summaries behind thesis figures 10-15 and the 4-6 table. Small CSVs,
+# and committing them means the figures can be redrawn (run_shap.py
+# --figures-only) without refitting the interpretation models, which live
+# under the gitignored models/ tree.
+!data/processed/shap/
 
 # Models & experiment artifacts
 models/*

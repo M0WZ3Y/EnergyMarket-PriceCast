@@ -1369,4 +1369,92 @@ then fixed, then re-verified.
 
 ---
 
+### 2026-08-05 — SHAP interpretability (section 4-6) built on a separate fit
+
+**The decision that shapes everything else: 4-6 does not explain the frozen
+models.** `models/frozen/` was fit on the trailing 1092 days ending 2017-12-31,
+which contains the entire 2016-01-04..2017-12-31 test period. SHAP values
+computed over test days against those models would be in-sample — in a chapter
+whose whole subject is out-of-sample behaviour, and against the project's own
+leakage rule. So `scripts/run_shap.py --fit` trains the same wrappers
+(`LightGBMModel`, `DailyLightGBMModel`, unmodified) on the trailing 1092 days
+ending **2016-01-03**, strictly before the boundary. Every one of the 728
+explained days is unseen. Artifacts go to `models/interpretation/`, never
+`models/frozen/`.
+
+**Why LightGBM for both arms.** Both are trees, so `TreeExplainer` gives exact
+TreeSHAP: no sampling, no background dataset, no seed sensitivity. A thesis
+figure that changed between runs would be indefensible; this one cannot. The
+exactness is itself asserted — `sum(shap) + expected_value == predict()` to
+1e-6, checked against the *wrapper's* predict rather than a re-derived booster
+call, so a mismatch between the explained and predicting booster cannot hide.
+
+**Findings.** Renewables day-ahead forecast (`exog_2_D0`) is the largest single
+driver (mean |SHAP| 5.86 EUR/MWh hourly), then yesterday's prices (3.77) and
+the load forecast (`exog_1_D0`, 3.50); weekday dummies are negligible (0.15).
+The hour profile is physically coherent: load dominates the 07:00 ramp,
+renewables midday and the 18:00 peak, `price_D-1` the overnight hours. The
+beeswarm at h18 shows the merit-order effect directly — high renewables push
+price down, high previous-day price pushes it up. **Regime result: under stress
+the model leans much harder on persistence** — `price_D-1` rises 3.48 -> 6.15
+(+77%) from calm to stressed, while the fundamentals barely move. That is an
+independent mechanism for why regime-aware weighting helped in 3-8.
+**Hourly vs daily (RQ4):** the direct-daily arm relies proportionally less on
+short price lags (`price_D-2` 0.90 -> 0.39) and nearly as much on fundamentals
+(`exog_2_D0` 5.86 -> 4.55).
+
+**Cross-check that mattered.** The calm/stressed split delegates to
+`ensemble.regime_labels` rather than reimplementing the rule, and independently
+reproduced **651 calm / 77 stressed** — the same 77 stressed days the DM regime
+tests report. Sections 3-8 and 4-6 therefore describe the same day set, which
+is asserted in `tests/test_run_shap.py`.
+
+**Corrections made after the leakage review (agent found no leakage, but four
+real defects).**
+1. The case-study waterfall originally selected the day with the highest
+   *realized* baseload and was captioned "the model under-forecasts the
+   extreme". That is circular — conditioning on the argmax of the outcome
+   guarantees a calibrated forecast sits below it, so the figure could not
+   fail to show under-forecasting whatever the model did. Now selected by the
+   model's **own highest prediction** (no outcome used), and the
+   under-forecasting claim is instead backed by an aggregate that is not
+   selection-fragile: **mean signed error -9.57 EUR/MWh over the 73
+   top-decile-baseload days**. Renamed `waterfall_stressed_day` ->
+   `waterfall_case_study`, since selection was never by regime.
+2. **Captions now disclose that the explained fit is STATIC.** The results
+   models recalibrate at every origin (`refit_every_n_days: 1`); the explained
+   model is one fit held fixed across two years. Strictly less informed, so
+   never a leak, but a reader would otherwise take figure 10 for the
+   importance profile of the model behind chapter 4's numbers. It is not, and
+   drift in feature reliance across 2016-2017 is invisible here.
+3. `test_writable_namespace_covers_every_declared_output` was tautological —
+   it iterated the very list the guard checks. Replaced with a test that
+   records what `make_figures()` actually writes and asserts every recorded
+   path is declared. The determinism test only proved TreeSHAP is
+   deterministic (a property of the shap library); it now compares across a
+   **refit**, which is what actually binds seed 42 and the fixed `n_jobs`.
+4. `_facts_or_skip` used a bare `pytest.skip`, reintroducing the
+   clean-checkout hole b246d25 closed. Now routed through
+   `conftest.require_thesis_data`, so a missing cache fails.
+
+Also added: a contiguity assertion in `interpretation_train_days` (row count
+alone did not pin the window), a set-disjointness check between the training
+and explained windows (endpoint comparison is only sufficient while both are
+contiguous), and `--limit` now writes to `data/processed/shap/_smoke/` so a
+stray smoke run cannot replace the artifacts behind figures 10-15.
+
+**Freeze discipline.** `run_shap.py._assert_writable` refuses any path outside
+its own namespace, tested against eight real frozen artifacts plus a `..`
+traversal. `git diff -- reports/ data/ models/` is empty; every SHAP artifact
+is a new file. `export_tables.py --dry-run` still reproduces the frozen
+numbers.
+
+**Suite: 189 -> 237 (231 offline + 6 network).** All new guards
+mutation-checked: seven deliberate breaks (inclusive boundary, silent short
+window, wrong booster explained, removed column guard, silent 'other' bucket,
+sum->max grouping, regime reading its own day) were each confirmed to fail the
+corresponding assertion.
+
+---
+
 Pages banked: 0 / quota 0 | Results table: v1.0-results + v1.1-ood | Backup: [ ]
