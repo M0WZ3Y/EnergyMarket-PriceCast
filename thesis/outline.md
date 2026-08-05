@@ -38,9 +38,13 @@ Maps to the 8 Zotero subcollections, ~2pp each:
   - 3-7-1 LightGBM [3pp] (week 5)
   - 3-7-2 LSTM [4pp] (week 6)
 - 3-8 مدل ترکیبی [3pp] — ensemble (week 7); static ensemble first, then
-  regime-aware ensemble weighting (calm/spike weight sets switched on the
-  84.04 EUR/MWh spike threshold) if week-5 checkpoint favors Plan B —
-  see logs/decisions.md 2026-07-11 gameplan decision
+  regime-aware ensemble weighting (calm/stressed weight sets switched on the
+  **62.6989 EUR/MWh** stress threshold = train mean + 1.5*std). Week-5
+  checkpoint favoured Plan B, so this arm was built.
+  NOTE: the earlier 84.04 (3-sigma) threshold and the 'spike' label were
+  SUPERSEDED on 2026-08-04 — 84.04 left only 3 stressed validation days.
+  Never write 84.04 or 'spike' into the thesis; see logs/decisions.md
+  2026-08-04.
 
 ## فصل چهارم: نتایج و تحلیل [29pp] — results-heavy chapter
 - 4-1 مقدمه [1pp]
@@ -48,7 +52,9 @@ Maps to the 8 Zotero subcollections, ~2pp each:
 - 4-3 نتایج پیش‌بینی روزانه [5pp] — daily target
 - 4-4 مقایسه روش مستقیم و تجمیعی [2pp] — direct vs. aggregated daily (RQ4)
 - 4-5 آزمون دیبولد-ماریانو [3pp] — significance tests
-- 4-6 تحلیل تفسیرپذیری SHAP [8pp] — week 8, calm-vs-spike, hourly-vs-daily
+- 4-6 تحلیل تفسیرپذیری SHAP [8pp] — DONE 2026-08-05. calm-vs-stressed and
+  hourly-vs-daily. Figures 10–15 in reports/figures/, table
+  reports/tables/shap_importance.tex
 - 4-7 پاسخ به سؤالات پژوهش [4pp] — explicit answers to the 4 RQs
 
 ## فصل پنجم: جمع‌بندی، بحث و پیشنهادات [10pp]
