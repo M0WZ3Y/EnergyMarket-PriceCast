@@ -6,6 +6,7 @@ LEAR-LASSO tests that touch the real epftoolbox.models.LEAR are marked
 package ever becomes unavailable again (see logs/decisions.md).
 """
 
+import inspect
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -64,6 +65,42 @@ def test_models_config_loads():
     assert cfg["artifact_dir"] == "models"
 
 
+INTERFACE_METHODS = ("fit", "predict", "save", "load")
+
+
+def _assert_implements_base_interface(model) -> None:
+    """Assert the concrete class really IMPLEMENTS the four interface
+    methods, rather than merely possessing them.
+
+    `isinstance(model, BaseModel)` already entails `hasattr(model, "fit")`
+    and friends -- BaseModel declares all four -- so a hasattr/callable loop
+    after an isinstance check can never fail independently of it. What CAN
+    fail, and is what the harness actually depends on, is each method being
+    overridden by the concrete class with a signature matching the base's:
+    an abstract stub inherited straight from BaseModel would satisfy
+    hasattr and then return None at runtime.
+    """
+    cls = type(model)
+    assert isinstance(model, BaseModel)
+    # a class with an unimplemented abstract method could not be instantiated
+    assert not getattr(cls, "__abstractmethods__", frozenset())
+
+    for name in INTERFACE_METHODS:
+        concrete = getattr(cls, name)
+        base = getattr(BaseModel, name)
+        assert concrete is not base, f"{cls.__name__}.{name} is BaseModel's stub"
+        assert not getattr(concrete, "__isabstractmethod__", False)
+        assert not concrete.__qualname__.startswith("BaseModel."), (
+            f"{cls.__name__}.{name} resolves to {concrete.__qualname__}"
+        )
+        # the bound method on the instance must be the same implementation
+        assert getattr(model, name).__func__ is concrete
+        # and it must be callable with the base's parameter list
+        assert list(inspect.signature(concrete).parameters) == list(
+            inspect.signature(base).parameters
+        ), f"{cls.__name__}.{name} signature diverges from BaseModel.{name}"
+
+
 def test_all_three_wrappers_conform_to_base_model_interface():
     models_cfg = load_models_config()
     wrappers = [
@@ -73,8 +110,9 @@ def test_all_three_wrappers_conform_to_base_model_interface():
     ]
     for model in wrappers:
         assert isinstance(model, BaseModel)
-        for method in ("fit", "predict", "save", "load"):
+        for method in INTERFACE_METHODS:
             assert hasattr(model, method)
+        _assert_implements_base_interface(model)
 
 
 # --------------------------------------------------------------------------
@@ -312,8 +350,9 @@ def test_lightgbm_conforms_to_base_model_interface():
 
     model = LightGBMModel(_lgbm_cfg())
     assert isinstance(model, BaseModel)
-    for method in ("fit", "predict", "save", "load"):
+    for method in INTERFACE_METHODS:
         assert callable(getattr(model, method))
+    _assert_implements_base_interface(model)
 
 
 def test_lightgbm_predict_raises_on_multi_row_X():
@@ -461,8 +500,9 @@ def test_lstm_conforms_to_base_model_interface():
 
     model = LSTMModel(_lstm_cfg())
     assert isinstance(model, BaseModel)
-    for method in ("fit", "predict", "save", "load"):
+    for method in INTERFACE_METHODS:
         assert callable(getattr(model, method))
+    _assert_implements_base_interface(model)
 
 
 def test_lstm_predict_raises_on_multi_row_X():
@@ -623,3 +663,81 @@ def test_lstm_load_raises_when_keras_file_missing(tmp_path):
 
     with pytest.raises(RuntimeError, match="keras"):
         LSTMModel(_lstm_cfg()).load(path)
+
+
+# --------------------------------------------------------------------------
+# save/load round-trips
+#
+# scripts/run_ood_stress.py deserialises every one of these wrappers from
+# models/frozen/ and scores the result as an OOD finding. Nothing else in
+# the suite asserts that a LOADED model predicts what the FITTED one did --
+# a wrapper whose save() dropped a scaler, a feature-column list or a fitted
+# estimator would still load, still predict, and silently produce different
+# numbers under a chapter-4 heading. Each test below fits, predicts, saves,
+# loads into a FRESH instance and demands numerically identical predictions.
+# --------------------------------------------------------------------------
+
+def _assert_roundtrip_identical(model, fresh, X_predict, tmp_path, filename):
+    before = model.predict(X_predict)
+    path = tmp_path / filename
+    model.save(path)
+    loaded = fresh.load(path)
+    assert loaded.is_fitted, "a loaded fitted model must report is_fitted"
+    after = loaded.predict(X_predict)
+    assert after.columns.tolist() == Y_COLUMNS
+    assert after.index.equals(before.index)
+    assert not after.isna().any().any()
+    np.testing.assert_allclose(after.to_numpy(dtype=float), before.to_numpy(dtype=float))
+    return before, after
+
+
+def test_naive_save_load_roundtrip(tmp_path):
+    X, Y = build_features(_synthetic_df(40), FEATURE_CFG)
+    model = NaiveModel().fit(X, Y)
+    _assert_roundtrip_identical(model, NaiveModel(), X.iloc[[-1]], tmp_path, "naive.pkl")
+
+
+def test_sarimax_save_load_roundtrip(tmp_path):
+    days = pd.date_range("2021-01-01", periods=30, freq="D")
+    X, Y = _sarimax_XY(days)
+    cfg = dict(order=[1, 0, 0], seasonal_order=[0, 0, 0, 0], refit_every_n_days=30)
+    model = SARIMAXModel(cfg).fit(X.iloc[:-1], Y.iloc[:-1])
+    _assert_roundtrip_identical(
+        model, SARIMAXModel(cfg), X.iloc[[-1]], tmp_path, "sarimax.pkl"
+    )
+
+
+@pytest.mark.epftoolbox
+def test_lear_lasso_save_load_roundtrip(tmp_path):
+    X, Y = build_features(_synthetic_df(280), FEATURE_CFG)
+    train_days, test_day = X.index[:-1], X.index[[-1]]
+    cfg = dict(calibration_window_days=len(train_days))
+    model = LEARLassoModel(cfg).fit(X.loc[train_days], Y.loc[train_days])
+    _assert_roundtrip_identical(
+        model, LEARLassoModel(cfg), X.loc[test_day], tmp_path, "lear_lasso.pkl"
+    )
+
+
+def test_lightgbm_save_load_roundtrip(tmp_path):
+    from src.models import LightGBMModel
+
+    X, Y = build_features(_synthetic_df(40), FEATURE_CFG)
+    model = LightGBMModel(_lgbm_cfg()).fit(X.iloc[:-1], Y.iloc[:-1])
+    _assert_roundtrip_identical(
+        model, LightGBMModel(_lgbm_cfg()), X.iloc[[-1]], tmp_path, "lightgbm.pkl"
+    )
+
+
+def test_lstm_save_load_roundtrip(tmp_path):
+    """Covers the keras sidecar's SUCCESS path -- the failure path (missing
+    .keras companion) is covered by test_lstm_load_raises_when_keras_file_missing."""
+    from src.models import LSTMModel
+
+    X, Y = build_features(_synthetic_df(40), FEATURE_CFG)
+    model = LSTMModel(_lstm_cfg(epochs=1)).fit(X.iloc[:-1], Y.iloc[:-1])
+    path = tmp_path / "lstm.pkl"
+    _assert_roundtrip_identical(
+        model, LSTMModel(_lstm_cfg()), X.iloc[[-1]], tmp_path, "lstm.pkl"
+    )
+    # the network really did travel through the sidecar, not through pickle
+    assert path.with_suffix(".keras").exists()

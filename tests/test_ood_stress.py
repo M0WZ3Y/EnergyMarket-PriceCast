@@ -69,14 +69,34 @@ def test_replay_refuses_cache_overlapping_the_training_window(tmp_path, monkeypa
 def test_replay_accepts_cache_strictly_after_the_freeze(tmp_path, monkeypatch):
     """The mirror case: a window after the freeze must get past the overlap
     guard. It fails later for an unrelated reason (no frozen model files),
-    which is fine — this pins the guard boundary, not the whole run."""
+    which is fine — this pins the guard boundary, not the whole run.
+
+    Asserted POSITIVELY on where the run got to, not on the absence of two
+    magic substrings: a wording change in the guard would silently turn a
+    negative-substring assertion into a test of nothing (while its sibling
+    above, which uses the same strings in `match=`, breaks loudly). The
+    positive identification is the exception TYPE plus the cause chain —
+    replay() re-raises the missing-artifact FileNotFoundError as SystemExit
+    with `from exc`, and that only happens downstream of the overlap guard,
+    of the metadata check, and of feature construction succeeding.
+    """
     monkeypatch.setattr(ood, "FROZEN_DIR", _write_frozen_meta(tmp_path, "2017-12-31"))
     cache = _write_cache(tmp_path / "live.csv", "2026-01-01")
 
     with pytest.raises(SystemExit) as exc:
         ood.replay(cache=cache)
-    assert "overlaps the training window" not in str(exc.value)
-    assert "on or before" not in str(exc.value)
+
+    # the run reached the model-loading stage: it died on a real missing
+    # artifact, chained from the underlying filesystem error
+    assert isinstance(exc.value.__cause__, (FileNotFoundError, OSError))
+    message = str(exc.value)
+    assert "Re-run with --fit to rebuild the frozen models." in message
+    # ...and specifically on the first frozen model the loop reaches
+    assert "frozen naive missing or unreadable" in message
+    # the two guards that must NOT have fired (kept from the original test)
+    assert "overlaps the training window" not in message
+    assert "on or before" not in message
+    assert "no complete days" not in message
 
 
 def test_replay_requires_a_cache(tmp_path, monkeypatch):
