@@ -47,10 +47,67 @@ def completed_origins(out_path: Path) -> set[pd.Timestamp]:
     return {pd.Timestamp(o) for o in counts[counts == 24].index}
 
 
+def repair_partial_origins(out_path: Path) -> int:
+    """Drop rows belonging to any origin that does not have all 24 hours.
+
+    completed_origins() distrusts a torn origin, so it goes back into todo
+    and 24 fresh rows are appended -- but the torn rows are never removed,
+    leaving e.g. 34 rows for that day permanently. Every downstream
+    consumer then breaks or lies: daily_baseload raises, pivot() raises on
+    the duplicate (origin, hour) entries, and the monitor's row count
+    reports inflated progress. Repairing on resume keeps the file
+    self-consistent without hand-editing frozen outputs.
+
+    Returns the number of rows removed. No-op when the file is absent.
+    """
+    if not out_path.exists():
+        return 0
+    df = pd.read_csv(out_path)
+    if df.empty:
+        return 0
+    counts = df.groupby("origin")["hour"].size()
+    complete = set(counts[counts == 24].index)
+    if len(complete) == len(counts):
+        return 0
+    kept = df[df["origin"].isin(complete)]
+    removed = len(df) - len(kept)
+    kept.to_csv(out_path, index=False)
+    print(
+        f"repaired {out_path.name}: dropped {removed} row(s) from "
+        f"{len(counts) - len(complete)} incomplete origin(s)",
+        flush=True,
+    )
+    return removed
+
+
+def validate_origin_range(first_origin, last_origin) -> None:
+    """Reject an inverted --first-origin/--last-origin pair.
+
+    Without this, the range filter removes every split, the loop body never
+    executes, and the script prints "0 of 0 origins" and exits 0 -- having
+    produced nothing while reporting success. An exit code of 0 meaning
+    "nothing failed" rather than "everything ran" already cost this project
+    a deliverable once (logs/decisions.md, 2026-08-04). Both bounds are
+    optional, so only a genuinely inverted pair is an error.
+    """
+    if first_origin is None or last_origin is None:
+        return
+    if pd.Timestamp(last_origin) < pd.Timestamp(first_origin):
+        raise ValueError(
+            f"origin range is inverted: --last-origin {pd.Timestamp(last_origin).date()} "
+            f"is before --first-origin {pd.Timestamp(first_origin).date()}; "
+            "this would silently run zero origins and still exit 0"
+        )
+
+
 def run_one(
     model_name: str, model, X, Y, eval_cfg, first_origin, last_origin=None, out_dir=OUT_DIR
 ) -> None:
+    validate_origin_range(first_origin, last_origin)
     out_path = out_dir / f"{model_name.lower().replace('-', '_')}.csv"
+    # Before anything is read or appended: a crash mid-origin must not
+    # leave partial rows to be duplicated by this run's append path.
+    repair_partial_origins(out_path)
     done = completed_origins(out_path)
     if done:
         print(f"[{model_name}] resuming: {len(done)} origins already complete", flush=True)

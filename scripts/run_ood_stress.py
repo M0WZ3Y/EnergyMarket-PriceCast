@@ -150,14 +150,34 @@ def fit_frozen() -> None:
 # --------------------------------------------------------------------------
 # stage 2: fetch + cache
 # --------------------------------------------------------------------------
-def fetch_live(start: str, end: str, chunk_days: int = 30) -> None:
+def fetch_live(start: str, end: str, chunk_days: int = 30, cache: Path | None = None) -> None:
     """Fetch the live window in chunks and cache the result.
 
     The API read-times-out on multi-month ranges (each fetch_exog call fans
     out to four endpoints), so the window is walked in chunks and
     concatenated. Chunks overlap by nothing and are de-duplicated on the
     index, so a boundary hour cannot be counted twice.
+
+    `cache` defaults to the module-level LIVE_CACHE. It exists so --cache can
+    actually redirect the write: previously the flag was documented as an
+    override "for pipeline validation" but was ignored here, so
+    `--fetch --cache other.csv` silently overwrote the committed,
+    non-reproducible data/raw/live_ood_de.csv -- a flag meant to protect that
+    file destroyed it instead.
     """
+    cache = LIVE_CACHE if cache is None else Path(cache)
+
+    # An inverted range makes pd.date_range empty, so no chunk is ever
+    # fetched, the existing cache is re-read and re-WRITTEN unchanged, and
+    # the run prints "cached N hourly rows" as though it had worked. The
+    # `if not parts` guard below cannot catch it because the cached frame is
+    # appended to parts. Refuse the range instead.
+    if pd.Timestamp(end) < pd.Timestamp(start):
+        raise ValueError(
+            f"fetch_live: date range is inverted -- end {end} is before start {start}; "
+            "this would fetch nothing and silently rewrite the existing cache"
+        )
+
     cfg = load_config()
     loader = EnergyChartsLoader(cfg)
     bounds = pd.date_range(start, end, freq=f"{chunk_days}D").tolist()
@@ -179,8 +199,8 @@ def fetch_live(start: str, end: str, chunk_days: int = 30) -> None:
     # fail independently (429s and transient TLS errors are routine here),
     # so a retry must be able to fill holes without discarding the chunks
     # that already succeeded.
-    if LIVE_CACHE.exists():
-        existing = pd.read_csv(LIVE_CACHE, index_col=0, parse_dates=True)
+    if cache.exists():
+        existing = pd.read_csv(cache, index_col=0, parse_dates=True)
         print(f"merging into {len(existing)} already-cached rows")
         parts.append(existing)
 
@@ -203,11 +223,11 @@ def fetch_live(start: str, end: str, chunk_days: int = 30) -> None:
             "incomplete days are dropped by the feature pipeline."
         )
 
-    LIVE_CACHE.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(LIVE_CACHE)
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(cache)
     print(
         f"cached {len(df)} hourly rows "
-        f"({df.index.min()} -> {df.index.max()}) -> {_rel(LIVE_CACHE)}"
+        f"({df.index.min()} -> {df.index.max()}) -> {_rel(cache)}"
     )
     print(f"ATTRIBUTION REQUIRED IN THESIS: {loader.attribution}")
 
@@ -423,7 +443,9 @@ def main() -> None:
         fit_frozen()
     if args.fetch:
         end = args.end or str(pd.Timestamp.today().normalize().date())
-        fetch_live(args.start, end)
+        # Pass the override through: --cache previously applied only to
+        # replay, so --fetch --cache wrote to the committed cache anyway.
+        fetch_live(args.start, end, cache=args.cache)
     if not args.fit and not args.fetch:
         replay(cache=args.cache)
 

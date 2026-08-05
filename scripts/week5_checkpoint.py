@@ -109,8 +109,21 @@ def main(allow_partial: bool = False) -> None:
             print(f"  {s}")
 
     # Cross-check: our y_true must equal the published Real price column,
-    # else the two pipelines are not looking at the same data.
-    ours = pd.read_csv(OURS_DIR / "naive.csv", parse_dates=["origin"])
+    # else the two pipelines are not looking at the same data. It reads
+    # naive.csv, which under --allow-partial may be one of the models still
+    # running -- and a raw FileNotFoundError after the preview already
+    # printed helps nobody. Without --allow-partial the friendly SystemExit
+    # above has already fired, so this branch only skips a preview.
+    naive_path = OURS_DIR / "naive.csv"
+    if not naive_path.exists():
+        print(
+            f"\nsanity: skipped -- {naive_path.name} is not available yet "
+            "(partial preview). Re-run without --allow-partial once every "
+            "walk-forward run has finished."
+        )
+        return
+
+    ours = pd.read_csv(naive_path, parse_dates=["origin"])
     ts = ours["origin"] + pd.to_timedelta(ours["hour"], unit="h")
     y_true = pd.Series(ours["y_true"].values, index=pd.DatetimeIndex(ts)).sort_index()
     max_diff = (y_true - real.reindex(y_true.index)).abs().max()

@@ -93,7 +93,7 @@ def _bandwidth(n: int) -> int:
     return min(max(1, int(np.floor(4 * (n / 100.0) ** (2.0 / 9.0)))), n - 1)
 
 
-def _report(piv, truth, days, name: str) -> float:
+def _report(piv, truth, days, name: str) -> tuple[dict[int, float], float]:
     """MAE of both ensembles on `days`, the uncorrected DM p-value, and the
     block-bootstrap p-value that is the reported statistic.
 
@@ -151,10 +151,24 @@ def _report(piv, truth, days, name: str) -> float:
     )
     print(f"  p, uncorrected DM (epftoolbox; ignores dependence): {p_naive:.4f}")
     print(f"  p, Newey-West HAC DM (bandwidth {bandwidth}):        {p_hac:.4f}")
-    print("  p, circular block bootstrap by block length:")
-    print("      " + "  ".join(f"b={b}:{sweep[b]:.4f}" for b in blocks))
-    lo, hi = min(sweep.values()), max(sweep.values())
-    print(f"  >> REPORTED RANGE across dependence corrections: {min(lo, p_hac):.4f} - {hi:.4f}")
+    if sweep:
+        print("  p, circular block bootstrap by block length:")
+        print("      " + "  ".join(f"b={b}:{sweep[b]:.4f}" for b in blocks))
+        lo, hi = min(sweep.values()), max(sweep.values())
+        print(f"  >> REPORTED RANGE across dependence corrections: {min(lo, p_hac):.4f} - {hi:.4f}")
+    else:
+        # Every candidate block length must be shorter than the series, so a
+        # subset of <= 3 days admits no block bootstrap at all. Previously
+        # min() on the empty sweep raised mid-report, killing the run after
+        # the MAE lines and before anything was written. The HAC statistic is
+        # still valid here, so report it and say plainly what is missing --
+        # a reachable state, since the stress threshold is the documented
+        # tuning lever and raising it shrinks the stressed subset.
+        print(
+            f"  p, circular block bootstrap: SKIPPED -- only {n} day(s), "
+            f"fewer than the shortest block length ({min((3, 4, 5, 7, 9, 10))})"
+        )
+        print(f"  >> REPORTED: HAC only, p={p_hac:.4f} (no bootstrap range available)")
     return sweep, p_hac
 
 
