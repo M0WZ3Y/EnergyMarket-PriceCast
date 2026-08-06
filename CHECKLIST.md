@@ -98,18 +98,21 @@ number and figure they need is frozen.
 
 ## P2 — Small and closable. An hour each, at most.
 
-- [ ] **Thesis 5-3 screenshot** → `reports/figures/16_pricecast_screenshot.png`.
-      Run `streamlit run app/pricecast.py`. Take it at a window tall enough to
-      show **both** the accuracy warning and the chart — a 5-3 figure that
-      crops the warning is the wrong figure.
-- [ ] **Decide the week-7 pre-freeze reproducibility check.** It never ran and
-      the freeze already happened, so it cannot be what it was designed to be.
-      Either run it late (fresh environment, one model end-to-end from config)
-      or log it as deliberately skipped in `logs/decisions.md`. Do not leave it
-      marked `Scheduled` — that misrepresents the record.
-- [ ] **Fix the stale data-source test table** in `logs/decisions.md`: row 4
-      (week-4 indirect re-test) is recorded as done in the 2026-07-28 entry but
-      still marked `Scheduled`.
+- [x] **Thesis 5-3 screenshot** → `reports/figures/16_pricecast_screenshot.png`.
+      Done 2026-08-05 (commit `9d14fed`): captured with both the accuracy
+      warning and the forecast-vs-actual chart in frame, plus the sidebar
+      showing the cached-demo source and 173 forecastable days.
+- [x] **Decide the week-7 pre-freeze reproducibility check.** Decided: run it
+      late. Done 2026-08-07 — fresh venv, fresh benchmark download, naive exact
+      match and LEAR-LASSO matching within 1e-12 over all 728 origins. Logged in
+      `logs/decisions.md` as a sanity check explicitly *not* a pre-freeze gate,
+      since it ran after the 08-04 freeze.
+- [x] **Fix the stale data-source test table** in `logs/decisions.md`. Done
+      2026-08-06. Note the scope was wider than this item stated: **four** rows
+      carried `Scheduled`, not one. Rows 4, 8/11 and 11 were all already
+      satisfied (2026-07-28, 2026-08-04 `v1.1-ood`, 2026-08-05 `4243571`) and
+      now cite their evidence; row 7 is resolved by the reproducibility check
+      below.
 
 ## P3 — Unscheduled deliverables. Decide *when*, not *whether*.
 

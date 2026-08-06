@@ -149,10 +149,10 @@ rather than trusted from one early smoke test.
 |---|---|---|
 | 1 | Initial verification: epftoolbox full download (gaps/NaNs/stats) + Energy-Charts /price smoke test | DONE — both passed (see week 1 entries) |
 | 3 | New Energy-Charts endpoints (load + renewables): JSON parsing, 15-min→hourly resampling, schema match vs BenchmarkLoader, unit test on a sample month. Plus leakage assertion test on the feature pipeline | DONE — see 2026-07-13 entry below |
-| 4 | Indirect re-test: walk-forward framework consumes processed benchmark data end-to-end; LEAR sanity check vs published Lago et al. numbers doubles as a silent-data-bug detector | Scheduled |
-| 7 | Pre-freeze reproducibility check: fresh environment, one model end-to-end from config — re-verifies benchmark download path from scratch | Scheduled |
-| 8 or 11 | Live pipeline under real load: OOD stress test pulls a large 2026 window through EnergyChartsLoader (much bigger than week-1 smoke test) | Scheduled |
-| 11 | Full live path inside PriceCast: date picker → API fetch → forecast → chart, plus CSV-upload fallback path | Scheduled |
+| 4 | Indirect re-test: walk-forward framework consumes processed benchmark data end-to-end; LEAR sanity check vs published Lago et al. numbers doubles as a silent-data-bug detector | DONE — see 2026-07-28 entry: 728 origins, 17,472 predictions per model, zero NaN, LEAR-LASSO MAE 3.899 in the expected neighborhood |
+| 7 | Pre-freeze reproducibility check: fresh environment, one model end-to-end from config — re-verifies benchmark download path from scratch | DONE, BUT RUN LATE — ran 2026-08-06/07, after the 2026-08-04 freeze, so it is a sanity check and not a gate; naive exact match, LEAR-LASSO matches within 1e-12 (see 2026-08-07 entry) |
+| 8 or 11 | Live pipeline under real load: OOD stress test pulls a large 2026 window through EnergyChartsLoader (much bigger than week-1 smoke test) | DONE — see 2026-08-04 entry: 173 complete days, 4,343 cached hours, no gaps; tagged `v1.1-ood` |
+| 11 | Full live path inside PriceCast: date picker → API fetch → forecast → chart, plus CSV-upload fallback path | DONE — see 2026-08-05 entry: closed, now an automated `@pytest.mark.network` test (commit 4243571) |
 
 Mitigation note: on the first successful large 2026 pull (week 8 or 11),
 cache the window to data/processed/live_2026_cache.csv so the OOD test and
@@ -1494,6 +1494,15 @@ never ran — it was meant to precede the freeze, and the freeze happened on
 08-04. It can still be run, but it can no longer be what it was designed to be.
 Decide explicitly: run it late, or log it as skipped.
 
+> **Resolved 2026-08-07.** Both items are closed, and the count was wrong: the
+> table had **four** `Scheduled` rows, not two. Rows 4, 8/11 and 11 were all
+> already satisfied by entries in this same file (2026-07-28; 2026-08-04,
+> `v1.1-ood`; 2026-08-05, commit `4243571`) and now cite that evidence. Row 7
+> was run late and matches within 1e-12 — see the 2026-08-07 entry. The lesson
+> worth keeping: this note found the two stale rows its author happened to
+> notice, and reading it as the full extent of the problem would have left two
+> more standing in a table that then looked reviewed.
+
 ---
 
 ### 2026-08-05 — PriceCast MVP finished; week-11 live-path test CLOSED
@@ -1542,6 +1551,62 @@ Still open for the MVP: the thesis 5-3 screenshot is not committed. The app was
 captured during verification, but a figure that omits the accuracy warning
 would be the wrong figure for that section — it should be taken at a window
 tall enough to show the banner and the chart together.
+
+---
+
+### 2026-08-07 — Reproducibility check RUN LATE; LEAR-LASSO reproduces to machine precision
+
+Closes row 7 of the 2026-07-13 data-source test table, which had stood at
+`Scheduled` since week 7.
+
+**It ran late, and that limits what it proves.** The check was designed to run
+*before* the freeze, so that a failure could still change the frozen numbers.
+The freeze happened on 2026-08-04; this ran on 2026-08-06/07. It is therefore a
+sanity check on already-frozen results, not a gate on them. Recorded plainly
+because the alternative — presenting it as if it had run on schedule — would
+misrepresent the protocol. The check was run rather than skipped because a
+negative result would still have been worth knowing before the thesis leans on
+these numbers.
+
+**Method.** Fresh venv at a short path (Windows MAX_PATH), no reuse of the
+project environment; benchmark data re-downloaded from scratch into
+`data/processed/_repro_check/raw/DE.csv`, exercising the download path itself;
+one model end-to-end from an isolated `data_fresh.yaml`. All output confined to
+the gitignored `data/processed/_repro_check/` — nothing in `reports/`,
+`models/` or the tracked `data/processed/` subdirectories was touched, so the
+freeze is intact.
+
+Environments differ only in pandas — fresh 3.0.5 vs project 3.0.3; both
+python 3.11.9, numpy 2.4.6, scikit-learn 1.9.0, scipy 1.17.1, epftoolbox from
+git.
+
+**Results.** Two models, both against the frozen `reports/tables/results_canonical.csv`:
+
+- **naive** — exact match, zero difference to 12 decimals on all four metrics
+  (728 origins).
+- **LEAR-LASSO** — 728 origins, 17,472 predictions, all 24 hours per origin,
+  zero NaN:
+
+  | metric | frozen | repro | rel diff |
+  |---|---|---|---|
+  | MAE | 3.898804600831 | 3.898804600831 | 0.0 |
+  | RMSE | 6.474950936820 | 6.474950936820 | 0.0 |
+  | sMAPE | 16.657203067271 | 16.657203067271 | 0.0 |
+  | rMAE | 0.427153936259 | 0.427153936259 | 1.300e-16 |
+
+  Verdict: MATCH within 1e-12. MAE, RMSE and sMAPE are bitwise identical; rMAE
+  differs by 5.551e-17, one unit in the last place — floating-point summation
+  order, not a modelling difference.
+
+**Reading.** The seed-42 discipline and the config-driven pipeline hold across a
+fresh environment, a fresh data download and a pandas patch-version difference.
+This is the reproducibility claim the thesis can make; it is not a claim that
+the check ran when it was scheduled to.
+
+**Caveat.** One model, one target (hourly). It does not cover SARIMAX, LightGBM,
+LSTM or the ensemble, nor the daily targets. A single-model check was the
+design from the start, so this is a bound on the evidence, not a shortfall
+against it.
 
 ---
 
