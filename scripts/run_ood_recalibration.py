@@ -379,6 +379,13 @@ def main(
 
 
 if __name__ == "__main__":
+    # Writing is the binding constraint; new technical output does not
+    # move it. Gate is inside the guard on purpose -- at module level it
+    # would fire on import and gate the test suite too.
+    from src.ledger_gate import require_ledger_progress
+
+    require_ledger_progress(__file__)
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--window", type=int, nargs="+", default=DEFAULT_WINDOWS,
