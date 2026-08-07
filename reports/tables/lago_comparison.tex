@@ -1,0 +1,37 @@
+\begin{table}[htbp]
+\caption{This thesis versus Lago et al. (2021) on EPEX-DE, identical test period (728 origins, 2016-01-04 to 2017-12-31) and identical rMAE naive2 denominator. Published models appear twice: as printed in the paper's Tables 2--3, and as recomputed from the forecasts the toolbox ships, using this thesis's own metric code. The two agree exactly for every DNN but for no LEAR variant, so the source of each number is stated rather than merged. MAPE is reported only for the published rows; this thesis excludes it because negative and near-zero prices make it unreliable on this market, a point the paper's own MAPE column (roughly ten times its sMAPE) illustrates.}
+\label{tab:lago-comparison}
+\begin{tabular}{llllllll}
+\toprule
+model & source & rMAE & MAE & sMAPE & RMSE & MAPE & note \\
+\midrule
+DNN Ensemble & Lago2021 (shipped forecasts, our metric code) & 0.374 & 3.413 & 14.078 & 5.927 & -- & reproduces the paper table exactly \\
+DNN Ensemble & Lago2021 (paper Tables 2/3) & 0.374 & 3.413 & 14.078 & 5.927 & 94.434 & paper reports MAPE \textasciitilde 10x sMAPE on this market (negative and near-zero prices); the paper itself flags MAPE as unreliable here, which is why this thesis excludes it (section 3-5) \\
+Ensemble (regime-aware) & this thesis & 0.390 & 3.557 & 14.644 & 6.557 & -- & MAPE deliberately not computed (negative prices); ensemble averages different model FAMILIES, unlike theirs \\
+Ensemble (static) & this thesis & 0.392 & 3.574 & 14.671 & 6.610 & -- & MAPE deliberately not computed (negative prices); ensemble averages different model FAMILIES, unlike theirs \\
+DNN 4 & Lago2021 (shipped forecasts, our metric code) & 0.394 & 3.592 & 14.680 & 6.080 & -- & reproduces the paper table exactly \\
+DNN 4 & Lago2021 (paper Tables 2/3) & 0.394 & 3.592 & 14.680 & 6.080 & 90.578 & paper reports MAPE \textasciitilde 10x sMAPE on this market (negative and near-zero prices); the paper itself flags MAPE as unreliable here, which is why this thesis excludes it (section 3-5) \\
+LEAR Ensemble & Lago2021 (shipped forecasts, our metric code) & 0.395 & 3.609 & 14.744 & 6.508 & -- & does NOT match the paper table (MAE 3.955 printed) \\
+DNN 3 & Lago2021 (paper Tables 2/3) & 0.406 & 3.706 & 15.508 & 6.271 & 100.214 & paper reports MAPE \textasciitilde 10x sMAPE on this market (negative and near-zero prices); the paper itself flags MAPE as unreliable here, which is why this thesis excludes it (section 3-5) \\
+DNN 3 & Lago2021 (shipped forecasts, our metric code) & 0.406 & 3.706 & 15.508 & 6.271 & -- & reproduces the paper table exactly \\
+DNN 1 & Lago2021 (paper Tables 2/3) & 0.407 & 3.716 & 14.970 & 6.796 & 77.145 & paper reports MAPE \textasciitilde 10x sMAPE on this market (negative and near-zero prices); the paper itself flags MAPE as unreliable here, which is why this thesis excludes it (section 3-5) \\
+DNN 1 & Lago2021 (shipped forecasts, our metric code) & 0.407 & 3.716 & 14.970 & 6.796 & -- & reproduces the paper table exactly \\
+DNN 2 & Lago2021 (shipped forecasts, our metric code) & 0.422 & 3.850 & 15.356 & 7.304 & -- & reproduces the paper table exactly \\
+DNN 2 & Lago2021 (paper Tables 2/3) & 0.422 & 3.850 & 15.356 & 7.304 & 137.449 & paper reports MAPE \textasciitilde 10x sMAPE on this market (negative and near-zero prices); the paper itself flags MAPE as unreliable here, which is why this thesis excludes it (section 3-5) \\
+LSTM & this thesis & 0.424 & 3.873 & 15.599 & 7.020 & -- & MAPE deliberately not computed (negative prices) \\
+LEAR-LASSO & this thesis & 0.427 & 3.899 & 16.657 & 6.475 & -- & MAPE deliberately not computed (negative prices) \\
+LEAR 1092 & Lago2021 (shipped forecasts, our metric code) & 0.431 & 3.930 & 16.795 & 6.526 & -- & does NOT match the paper table (MAE 4.108 printed) \\
+LEAR Ensemble & Lago2021 (paper Tables 2/3) & 0.433 & 3.955 & 15.747 & 7.079 & 122.412 & PAPER TABLE AND SHIPPED FORECASTS DISAGREE: shipped score rMAE 0.395 / MAE 3.609. paper reports MAPE \textasciitilde 10x sMAPE on this market (negative and near-zero prices); the paper itself flags MAPE as unreliable here, which is why this thesis excludes it (section 3-5) \\
+LightGBM & this thesis & 0.435 & 3.968 & 15.722 & 7.502 & -- & MAPE deliberately not computed (negative prices) \\
+LEAR 1456 & Lago2021 (shipped forecasts, our metric code) & 0.437 & 3.988 & 17.148 & 6.502 & -- & does NOT match the paper table (MAE 4.118 printed) \\
+LEAR 1092 & Lago2021 (paper Tables 2/3) & 0.450 & 4.108 & 16.984 & 6.996 & 128.295 & PAPER TABLE AND SHIPPED FORECASTS DISAGREE: shipped score rMAE 0.431 / MAE 3.930. paper reports MAPE \textasciitilde 10x sMAPE on this market (negative and near-zero prices); the paper itself flags MAPE as unreliable here, which is why this thesis excludes it (section 3-5) \\
+LEAR 1456 & Lago2021 (paper Tables 2/3) & 0.451 & 4.118 & 17.054 & 6.987 & 124.191 & PAPER TABLE AND SHIPPED FORECASTS DISAGREE: shipped score rMAE 0.437 / MAE 3.988. paper reports MAPE \textasciitilde 10x sMAPE on this market (negative and near-zero prices); the paper itself flags MAPE as unreliable here, which is why this thesis excludes it (section 3-5) \\
+LEAR 84 & Lago2021 (shipped forecasts, our metric code) & 0.458 & 4.180 & 16.272 & 7.397 & -- & does NOT match the paper table (MAE 4.555 printed) \\
+LEAR 56 & Lago2021 (shipped forecasts, our metric code) & 0.469 & 4.283 & 16.544 & 7.713 & -- & does NOT match the paper table (MAE 4.619 printed) \\
+SARIMAX & this thesis & 0.477 & 4.351 & 18.035 & 7.117 & -- & MAPE deliberately not computed (negative prices) \\
+LEAR 84 & Lago2021 (paper Tables 2/3) & 0.499 & 4.555 & 17.491 & 7.923 & 133.580 & PAPER TABLE AND SHIPPED FORECASTS DISAGREE: shipped score rMAE 0.458 / MAE 4.180. paper reports MAPE \textasciitilde 10x sMAPE on this market (negative and near-zero prices); the paper itself flags MAPE as unreliable here, which is why this thesis excludes it (section 3-5) \\
+LEAR 56 & Lago2021 (paper Tables 2/3) & 0.506 & 4.619 & 17.600 & 8.122 & 129.763 & PAPER TABLE AND SHIPPED FORECASTS DISAGREE: shipped score rMAE 0.469 / MAE 4.283. paper reports MAPE \textasciitilde 10x sMAPE on this market (negative and near-zero prices); the paper itself flags MAPE as unreliable here, which is why this thesis excludes it (section 3-5) \\
+naive & this thesis & 0.849 & 7.750 & 28.595 & 13.257 & -- & MAPE deliberately not computed (negative prices) \\
+\bottomrule
+\end{tabular}
+\end{table}

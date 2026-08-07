@@ -1,0 +1,26 @@
+\begin{table}[htbp]
+\caption{Diebold--Mariano tests against the forecasts published by Lago et al. (2021), multivariate (24-hour vector, $L_1$ norm), Newey--West HAC corrected, over the identical 728 test origins. Both one-sided directions are reported; a comparison is called only when one of them falls below 0.05. Computed against their shipped forecasts, not their printed table.}
+\label{tab:dm-vs-lago}
+\begin{tabular}{lllllll}
+\toprule
+ours & theirs & MAE ours & MAE theirs & DM p (ours better) & DM p (theirs better) & verdict \\
+\midrule
+Ensemble (regime-aware) & DNN Ensemble & 3.557 & 3.413 & 0.987 & 0.013 & theirs better (p<0.05) \\
+Ensemble (regime-aware) & DNN 4 & 3.557 & 3.592 & 0.322 & 0.678 & no significant difference \\
+Ensemble (regime-aware) & LEAR Ensemble & 3.557 & 3.609 & 0.127 & 0.873 & no significant difference \\
+Ensemble (regime-aware) & LEAR 1092 & 3.557 & 3.930 & \$<\$0.001 & 1.000 & ours better (p<0.05) \\
+Ensemble (static) & DNN Ensemble & 3.574 & 3.413 & 0.992 & 0.008 & theirs better (p<0.05) \\
+Ensemble (static) & DNN 4 & 3.574 & 3.592 & 0.410 & 0.590 & no significant difference \\
+Ensemble (static) & LEAR Ensemble & 3.574 & 3.609 & 0.239 & 0.761 & no significant difference \\
+Ensemble (static) & LEAR 1092 & 3.574 & 3.930 & \$<\$0.001 & 1.000 & ours better (p<0.05) \\
+LSTM & DNN Ensemble & 3.873 & 3.413 & 1.000 & \$<\$0.001 & theirs better (p<0.05) \\
+LSTM & DNN 4 & 3.873 & 3.592 & 0.999 & 0.001 & theirs better (p<0.05) \\
+LSTM & LEAR Ensemble & 3.873 & 3.609 & 1.000 & \$<\$0.001 & theirs better (p<0.05) \\
+LSTM & LEAR 1092 & 3.873 & 3.930 & 0.299 & 0.701 & no significant difference \\
+LEAR-LASSO & DNN Ensemble & 3.899 & 3.413 & 1.000 & \$<\$0.001 & theirs better (p<0.05) \\
+LEAR-LASSO & DNN 4 & 3.899 & 3.592 & 1.000 & \$<\$0.001 & theirs better (p<0.05) \\
+LEAR-LASSO & LEAR Ensemble & 3.899 & 3.609 & 1.000 & \$<\$0.001 & theirs better (p<0.05) \\
+LEAR-LASSO & LEAR 1092 & 3.899 & 3.930 & 0.001 & 0.999 & ours better (p<0.05) \\
+\bottomrule
+\end{tabular}
+\end{table}
