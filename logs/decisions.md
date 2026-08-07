@@ -1610,4 +1610,89 @@ against it.
 
 ---
 
+### 2026-08-07 — OOD bias recalibration: the level shift explains the failure for some models, not all
+
+Supplementary post-hoc analysis on top of `v1.1-ood`. Nothing frozen was
+touched: `scripts/run_ood_recalibration.py` reads `data/processed/ood/`
+read-only and writes only to `data/processed/ood_recalibrated/` and
+`reports/tables/ood_recalibration.{csv,tex}`. Verified by hash in
+`tests/test_ood_recalibration.py` and by `git diff` over `reports/`,
+`models/` and `data/processed/ood/`. **This is not a benchmark result and
+does not belong in chapter 4** — it feeds section 5-2 (limitations).
+
+**Hypothesis.** Every trained model exceeded rMAE 1.0 on live 2026 data.
+That could be a loss of forecasting SKILL, or only a loss of LEVEL — the
+model still ranking hours correctly but sitting systematically low, as the
+PriceCast demo suggested (48.42 predicted vs 143.21 realized). If removing a
+causally-estimated offset restores rMAE toward 1.0, the learned shape
+survived the regime change and only the intercept needs re-anchoring.
+
+**Method.** For each model and day *d*, the correction is the mean signed
+error (`y_true - y_pred`) over the `w` days STRICTLY BEFORE *d*, added to all
+24 hours of *d*. No information from *d* or later enters its own correction;
+the causality test is the first thing in the test file, because a leak there
+would manufacture precisely the recovery being looked for. Windows 7, 14 and
+30 were swept and **all are reported** — none selected after the fact.
+
+**Cold start: excluded, not filled.** The first `w` days have no prior
+window. They are dropped, and — the part that matters — the RAW arm is
+re-scored on the same reduced day set. Comparing a 173-day raw rMAE against
+a 159-day corrected one would let the exclusion itself move the headline. A
+secondary `--cold-start expanding` mode (partial history during the cold
+start only, then the same rolling window) reproduces every sign and
+near-identical magnitudes, so no conclusion here rests on that choice.
+
+**Result — a split, not a confirmation.** rMAE, raw → recalibrated, `exclude`:
+
+| model | w=7 | w=14 | w=30 |
+|---|---|---|---|
+| naive *(reference)* | 0.803 → 0.868 | 0.791 → 0.820 | 0.794 → 0.805 |
+| SARIMAX | 1.155 → 1.130 | 1.143 → 1.124 | 1.125 → 1.124 |
+| LEAR-LASSO | 1.092 → **1.132** | 1.077 → **1.111** | 1.053 → **1.078** |
+| LightGBM | 1.826 → 1.078 | 1.774 → 1.081 | 1.659 → 1.105 |
+| LSTM | 1.535 → 1.014 | 1.505 → 1.013 | 1.442 → 1.018 |
+| Ensemble (static) | 1.239 → **0.906** | 1.215 → **0.914** | 1.160 → **0.926** |
+| Ensemble (regime-aware) | 1.176 → **0.895** | 1.154 → **0.898** | 1.102 → **0.901** |
+
+**Only the two ensembles cross below rMAE 1.0.** No individual trained model
+does. LSTM comes closest (1.013–1.018) and misses at every window.
+
+**The improvement inverts with in-era robustness — again.** LightGBM (−0.75)
+and LSTM (−0.52) gain most; SARIMAX barely moves (−0.02); **LEAR-LASSO gets
+WORSE at every window**. This is the same axis as Finding 2 of the
+2026-08-04 OOD entry, and reads coherently with it: the flexible learners
+absorbed the 2016-17 price LEVEL into their fitted structure, so their OOD
+error is dominated by a removable constant offset. The structured models
+carried less level, are closer to unbiased already, and adding a noisy
+rolling intercept to a roughly-unbiased forecast just injects variance.
+
+**naive gets worse too (0.79 → 0.81–0.87), and that is the sanity check.**
+naive carries no frozen level, so it has little systematic bias to remove;
+the correction can only add estimation noise. A method that improved
+everything indiscriminately would be suspect.
+
+**What may and may not be claimed.** Defensible: *for the models that
+degraded worst, most of the OOD failure was a removable level shift rather
+than lost relative skill, and correcting it brings both ensembles below a
+naive forecast.* NOT defensible: "recalibration fixes the OOD failure". It
+does not fix LEAR-LASSO or SARIMAX at all, and no single trained model
+crosses the line. The v1.1-ood headline — every trained model worse than
+naive out of the box — stands unchanged; this explains part of *why*.
+
+**Caveat on what the corrected system is.** The correction consumes realized
+prices from previous days. An operator would have those, so it is not a
+leak — but the corrected object is no longer the frozen model. It is a
+frozen model plus an adaptive intercept, i.e. a hybrid, and must be
+described that way rather than as the frozen model performing better.
+
+**Caveat on scope.** 173 live days of one market, one direction of drift
+(≈2.8x upward). Nothing here shows the correction would help in a downward
+shift or a flat market.
+
+The recalibrated long frames under `data/processed/ood_recalibrated/` are
+gitignored like every other regenerable processed output; they rebuild
+deterministically from the committed `data/processed/ood/` frames.
+
+---
+
 Pages banked: 0 / quota 60 by 2026-08-31 | Results table: v1.0-results + v1.1-ood | Backup: [ ]
