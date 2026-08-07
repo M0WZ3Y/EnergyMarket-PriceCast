@@ -13,8 +13,37 @@ is frozen behind two pushed tags:
 
 Working tree clean. Do NOT rerun or modify model results. A PreToolUse hook
 blocks Edit/Write under reports/figures, reports/tables, models and
-data/processed while those tags exist. Suite: 282 tests (275 offline, 7
+data/processed while those tags exist. Suite: 342 tests (335 offline, 7
 network).
+
+MANDATORY RECONCILIATION AFTER EVERY TECHNICAL TASK -- read this first.
+
+Whenever a technical or analysis task finishes, and BEFORE starting the next
+one, reconcile the writing state:
+
+  1. Compare thesis/drafts/ against thesis/CONVERSION_QUEUE.md. Is there a
+     finished draft that has not been pasted into the Amirkabir template?
+  2. Compare thesis/page_ledger.csv against what has actually been converted.
+     Is there converted work whose page count was never logged?
+  3. Then do ONE of two things, never neither:
+       - convert and/or log it
+         (./.venv/Scripts/python.exe scripts/page_quota.py --add N --note "3-6")
+       - or write a dated line in logs/decisions.md saying explicitly what is
+         being deferred and why.
+
+This exists because the two drifted badly: on 2026-08-07 the ledger still
+read 0.0 pages, dated 2026-08-05, while thesis/drafts/ held four finished
+Farsi sections. Technical work kept getting picked up ahead of the
+conversion that actually banks pages, and nothing made that visible.
+
+A hard gate now enforces the same thing from the other side:
+src/ledger_gate.py exits non-zero before any output-producing script under
+scripts/ when the ledger is stale (>48h) or has not moved forward. To run
+anyway, set THESIS_SKIP_LEDGER_GATE=<reason>; it runs and appends a trace to
+logs/decisions.md, so bypassing is visible rather than free. The gate is
+mechanical and only checks the ledger -- this rule is the judgement half,
+and covers converted-but-unlogged and drafted-but-unconverted work the gate
+cannot see.
 
 Read logs/decisions.md from the 2026-08-04 entries onward for the state of
 play, including corrections I had to make to my own earlier claims.
