@@ -1807,6 +1807,89 @@ run); both traces are below, as designed.
 
 ---
 
+### 2026-08-07 — LSTM seed ensemble: the gap to Lago's DNN Ensemble is NOT closable, but the verdict changes
+
+User decision (2026-08-07) to break the `v1.0-results` freeze and retrain in
+order to beat Lago et al.'s DNN Ensemble (MAE 3.4135). **The stated goal was
+not achieved and is now shown to be unachievable by ensembling.** A weaker
+but real result was achieved instead. Nothing frozen has been modified: all
+work is on branch `retrain-v2-seed-ensemble`, output in the new
+`data/processed/seed_ensemble{,_val}/` namespaces, both tags intact.
+
+**Why reweighting was ruled out first.** The L1-optimal ensemble weights
+fitted directly on the TEST set — illegitimate, therefore a hard upper bound
+on any weighting scheme — score MAE 3.558. The legitimate validation-fitted
+regime-aware ensemble already scored 3.5569. Headroom from reweighting:
+**−0.001, i.e. none.** Only stronger base learners could move the number.
+
+**Method.** Lago's DNN Ensemble is four runs of ONE model family averaged —
+variance reduction, not a better model. The same trick was applied to the
+LSTM: seeds 42/43/44/45 over the full 728-origin test window, and again over
+the 357-origin validation window so ensemble weights could be fitted on
+validation and never on test. The seed-42 rule still holds: 42 remains the
+default and every single-model result uses it; the other seeds exist only as
+members of a labelled seed ensemble.
+
+**The technique worked, and worked better than theirs.**
+
+| member | MAE |
+|---|---|
+| LSTM seed 42 / 43 / 44 / 45 | 3.873 / 3.925 / 3.898 / 3.875 |
+| LSTM 4-seed ensemble | **3.646** |
+
+A 5.9% gain over the best member, against the 5.0% Lago's own ensembling
+achieved (DNN 4 3.592 → DNN Ensemble 3.413).
+
+**It still does not close the gap, and cannot.** With the seed-ensembled
+LSTM as a member, the test-fitted ORACLE ensemble — cheating, an upper bound
+— scores **3.5019** against their 3.4135. Still 0.088 short with weights
+that already flatter us. The cause is not the ensembling but the base
+learners: their best single model (DNN 4, 3.592) beats our best single model
+(LSTM, 3.873) by 0.28, and averaging cannot manufacture that. Closing it
+would mean building a Lago-style DNN — outside the sanctioned model list,
+and effectively reimplementing their method to match their number.
+
+**What legitimately changed** (weights fitted on validation, scored on test):
+
+| ensemble | MAE | rMAE | DM p vs their DNN Ensemble |
+|---|---|---|---|
+| frozen regime-aware | 3.5569 | 0.3897 | 0.0127 — significantly worse |
+| **new regime-aware** | **3.4994** | **0.3834** | **0.0803 — not significant** |
+| new static | 3.5260 | 0.3863 | 0.0460 — still significantly worse |
+
+**The fragility must be reported with the result, not after it.** The two
+ensemble variants straddle 0.05: regime-aware clears it at 0.080, static
+fails at 0.046. This is the same reporting rule already in force for the
+regime-aware-versus-static comparison (both halves always together), and it
+applies here for the same reason. The honest statement is: *our regime-aware
+ensemble is not significantly worse than the published DNN Ensemble
+(p = 0.080), while our static ensemble still is (p = 0.046)*. It is a
+failure to reject, not a demonstration of equivalence, and 0.080 is not a
+comfortable margin.
+
+Unchanged: both new ensembles remain statistically indistinguishable from
+DNN 4 and from their LEAR Ensemble, as before. No beat-the-benchmark claim
+is licensed under any variant.
+
+**Freeze status: NOT broken.** The measured upgrade is real but narrow — one
+of two ensemble variants moving from p = 0.013 to p = 0.080. Promoting it
+cascades into results_canonical, both DM tables, the Lago comparison, the
+OOD ensemble rows, the recalibration experiment built on those, and the four
+Farsi drafts that cite the old numbers. That promotion is a separate,
+deliberate decision and has not been taken here.
+
+A defect worth recording: `seed_ensemble_frame` globbed `lstm_s*.csv`, which
+also matches the `lstm_seed_ensemble.csv` average this module writes into the
+same directory — folding the average back in as if it were another seed. It
+cancelled exactly here (averaging a set with its own mean returns that mean,
+so no number changed), but a stale file from a different seed count would
+have skewed the result silently. Fixed to a digit-only match; the first
+version of the guarding test reproduced the same bug and had to be fixed too.
+
+Offline suite: 362 passed, 7 deselected.
+
+---
+
 Pages banked: 0 / quota 60 by 2026-08-31 | Results table: v1.0-results + v1.1-ood | Backup: [ ]
 
 
@@ -1820,5 +1903,47 @@ Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent t
 ### 2026-08-07 — LEDGER GATE BYPASSED (run_lago_comparison.py)
 
 `THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `run_lago_comparison.py`. Reason given: closing the last open technical item: formal Lago et al. benchmark comparison + DM tests, which back the central chapter-4 claim. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
+
+Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
+
+
+### 2026-08-07 — LEDGER GATE BYPASSED (run_seed_ensemble.py)
+
+`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `run_seed_ensemble.py`. Reason given: user decision 2026-08-07: retrain to close the gap to Lago's DNN Ensemble. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
+
+Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
+
+
+### 2026-08-07 — LEDGER GATE BYPASSED (run_seed_ensemble.py)
+
+`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `run_seed_ensemble.py`. Reason given: user decision 2026-08-07: retrain to close the gap to Lago's DNN Ensemble. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
+
+Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
+
+
+### 2026-08-07 — LEDGER GATE BYPASSED (run_seed_ensemble.py)
+
+`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `run_seed_ensemble.py`. Reason given: user decision 2026-08-07: validation-window seeds so ensemble weights can be fitted legitimately, not on test. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
+
+Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
+
+
+### 2026-08-07 — LEDGER GATE BYPASSED (run_seed_ensemble.py)
+
+`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `run_seed_ensemble.py`. Reason given: user decision 2026-08-07: seed-ensemble evaluation. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
+
+Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
+
+
+### 2026-08-07 — LEDGER GATE BYPASSED (run_seed_ensemble.py)
+
+`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `run_seed_ensemble.py`. Reason given: user decision 2026-08-07: seed-ensemble evaluation. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
+
+Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
+
+
+### 2026-08-07 — LEDGER GATE BYPASSED (run_seed_ensemble.py)
+
+`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `run_seed_ensemble.py`. Reason given: user decision 2026-08-07: seed-ensemble evaluation, rerun after fixing member-glob bug. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
 
 Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
