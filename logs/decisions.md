@@ -1631,8 +1631,8 @@ survived the regime change and only the intercept needs re-anchoring.
 error (`y_true - y_pred`) over the `w` days STRICTLY BEFORE *d*, added to all
 24 hours of *d*. No information from *d* or later enters its own correction;
 the causality test is the first thing in the test file, because a leak there
-would manufacture precisely the recovery being looked for. Windows 7, 14 and
-30 were swept and **all are reported** — none selected after the fact.
+would manufacture precisely the recovery being looked for. Windows 3, 7, 14,
+30 and 60 were swept and **all are reported** — none selected after the fact.
 
 **Cold start: excluded, not filled.** The first `w` days have no prior
 window. They are dropped, and — the part that matters — the RAW arm is
@@ -1642,31 +1642,58 @@ secondary `--cold-start expanding` mode (partial history during the cold
 start only, then the same rolling window) reproduces every sign and
 near-identical magnitudes, so no conclusion here rests on that choice.
 
-**Result — a split, not a confirmation.** rMAE, raw → recalibrated, `exclude`:
+**Result — a split, not a confirmation.** Recalibrated rMAE, `exclude`
+(raw on the same day subset in parentheses for the two extreme windows):
 
-| model | w=7 | w=14 | w=30 |
-|---|---|---|---|
-| naive *(reference)* | 0.803 → 0.868 | 0.791 → 0.820 | 0.794 → 0.805 |
-| SARIMAX | 1.155 → 1.130 | 1.143 → 1.124 | 1.125 → 1.124 |
-| LEAR-LASSO | 1.092 → **1.132** | 1.077 → **1.111** | 1.053 → **1.078** |
-| LightGBM | 1.826 → 1.078 | 1.774 → 1.081 | 1.659 → 1.105 |
-| LSTM | 1.535 → 1.014 | 1.505 → 1.013 | 1.442 → 1.018 |
-| Ensemble (static) | 1.239 → **0.906** | 1.215 → **0.914** | 1.160 → **0.926** |
-| Ensemble (regime-aware) | 1.176 → **0.895** | 1.154 → **0.898** | 1.102 → **0.901** |
+| model | w=3 | w=7 | w=14 | w=30 | w=60 |
+|---|---|---|---|---|---|
+| naive *(reference)* | 0.932 | 0.868 | 0.820 | 0.805 | 0.821 |
+| SARIMAX | 1.123 | 1.130 | 1.124 | 1.124 | **1.173** |
+| LEAR-LASSO | **1.154** | **1.132** | **1.111** | **1.078** | **1.100** |
+| LightGBM | 1.082 | 1.078 | 1.081 | 1.105 | 1.159 |
+| LSTM | 1.007 | 1.014 | 1.013 | 1.018 | 1.065 |
+| Ensemble (static) | **0.891** | 0.906 | 0.914 | 0.926 | 0.979 |
+| Ensemble (regime-aware) | **0.878** | 0.895 | 0.898 | 0.901 | 0.947 |
 
-**Only the two ensembles cross below rMAE 1.0.** No individual trained model
-does. LSTM comes closest (1.013–1.018) and misses at every window.
+Bold = worse than that model's own raw rMAE on the same days, among the
+trained models; naive degrades at every window and is discussed separately
+below. **Only the two ensembles cross below rMAE 1.0**, at every window; the
+best is regime-aware at w=3 (1.168 → 0.878). No individual trained model
+crosses at any window. LSTM comes closest at w=3 (1.007) and still misses.
+
+**The optimum is a SHORT window, which sharpens the hypothesis.** For the
+strongly-biased models the correction works best at w=3–7 and decays as the
+window lengthens. If the miss were a *constant* level shift, the opposite
+would hold — a longer window averages away more estimation noise and would
+estimate a constant better. Short windows winning means the bias is
+**time-varying**: the models are not sitting a fixed distance below the
+market, they are tracking a drifting level with a lag. Conversely, for the
+near-unbiased series (naive, LEAR-LASSO) the damage shrinks monotonically as
+the window grows — under `expanding`, naive degrades by +0.144 at w=3 but
+only +0.017 at w=60, and LEAR-LASSO by +0.071 down to +0.004 — exactly what
+is expected when the correction is mostly noise and more averaging means
+less of it.
+
+**w=60 is where it breaks down.** SARIMAX flips from a small improvement to
+a clear harm (1.133 → 1.173), and every model's gain shrinks. Read this
+column with care under `exclude`: it drops the sample to 113 days, so part
+of the movement is a change of sample rather than of method. The
+`expanding` mode holds all five windows at 172 days and is therefore the
+cleaner basis for comparing *across* windows; it reproduces every sign and
+the same short-window optimum. `exclude` remains the stricter basis for any
+single window's raw-versus-recalibrated claim, since it never mixes a
+partially-estimated correction into the corrected arm.
 
 **The improvement inverts with in-era robustness — again.** LightGBM (−0.75)
-and LSTM (−0.52) gain most; SARIMAX barely moves (−0.02); **LEAR-LASSO gets
-WORSE at every window**. This is the same axis as Finding 2 of the
+and LSTM (−0.52) gain most; SARIMAX barely moves (−0.02, and turns harmful
+at w=60); **LEAR-LASSO gets WORSE at every window**. Same axis as Finding 2 of the
 2026-08-04 OOD entry, and reads coherently with it: the flexible learners
 absorbed the 2016-17 price LEVEL into their fitted structure, so their OOD
 error is dominated by a removable constant offset. The structured models
 carried less level, are closer to unbiased already, and adding a noisy
 rolling intercept to a roughly-unbiased forecast just injects variance.
 
-**naive gets worse too (0.79 → 0.81–0.87), and that is the sanity check.**
+**naive gets worse too (0.79–0.82 → 0.81–0.93), and that is the sanity check.**
 naive carries no frozen level, so it has little systematic bias to remove;
 the correction can only add estimation noise. A method that improved
 everything indiscriminately would be suspect.
