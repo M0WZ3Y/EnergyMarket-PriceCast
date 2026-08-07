@@ -1,11 +1,5 @@
 # پیش‌نویس بخش ۳-۷-۲: LSTM [4pp]
 
-> DRAFT (2026-08-07) — منبع: `src/models/lstm.py`، `configs/models.yaml`،
-> `configs/tuned/lstm_params.yaml`، `scripts/tune_lstm.py`، و مدخل‌های
-> logs/decisions.md مورخ 2026-08-02 و 2026-08-04. اعداد آزمون از
-> `reports/tables/results_canonical.csv` و p-مقدارها از
-> `reports/tables/dm_tests.csv` (هر دو فریزشده ذیل v1.0-results).
-
 بازوی یادگیری عمیقِ این پژوهش یک شبکهٔ حافظهٔ کوتاه‌مدتِ بلند (LSTM) است.
 انگیزهٔ انتخاب آن، ساختار توالی‌وارِ سری قیمت است: قیمت هر روز نه یک بردار
 منفرد، بلکه حلقه‌ای از زنجیره‌ای است که روزهای پیشین آن را شکل داده‌اند، و

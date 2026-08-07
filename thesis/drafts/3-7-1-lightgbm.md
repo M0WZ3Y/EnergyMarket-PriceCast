@@ -1,11 +1,5 @@
 # پیش‌نویس بخش ۳-۷-۱: LightGBM [3pp]
 
-> DRAFT (2026-08-07) — منبع: `src/models/lgbm.py`، `configs/models.yaml`،
-> `configs/tuned/lightgbm_params.yaml`، `scripts/tune_lightgbm.py`، و
-> مدخل‌های logs/decisions.md مورخ 2026-07-29 و 2026-08-02. اعداد آزمون از
-> `reports/tables/results_canonical.csv` (فریزشده ذیل برچسب v1.0-results)
-> برداشته شده‌اند.
-
 نخستین مدل غیرخطی این پژوهش، LightGBM است: پیاده‌سازی کارآمدی از تقویت
 گرادیانی بر درخت‌های تصمیم که در ادبیات پیش‌بینی قیمت برق به‌عنوان نمایندهٔ
 استاندارد خانوادهٔ مدل‌های درختی به کار می‌رود. انتخاب آن — به‌جای جنگل
