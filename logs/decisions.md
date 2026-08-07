@@ -1722,4 +1722,103 @@ deterministically from the committed `data/processed/ood/` frames.
 
 ---
 
+### 2026-08-07 — Formal Lago et al. (2021) comparison and DM tests against their own forecasts
+
+Closes the last open technical item. New files only:
+`scripts/run_lago_comparison.py`, `reports/tables/lago_comparison.{csv,tex}`,
+`reports/tables/dm_vs_lago.{csv,tex}`, `tests/test_lago_comparison.py`.
+Nothing behind `v1.0-results` or `v1.1-ood` was touched; no model retrained.
+The anchor reference was missing from `thesis/references.bib` despite
+defining the whole protocol — added as `lago_forecasting_2021`.
+
+**Protocol-equivalence checklist.**
+
+| item | verdict | evidence |
+|---|---|---|
+| Dataset (EPEX-DE via epftoolbox) | MATCH | pre-verified |
+| Test window 2016-01-04..2017-12-31, 728 origins | MATCH | pre-verified; alignment re-checked here |
+| rMAE denominator = naive2 (p_{d-7,h}) | MATCH | every call site uses `rmae(..., m="W")` |
+| asinh-median VST | **MATCH** | epftoolbox `LEAR.recalibrate` applies `scaling(..., 'Invariant')` to Ytrain and to Xtrain minus the 7 dummies (`_lear.py:64-68`, commented "Invariant, aka asinh-median transformation"). Our wrapper calls `recalibrate()` directly and reuses its `scalerX`/`scalerY` at predict, so it inherits the VST rather than reimplementing it. |
+| Calibration windows / cadence | **DIFFERS (partially)** | Cadence matches — both recalibrate daily; `LEARLassoModel.fit` refits at every origin with no cadence shortcut. Windows do not: theirs spans 56/84/1092/1456 days with the LEAR Ensemble as their arithmetic mean, ours runs the **1092 window only**. So our LEAR-LASSO is comparable to their LEAR 1092 variant, and is **not** a like-for-like counterpart of their LEAR Ensemble. |
+| Ensemble construction | DIFFERS (structural) | Their DNN Ensemble averages four runs of ONE model family (different hyperparameter/feature draws); ours averages different model FAMILIES. Recorded on the affected rows of the table, not only here. |
+
+**Finding that changes how the comparison must be read: the paper's printed
+LEAR numbers and the toolbox's shipped LEAR forecasts disagree.** Scoring the
+shipped forecasts with our own metric code reproduces Tables 2/3 *exactly*
+for all four DNNs and the DNN Ensemble — the control that proves our
+alignment and metrics are correct — but for no LEAR variant:
+
+| model | paper MAE | shipped MAE |
+|---|---|---|
+| LEAR 56 | 4.619 | 4.283 |
+| LEAR 84 | 4.555 | 4.180 |
+| LEAR 1092 | 4.108 | 3.930 |
+| LEAR 1456 | 4.118 | 3.988 |
+| LEAR Ensemble | 3.955 | 3.609 |
+
+Every shipped LEAR scores BETTER than printed. This is not cosmetic: against
+the printed LEAR 1092 (4.108) our LEAR-LASSO (3.899) looks comfortably ahead,
+while against the shipped one (3.930) it is barely ahead. **The shipped
+forecasts are the defensible basis** — identical data, identical metric code,
+no transcription — and are what the week-5 checkpoint (2026-07-31) already
+used. Both appear in the table as separate rows with an explicit `source`,
+never merged. A test pins the discrepancy so it cannot vanish silently, and
+fails if a future toolbox release makes them agree.
+
+**Ranking on the shipped-forecast basis (rMAE).** DNN Ensemble 0.374 <
+**ours regime-aware 0.390** < **ours static 0.392** < DNN 4 0.394 < LEAR
+Ensemble 0.395 < DNN 3 0.406 < DNN 1 0.407 < DNN 2 0.422 < **ours LSTM
+0.424** < **ours LEAR-LASSO 0.427** < LEAR 1092 0.431.
+
+**DM tests (HAC, multivariate, both one-sided directions, 728 origins).**
+
+- Our ensembles vs **their DNN Ensemble**: *theirs* significantly better
+  (p = 0.013 regime-aware, 0.008 static). Their best system still wins.
+- Our ensembles vs **DNN 4**, their best individual model: **no significant
+  difference** (p = 0.322, 0.410).
+- Our ensembles vs **their LEAR Ensemble**: **no significant difference**
+  (p = 0.127, 0.239) — our MAE is lower (3.557 vs 3.609) but the gap does
+  not survive testing.
+- **LEAR-LASSO vs LEAR 1092** — the true like-for-like, same family, same
+  calibration window, same protocol: **ours significantly better**
+  (p = 0.0013). Both ensembles also beat LEAR 1092 (p ≈ 1e-7, 2e-6).
+- LSTM loses significantly to DNN Ensemble, DNN 4 and LEAR Ensemble, and
+  ties LEAR 1092 (p = 0.299).
+
+**What may be claimed, and what may not.** Defensible: *on an identical
+protocol and identical data, this thesis's ensembles are statistically
+indistinguishable from the best individual model in the published benchmark
+and from its LEAR ensemble, and its LEAR-LASSO significantly outperforms the
+published LEAR variant it directly corresponds to.* NOT defensible: any
+claim of beating the benchmark. Their DNN Ensemble is significantly better
+than everything here, and that must be stated wherever the comparison
+appears. This refines but does not overturn the week-5 Plan A/Plan B
+decision — Plan A remains out of reach; what has improved is the precision
+of the fallback claim, which is now a significance result rather than an
+ordering of point estimates.
+
+**MAPE.** Reported in the table for the published rows only. The paper's own
+MAPE column runs roughly ten times its sMAPE on this market (e.g. DNN 2:
+137.4 vs 15.4), driven by negative and near-zero prices — direct support for
+this thesis's exclusion of MAPE, to be cited in section 3-5.
+
+The ledger gate was bypassed twice for this work (dry run, then the real
+run); both traces are below, as designed.
+
+---
+
 Pages banked: 0 / quota 60 by 2026-08-31 | Results table: v1.0-results + v1.1-ood | Backup: [ ]
+
+
+### 2026-08-07 — LEDGER GATE BYPASSED (run_lago_comparison.py)
+
+`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `run_lago_comparison.py`. Reason given: closing the last open technical item: formal Lago et al. benchmark comparison + DM tests, which back the central chapter-4 claim. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
+
+Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
+
+
+### 2026-08-07 — LEDGER GATE BYPASSED (run_lago_comparison.py)
+
+`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `run_lago_comparison.py`. Reason given: closing the last open technical item: formal Lago et al. benchmark comparison + DM tests, which back the central chapter-4 claim. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
+
+Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
