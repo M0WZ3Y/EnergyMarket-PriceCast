@@ -51,7 +51,20 @@ Maps to the 8 Zotero subcollections, ~2pp each:
 - 4-2 نتایج پیش‌بینی ساعتی [6pp] — canonical results table, hourly target
 - 4-3 نتایج پیش‌بینی روزانه [5pp] — daily target
 - 4-4 مقایسه روش مستقیم و تجمیعی [2pp] — direct vs. aggregated daily (RQ4)
-- 4-5 آزمون دیبولد-ماریانو [3pp] — significance tests
+- 4-5 آزمون دیبولد-ماریانو [3pp] — significance tests. Split into two
+  subsections; the 3pp budget is unchanged (chapter 4 stays fixed at 29pp).
+  - 4-5-1 — pairwise DM among our own models, HAC-corrected.
+    Table reports/tables/dm_tests.tex, plus dm_regime_split.tex for the
+    regime-aware vs static comparison. Never quote the uncorrected
+    epftoolbox p-values, and never claim 1% significance.
+  - 4-5-2 — formal comparison against Lago et al. (2021) and the
+    seed-ensemble extension. Tables reports/tables/lago_comparison.tex and
+    dm_vs_lago.tex (added 2026-08-07), plus seed_ensemble.tex (added
+    2026-08-20) as a clearly labelled SUPPLEMENTARY result outside
+    v1.0-results. The headline numbers in 4-2/4-3, the SHAP section 4-6 and
+    the OOD addendum all remain on the frozen seed-42 LSTM — say so
+    explicitly here so the two sets of numbers are never read as one.
+    These tables previously had no home in this outline.
 - 4-6 تحلیل تفسیرپذیری SHAP [8pp] — DONE 2026-08-05. calm-vs-stressed and
   hourly-vs-daily. Figures 10–15 in reports/figures/, table
   reports/tables/shap_importance.tex

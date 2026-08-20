@@ -114,6 +114,14 @@ number and figure they need is frozen.
       now cite their evidence; row 7 is resolved by the reproducibility check
       below.
 
+- [x] **Promote the seed-ensemble result** (added 2026-08-20). Was reachable
+      only from a commit message, with its prediction frames gitignored on one
+      disk. Now: frames committed, `reports/tables/seed_ensemble.{csv,tex}`
+      exported for new thesis section 4-5-2, numbers pinned by
+      `tests/test_seed_ensemble_table.py`, branch merged to `main`. Kept
+      SUPPLEMENTARY — no re-freeze, no frozen table touched.
+      See `logs/decisions.md` 2026-08-20.
+
 ## P3 — Unscheduled deliverables. Decide *when*, not *whether*.
 
 - [ ] **English journal article.** An approved deliverable with **no slot
