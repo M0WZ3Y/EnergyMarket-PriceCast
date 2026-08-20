@@ -2031,3 +2031,102 @@ the real outstanding problem, and this entry does not pretend otherwise.
 `THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `export_seed_ensemble.py`. Reason given: 2026-08-20: re-export of the same supplementary table to right-align its numeric columns; no number changes, formatting only. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
 
 Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
+
+
+### 2026-08-20 — NOVELTY GATE (§5 of the new-model handoff): the primary novelty claim does NOT survive
+
+Run per `docs/HANDOFF_new_model_design.md` §5, which requires the answers be
+written here before anything is built. Answers below; the arm's §4 premise is
+retracted.
+
+**Q1 — Has calibration-window averaging been applied to NEURAL or TREE-BASED
+EPF models, or only to linear/parsimonious ones? ANSWER: yes, to neural, and
+it predates Lago et al.**
+
+Marcjasz, G. (2020), "Forecasting Electricity Prices Using Deep Neural
+Networks: A Robust Hyper-Parameter Selection Scheme", *Energies* 13(18):4605.
+Abstract, verbatim:
+
+> "Forecast averaging across calibration window lengths and hyper-parameter
+> sets allows the proposed methodology to outperform a parameter-rich least
+> absolute shrinkage and selection operator (LASSO)-estimated model and a deep
+> neural network (DNN) with non-optimized hyper-parameters in terms of the
+> mean absolute forecast error."
+
+That is calibration-window averaging applied to a DNN, over three-year
+out-of-sample periods in two markets, published 2020 — a year BEFORE the Lago
+et al. review. Grzegorz Marcjasz is also a co-author of Lago et al. (2021)
+(`thesis/references.bib` line 477), so this was not obscure to that group.
+
+**The handoff's premise was a misattribution, and this is the important
+correction.** §4 states that Lago et al. "note that combining forecasts across
+calibration windows significantly outperforms the best ex-post selected single
+window, then state it is unknown whether this extends beyond relatively
+parsimonious regression models." The "parsimonious" sentence in their §2.1 is
+about a DIFFERENT technique — long-term seasonal components, not calibration
+windows:
+
+> "By contrast, the applicability of long-term seasonal components has been
+> more limited and it is unknown whether their beneficial effect is limited to
+> relatively parsimonious regression models or also holds for parameter-rich
+> models."
+
+So Lago et al. never left calibration-window averaging for non-linear models
+open. The open question the handoff was built on does not exist as stated.
+
+Confirmed correct in the handoff: their DNN Ensemble does NOT vary calibration
+windows — it averages four DNNs from four independent runs of the
+hyperparameter/feature-selection procedure. Their LEAR Ensemble does vary
+windows (8 weeks, 12 weeks, 3 years, 4 years).
+
+**Q2 — Has regime-gated combination or regime-gated window selection been
+published? ANSWER: regime-conditional EPF is a mature literature.** Markov
+regime-switching with base/spike regimes is long established, and recent work
+applies regime-awareness to operational EPF directly (e.g. "Regime-Aware
+Conditional Neural Processes with Multi-Criteria Decision Support for
+Operational Electricity Price Forecasting", arXiv:2508.00040, 2025). Novelty
+here is weak. Our regime-aware ensemble remains defensible as an applied
+result — it is already frozen and reported — but not as a novel mechanism.
+
+**Q3 — Per-hour ensemble weights: NOT RESOLVED.** No direct hit either way in
+this pass. Treat as unestablished rather than open; it is a small enough idea
+that absence of a search hit is weak evidence.
+
+**Residual gap.** Calibration-window averaging for TREE-BASED models
+(LightGBM) turned up nothing directly. That is the only part of §4 still
+standing, and it is a much narrower claim than the one the arm was designed
+around.
+
+**DECISION.** Per §5's own instruction — "If (1) is already done for
+non-linear models, this arm has no novelty and should be abandoned in favour
+of the contributions listed in §8" — the calibration-window-averaging novelty
+arm is ABANDONED as a novelty claim. Marcjasz (2020) must now be CITED in
+chapter 2 as prior art; failing to cite it while making this claim would be
+the worst available outcome at the defense.
+
+What survives, and on what basis:
+
+- The cheap post-hoc rungs (§3: per-hour convex weights, unconstrained linear
+  stacking) remain legitimate as an ABLATION, not as novelty. Under §6.6 a
+  null result is still a deliverable: "combination complexity beyond global
+  convex weighting yields no significant gain on this benchmark." They run on
+  saved frames in minutes and touch nothing frozen.
+- The LEAR multi-window sweep remains worth minutes of compute as a possible
+  accuracy gain, framed as replication of Hubicka et al. (2019) / Lago et al.
+  (2021), not as a new idea.
+- The non-linear multi-window arm (days of compute) is NOT justified. Its
+  entire rationale was the open question that does not exist.
+- The §8 contributions are unaffected and remain the thesis's real
+  contributions.
+
+**Not done in this pass, and still open:** §6 (pre-registering the improvement
+gate) and §10.3 (the feature-support diagnostic). §10.3 in particular is
+untouched and remains cheap and decisive for the operational arm.
+
+**Separate conflict logged for later.** Handoff §10.4 argues the operational
+arm may add weather, fuel prices and ENTSO-E data because it is not compared
+to the Lago benchmark. CLAUDE.md's data rule is not about protocol
+equivalence — it forbids any source requiring registration, and ENTSO-E
+requires a registered API key. That conflict must be resolved by an explicit
+decision before the operational arm starts, not silently by whichever document
+is read last.
