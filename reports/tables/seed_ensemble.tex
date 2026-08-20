@@ -1,0 +1,20 @@
+\begin{table}[htbp]
+\caption{SUPPLEMENTARY result, outside the v1.0-results freeze: LSTM seed ensemble (seeds 42--45) and the ensembles built on it, EPEX-DE test period, 728 origins 2016-01-04 to 2017-12-31. Averaging four seeds of one model family is variance reduction, the same mechanism behind Lago et al.'s DNN Ensemble, not a better model. The attempt to close the gap to their DNN Ensemble FAILED: even an oracle ensemble including this member -- weights fitted directly on the test set, therefore cheating and a hard upper bound -- scores 3.5019, still short of their 3.4135, because their best single model (3.592) beats this thesis's best single model (3.873) by 0.28 and averaging cannot manufacture that difference. What does change is the significance verdict, and it must be read as a pair: on the seed-ensembled LSTM the regime-aware ensemble is no longer significantly worse than their DNN Ensemble, while the static ensemble still is. The two straddle the 0.05 level, so both are reported together -- the same rule already in force for regime-aware versus static. A p-value above 0.05 is a FAILURE TO REJECT, not evidence of equivalence. Ensemble weights are fitted on the validation window and never on the test window. DM tests are multivariate (24-hour vector, $L_1$ norm), Newey--West HAC corrected, one-sided in the direction that THEIR forecast is more accurate, so a small value counts against this thesis. Reference row recomputed from their shipped forecasts using this thesis's own metric code, not transcribed from their printed table. The headline results in sections 4-2 and 4-3, the SHAP analysis in 4-6 and the OOD addendum are all computed on the frozen seed-42 LSTM and are unaffected by this table; the two sets of numbers are not one series.}
+\label{tab:seed-ensemble}
+\begin{tabular}{llllll}
+\toprule
+model & MAE & rMAE & DM p vs DNN Ensemble & DM p vs DNN 4 & DM p vs LEAR Ensemble \\
+\midrule
+LSTM seed 42 (frozen) & 3.8734 & 0.4244 & -- & -- & -- \\
+LSTM seed 43 & 3.9248 & 0.4300 & -- & -- & -- \\
+LSTM seed 44 & 3.8985 & 0.4271 & -- & -- & -- \\
+LSTM seed 45 & 3.8748 & 0.4245 & -- & -- & -- \\
+LSTM 4-seed ensemble & 3.6460 & 0.3995 & -- & -- & -- \\
+Ensemble (static), frozen LSTM & 3.5742 & 0.3916 & 0.0082 & 0.5901 & 0.7608 \\
+Ensemble (static), seed-ensembled LSTM & 3.5260 & 0.3863 & 0.0460 & 0.8058 & 0.9359 \\
+Ensemble (regime-aware), frozen LSTM & 3.5569 & 0.3897 & 0.0127 & 0.6778 & 0.8729 \\
+Ensemble (regime-aware), seed-ensembled LSTM & 3.4994 & 0.3834 & 0.0803 & 0.8979 & 0.9876 \\
+Lago et al. DNN Ensemble (reference) & 3.4135 & 0.3740 & -- & -- & -- \\
+\bottomrule
+\end{tabular}
+\end{table}

@@ -1947,3 +1947,80 @@ Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent t
 `THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `run_seed_ensemble.py`. Reason given: user decision 2026-08-07: seed-ensemble evaluation, rerun after fixing member-glob bug. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
 
 Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
+
+
+### 2026-08-20 — LEDGER GATE BYPASSED (export_seed_ensemble.py)
+
+`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `export_seed_ensemble.py`. Reason given: 2026-08-20: promoting the 2026-08-07 seed-ensemble result to a citable supplementary table so it stops living only as prose in a commit message; no new modelling, reads committed frames only. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
+
+Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
+
+
+### 2026-08-20 — Seed-ensemble result promoted to a citable supplementary table
+
+**Decision.** The 2026-08-07 seed-ensemble result is promoted from prose into
+`reports/tables/seed_ensemble.{csv,tex}`, feeding thesis section **4-5-2**, and
+the `retrain-v2-seed-ensemble` branch is merged into `main`. It is
+**supplementary, outside `v1.0-results`** — not a new headline.
+
+**Why now.** The result was in a precarious state. The prediction frames sat in
+`data/processed/seed_ensemble{,_val}/`, which `.gitignore` excluded, so they
+existed on exactly one disk. No exported table carried the numbers. The result
+lived only in a commit message and the 2026-08-07 entry above. Four tests in
+`tests/test_seed_ensemble.py` read those ignored CSVs and so could not run on a
+clean clone.
+
+**What changed.**
+
+1. `.gitignore` now excepts `data/processed/seed_ensemble/` and
+   `seed_ensemble_val/`, matching the existing exceptions for `baselines/`,
+   `validation_preds/`, `daily_direct/`, `ood/` and `shap/`. Both directories
+   are committed whole (~6.4 MB), not just the averages: the validation-window
+   members are what the ensemble weights are fitted from, and the test-window
+   members are what the coverage tests assert against.
+2. `scripts/export_seed_ensemble.py` — new, modelled on
+   `run_lago_comparison.py`. Reads the committed frames, recomputes every
+   number, writes one new file pair. Nothing frozen is touched.
+3. `tests/test_seed_ensemble_table.py` — pins the headline values, both halves
+   of the 0.05 straddle, and that `results_canonical.csv` still carries the
+   seed-42 numbers (i.e. the freeze did not silently move).
+4. `thesis/outline.md` gains **4-5-1** and **4-5-2** under the existing 3pp
+   budget for 4-5. Worth recording: `lago_comparison.tex` and `dm_vs_lago.tex`,
+   exported 2026-08-07, had **no home in the outline at all** until now. The
+   chapter-4 total stays 29pp.
+
+**Numbers, recomputed and reconciling with 2026-08-07:**
+
+| row | MAE | rMAE | DM p vs their DNN Ensemble |
+|---|---|---|---|
+| LSTM seed 42 (frozen) | 3.8734 | 0.4244 | — |
+| LSTM 4-seed ensemble | 3.6460 | 0.3995 | — |
+| Ensemble (static), frozen | 3.5742 | 0.3916 | 0.0082 |
+| Ensemble (static), seed-ens. | 3.5260 | 0.3863 | 0.0460 |
+| Ensemble (regime-aware), frozen | 3.5569 | 0.3897 | 0.0127 |
+| Ensemble (regime-aware), seed-ens. | 3.4994 | 0.3834 | 0.0803 |
+| Their DNN Ensemble (reference) | 3.4135 | 0.3740 | — |
+
+The static seed-ensembled MAE (3.5260) is newly recorded here; the 2026-08-07
+entry quoted only the regime-aware arm.
+
+**Claim discipline for chapter 4 — both halves, always together.** On the
+seed-ensembled LSTM the regime-aware ensemble is no longer significantly worse
+than their DNN Ensemble (p=0.0803), **while the static ensemble still is**
+(p=0.0460). They straddle 0.05. This is a failure to reject, not equivalence,
+and the gap is not closed: the test-fitted oracle including this member scores
+3.5019, still short of 3.4135, because their best single model (3.592) beats
+ours (3.873) by 0.28.
+
+**What was deliberately NOT done.** No re-freeze on 3.4994. No edit to
+`results_canonical`, `dm_tests`, `dm_regime_split`, `ood_stress` or
+`shap_importance`. SHAP and the OOD stress test were not re-run against the
+seed-ensembled LSTM. Sections 4-2, 4-3, 4-6 and the OOD addendum all remain on
+the frozen seed-42 LSTM, and 4-5-2 must say so explicitly so the two sets of
+numbers are never read as one series.
+
+**Ledger honesty.** The gate blocked the export, as designed, and was bypassed
+once with a recorded reason (trace above). The table build was validated first
+by an in-process dry run that wrote nothing, so only one bypass trace exists
+rather than two. The ledger is still at 0.0 pages dated 2026-08-05 — that is
+the real outstanding problem, and this entry does not pretend otherwise.
