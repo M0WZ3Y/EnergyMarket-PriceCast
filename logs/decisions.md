@@ -2302,6 +2302,104 @@ with zero slack and no origin may be dropped to accommodate it. Seed 42
 unchanged. Output goes to a new gitignored-then-excepted namespace; nothing
 frozen is touched and the 1092 arm is read, never rewritten.
 
+### 2026-08-20 — AMENDMENT: Lago's short calibration windows are INFEASIBLE in a current scikit-learn
+
+Made before any sweep result existed — the first run failed during `fit`, so
+nothing had been scored when this was written.
+
+**What happened.** Running LEAR-LASSO at Lago et al.'s 56-day window raises,
+from inside epftoolbox's `LEAR.recalibrate` -> sklearn `LassoLarsIC.fit`:
+
+> ValueError: You are using LassoLarsIC in the case where the number of
+> samples is smaller than the number of features. In this setting, getting a
+> good estimate for the variance of the noise is not possible.
+
+Our feature matrix has **247 columns**; the short windows supply 56 and 84
+samples. n < p, so LassoLarsIC in scikit-learn 1.9.0 refuses to fit. Both
+short windows are structurally infeasible; 1092 and 1456 are unaffected.
+
+**Why this is a finding and not merely an obstacle.** Lago et al.'s published
+LEAR Ensemble averages four windows, two of which are in exactly this n < p
+regime, and their own stated mechanism is the mixing of a few SHORT windows
+(1–4 months) with a few long ones. That ensemble therefore depends on
+LassoLarsIC accepting n < p, which older scikit-learn did silently and current
+scikit-learn refuses by design. Their headline LEAR Ensemble number is not
+reproducible in a current environment without supplying a noise-variance
+estimate the paper never specifies.
+
+This belongs beside the existing contribution that their printed LEAR table
+does not reproduce from their own shipped forecasts. Both are the same kind of
+finding — the LEAR side of that benchmark is harder to reproduce than the DNN
+side, where all five rows reproduce exactly.
+
+**Decision (user, 2026-08-20): run the feasible subset, 1092 + 1456.** The
+alternative — patching a noise-variance estimate into LassoLarsIC to force the
+short windows — was rejected: it injects a hyperparameter absent from the
+paper, so the result would no longer be their method and the like-for-like
+comparison would be weakened rather than strengthened.
+
+**Consequence, recorded before running so it cannot be presented as a
+surprise.** With only 1092 and 1456 the ensemble mixes two LONG, highly
+similar windows (3 and 4 years). Lago et al.'s mechanism is short/long
+diversity, which is precisely what is missing. **A near-zero gain is the
+expected outcome**, and it must NOT be reported as evidence that window
+averaging fails for our LEAR — only that it cannot be tested properly here.
+
+**Family amended from two tests to two, unchanged in count but restated:**
+(1) 2-window ensemble vs our LEAR-1092; (2) 2-window ensemble vs their shipped
+LEAR Ensemble — the latter now an unequal comparison (2 long windows vs their
+4 mixed), and it must be labelled as such wherever it appears. The 0.02
+EUR/MWh floor and the DM p < 0.05 condition are unchanged.
+
+### 2026-08-20 — CORRECTION: window 1456 cannot cover the frozen 728-origin test window
+
+Correcting a claim I made in the LEAR sweep pre-registration earlier today.
+That entry stated the data span gives "exactly 1456 days of history before the
+first test origin (2016-01-04), so the longest window fits with zero slack".
+**That is wrong.**
+
+The 1456 figure was measured from the RAW data start (2012-01-09).
+`build_features` consumes the first 7 days building lag features, so the
+usable feature matrix starts **2012-01-16** and only **1449** days precede the
+first test origin. With a 1456-day window the walk-forward's first origin
+shifts to **2016-01-11** and it yields **721 splits, not 728**.
+
+Verified directly: window 1092 -> 728 splits, first origin 2016-01-04, 1092
+train days. Window 1456 -> 721 splits, first origin 2016-01-11, 1456 train
+days.
+
+**Consequence.** Every one of Lago et al.'s four calibration windows is now
+either infeasible or non-comparable in this setup:
+
+| window | status |
+|---|---|
+| 56 | LassoLarsIC refuses, n=56 < p=247 |
+| 84 | LassoLarsIC refuses, n=84 < p=247 |
+| 1092 | runs; this is the frozen arm |
+| 1456 | runs, but covers 721 of 728 origins |
+
+So the sweep as specified by their window set **cannot be reproduced here at
+all** — not for lack of compute, but for two independent structural reasons.
+
+**How this is reported.** The 1456 arm is still worth running, on the 721
+origins it can cover, with the 1092 arm restricted to those same 721 origins
+so the comparison is like-for-like. Those numbers are NOT comparable to the
+frozen 728-origin table and must never be placed in the same column as it.
+
+**The finding stands and is strengthened.** The reproducibility obstacle is
+now two-sided: their short windows need a LassoLarsIC behaviour current
+scikit-learn refuses, and their longest window needs more history than a
+lag-based feature pipeline leaves available on this dataset. Neither is a
+defect in their work; both are real limits on reproducing it, and both belong
+next to the existing finding that their printed LEAR table does not reproduce
+from their own shipped forecasts.
+
+**Process note.** The coverage guard in `run_lear_windows.py::_check_coverage`
+would have refused to average frames over mismatched origin sets, so the wrong
+number could not have propagated into a result. But the claim was written into
+a pre-registration before being checked against the actual feature index, and
+a guard catching a mistake is not the same as not making it.
+
 
 ---
 
