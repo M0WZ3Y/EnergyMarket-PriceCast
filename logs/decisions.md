@@ -2055,6 +2055,92 @@ requires a registered API key. That conflict must be resolved by an explicit
 decision before the operational arm starts, not silently by whichever document
 is read last.
 
+### 2026-08-20 — PRE-REGISTRATION of the improvement gate (§6 of the new-model handoff)
+
+Written BEFORE any rung runs, as §6 requires, and not to be revised afterwards.
+The point of fixing this in advance is that a search over combination designs
+will always surface something that looks better on test; without a criterion
+declared beforehand there is no way to tell a real gain from the best of
+several noisy draws.
+
+**Scope.** The combination-design ladder only. The non-linear multi-window arm
+was abandoned earlier today (novelty gate entry above), so this gate governs
+the surviving post-hoc rungs and, if reached, the LEAR multi-window sweep.
+
+**§6.1 Selection on validation, test used once.** Every rung is selected —
+weights fitted, rung adopted or rejected — on the VALIDATION window only. The
+test window is touched once per adopted rung, to report. A rung rejected on
+validation does not get a test score "just to see". Looking is selection.
+
+**§6.2 Criterion: MAE, reported with rMAE.** Improvement means lower MAE.
+rMAE = MAE / (naive2 MAE on the same window); the denominator is constant
+across models on a window, so the two rank identically. The threshold is set
+in MAE because EUR/MWh is interpretable. Both are reported for every rung.
+rMAE is NEVER compared across windows — validation and test denominators
+differ. No MAPE (negative and near-zero prices). sMAPE and RMSE may be shown
+but are not the criterion.
+
+**§6.2.1 Minimum meaningful effect: 0.02 EUR/MWh validation MAE, over the
+previous rung.** User's number, chosen 2026-08-20 and justified as follows:
+the measured seed-to-seed spread of our own LSTM is 0.052 EUR/MWh (3.873,
+3.875, 3.898, 3.925 at seeds 42/45/44/43). A floor of 0.02 sits below that
+spread, so it is not a claim of resolution finer than our own run-to-run
+variance, while still rejecting gains that are pure noise. Anything smaller,
+bought with substantially more parameters, is a liability under Lago et al.
+§2.3's critique of unablated hybrid complexity, not an achievement.
+
+**§6.3 Adoption rule.** A rung is adopted only if BOTH: validation MAE
+improves by >= 0.02 over the previous rung, AND the DM test on test data
+against the previous rung is p < 0.05 in our favour AFTER the §6.4 correction.
+A rung that improves the validation point estimate but fails DM is reported as
+"improves point estimate, not significant" — never as an improvement.
+
+**§6.4 Multiple comparisons — the family is declared here as SIX tests.**
+
+The ladder is three rungs beyond the existing global convex baseline:
+
+| rung | design |
+|---|---|
+| 0 | global convex weights (existing static + regime-aware) — baseline, not tested |
+| 1 | per-hour convex weights (24 simplex vectors) |
+| 2 | per-hour unconstrained linear stacking (negative weights permitted) |
+| 3 | regime-gated per-hour weights |
+
+Each rung is DM-tested against the previous rung. Both member sets are run
+side by side (user decision 2026-08-20): (a) the frozen seed-42 members, which
+isolate the combiner and match chapter 4's frozen headline, and (b) the
+seed-ensembled LSTM members from the supplementary arm. 3 rungs x 2 member
+sets = **6 adoption tests**, and Holm-Bonferroni is applied across exactly
+those six. Raw and corrected p-values are both reported: hiding the raw ones
+looks evasive, reporting only the raw ones is wrong.
+
+Any DM test against Lago et al.'s published forecasts is DESCRIPTIVE CONTEXT,
+outside the adoption family, corrected separately within itself, and labelled
+as such. This split is declared now precisely so it cannot be chosen later to
+suit the result.
+
+**§6.5 Stopping rule.** Per member set, stop climbing after TWO consecutive
+rungs fail §6.3. No continuing in hope that a later rung rescues the ladder —
+that is the search this gate exists to prevent.
+
+**§6.6 Report everything.** Every rung attempted appears in the final table,
+adopted or not, with its validation delta and both p-values. If no rung is
+adopted, that IS the result: "combination complexity beyond global convex
+weighting yields no significant gain on this benchmark" — a clean answer to a
+question the benchmark's own authors raised, and unattackable.
+
+**§6.7 Straddle rule.** If two variants of one design land on opposite sides
+of 0.05 — as the seed ensemble's regime-aware (p=0.080) and static (p=0.046)
+variants did — both are reported together, always.
+
+**Expected outcome, recorded in advance so it cannot be revised later.** The
+test-fitted oracle over the current members scores 3.558 against the
+legitimate 3.5569, i.e. roughly zero headroom for any reweighting of these
+four members under global convex weights. Per-hour and unconstrained variants
+sit outside that specific bound and are therefore unmeasured, but there is no
+strong prior that they will clear 0.02. A null ladder is the most likely
+outcome and is a publishable result under §6.6.
+
 
 ---
 
