@@ -23,6 +23,14 @@ data/processed/*
 # --figures-only) without refitting the interpretation models, which live
 # under the gitignored models/ tree.
 !data/processed/shap/
+# LSTM seed-ensemble members and their averages, behind the supplementary
+# result in reports/tables/seed_ensemble.*. Not regenerable in practice:
+# retraining four LSTM walk-forwards costs hours, and the validation-window
+# members are what the ensemble weights are fitted from. Committing them is
+# what makes the supplementary table and tests/test_seed_ensemble.py
+# reproducible from a clean clone.
+!data/processed/seed_ensemble/
+!data/processed/seed_ensemble_val/
 
 # Models & experiment artifacts
 models/*

@@ -94,6 +94,13 @@ class LSTMModel(BaseModel):
         self.refit_every_n_days = int(
             self.cfg.get("refit_every_n_days", DEFAULT_REFIT_EVERY_N_DAYS)
         )
+        # Seed is configurable ONLY to make seed-ensembling possible (averaging
+        # several runs of this same model, the variance-reduction trick Lago et
+        # al.'s DNN Ensemble uses). The project rule remains seed 42: that is
+        # the default, every single-model result uses it, and any run with a
+        # different seed exists only as a member of an explicitly labelled
+        # seed ensemble. Logged in decisions.md 2026-08-07.
+        self.seed = int(self.cfg.get("seed", DEFAULT_SEED))
         self._net = None
         self._scalers = None
         self._feature_columns: list[str] | None = None
@@ -170,7 +177,7 @@ class LSTMModel(BaseModel):
 
         if needs_full_refit:
             tf = _tf()
-            tf.keras.utils.set_random_seed(DEFAULT_SEED)
+            tf.keras.utils.set_random_seed(self.seed)
             try:
                 tf.config.experimental.enable_op_determinism()
             except Exception as exc:

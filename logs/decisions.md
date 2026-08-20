@@ -1807,6 +1807,89 @@ run); both traces are below, as designed.
 
 ---
 
+### 2026-08-07 — LSTM seed ensemble: the gap to Lago's DNN Ensemble is NOT closable, but the verdict changes
+
+User decision (2026-08-07) to break the `v1.0-results` freeze and retrain in
+order to beat Lago et al.'s DNN Ensemble (MAE 3.4135). **The stated goal was
+not achieved and is now shown to be unachievable by ensembling.** A weaker
+but real result was achieved instead. Nothing frozen has been modified: all
+work is on branch `retrain-v2-seed-ensemble`, output in the new
+`data/processed/seed_ensemble{,_val}/` namespaces, both tags intact.
+
+**Why reweighting was ruled out first.** The L1-optimal ensemble weights
+fitted directly on the TEST set — illegitimate, therefore a hard upper bound
+on any weighting scheme — score MAE 3.558. The legitimate validation-fitted
+regime-aware ensemble already scored 3.5569. Headroom from reweighting:
+**−0.001, i.e. none.** Only stronger base learners could move the number.
+
+**Method.** Lago's DNN Ensemble is four runs of ONE model family averaged —
+variance reduction, not a better model. The same trick was applied to the
+LSTM: seeds 42/43/44/45 over the full 728-origin test window, and again over
+the 357-origin validation window so ensemble weights could be fitted on
+validation and never on test. The seed-42 rule still holds: 42 remains the
+default and every single-model result uses it; the other seeds exist only as
+members of a labelled seed ensemble.
+
+**The technique worked, and worked better than theirs.**
+
+| member | MAE |
+|---|---|
+| LSTM seed 42 / 43 / 44 / 45 | 3.873 / 3.925 / 3.898 / 3.875 |
+| LSTM 4-seed ensemble | **3.646** |
+
+A 5.9% gain over the best member, against the 5.0% Lago's own ensembling
+achieved (DNN 4 3.592 → DNN Ensemble 3.413).
+
+**It still does not close the gap, and cannot.** With the seed-ensembled
+LSTM as a member, the test-fitted ORACLE ensemble — cheating, an upper bound
+— scores **3.5019** against their 3.4135. Still 0.088 short with weights
+that already flatter us. The cause is not the ensembling but the base
+learners: their best single model (DNN 4, 3.592) beats our best single model
+(LSTM, 3.873) by 0.28, and averaging cannot manufacture that. Closing it
+would mean building a Lago-style DNN — outside the sanctioned model list,
+and effectively reimplementing their method to match their number.
+
+**What legitimately changed** (weights fitted on validation, scored on test):
+
+| ensemble | MAE | rMAE | DM p vs their DNN Ensemble |
+|---|---|---|---|
+| frozen regime-aware | 3.5569 | 0.3897 | 0.0127 — significantly worse |
+| **new regime-aware** | **3.4994** | **0.3834** | **0.0803 — not significant** |
+| new static | 3.5260 | 0.3863 | 0.0460 — still significantly worse |
+
+**The fragility must be reported with the result, not after it.** The two
+ensemble variants straddle 0.05: regime-aware clears it at 0.080, static
+fails at 0.046. This is the same reporting rule already in force for the
+regime-aware-versus-static comparison (both halves always together), and it
+applies here for the same reason. The honest statement is: *our regime-aware
+ensemble is not significantly worse than the published DNN Ensemble
+(p = 0.080), while our static ensemble still is (p = 0.046)*. It is a
+failure to reject, not a demonstration of equivalence, and 0.080 is not a
+comfortable margin.
+
+Unchanged: both new ensembles remain statistically indistinguishable from
+DNN 4 and from their LEAR Ensemble, as before. No beat-the-benchmark claim
+is licensed under any variant.
+
+**Freeze status: NOT broken.** The measured upgrade is real but narrow — one
+of two ensemble variants moving from p = 0.013 to p = 0.080. Promoting it
+cascades into results_canonical, both DM tables, the Lago comparison, the
+OOD ensemble rows, the recalibration experiment built on those, and the four
+Farsi drafts that cite the old numbers. That promotion is a separate,
+deliberate decision and has not been taken here.
+
+A defect worth recording: `seed_ensemble_frame` globbed `lstm_s*.csv`, which
+also matches the `lstm_seed_ensemble.csv` average this module writes into the
+same directory — folding the average back in as if it were another seed. It
+cancelled exactly here (averaging a set with its own mean returns that mean,
+so no number changed), but a stale file from a different seed count would
+have skewed the result silently. Fixed to a digit-only match; the first
+version of the guarding test reproduced the same bug and had to be fixed too.
+
+Offline suite: 362 passed, 7 deselected.
+
+---
+
 Pages banked: 0 / quota 60 by 2026-08-31 | Results table: v1.0-results + v1.1-ood | Backup: [ ]
 
 
@@ -1822,3 +1905,122 @@ Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent t
 `THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `run_lago_comparison.py`. Reason given: closing the last open technical item: formal Lago et al. benchmark comparison + DM tests, which back the central chapter-4 claim. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
 
 Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
+
+
+### 2026-08-07 — LEDGER GATE BYPASSED (run_seed_ensemble.py)
+
+`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `run_seed_ensemble.py`. Reason given: user decision 2026-08-07: retrain to close the gap to Lago's DNN Ensemble. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
+
+Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
+
+
+### 2026-08-07 — LEDGER GATE BYPASSED (run_seed_ensemble.py)
+
+`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `run_seed_ensemble.py`. Reason given: user decision 2026-08-07: retrain to close the gap to Lago's DNN Ensemble. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
+
+Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
+
+
+### 2026-08-07 — LEDGER GATE BYPASSED (run_seed_ensemble.py)
+
+`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `run_seed_ensemble.py`. Reason given: user decision 2026-08-07: validation-window seeds so ensemble weights can be fitted legitimately, not on test. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
+
+Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
+
+
+### 2026-08-07 — LEDGER GATE BYPASSED (run_seed_ensemble.py)
+
+`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `run_seed_ensemble.py`. Reason given: user decision 2026-08-07: seed-ensemble evaluation. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
+
+Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
+
+
+### 2026-08-07 — LEDGER GATE BYPASSED (run_seed_ensemble.py)
+
+`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `run_seed_ensemble.py`. Reason given: user decision 2026-08-07: seed-ensemble evaluation. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
+
+Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
+
+
+### 2026-08-07 — LEDGER GATE BYPASSED (run_seed_ensemble.py)
+
+`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `run_seed_ensemble.py`. Reason given: user decision 2026-08-07: seed-ensemble evaluation, rerun after fixing member-glob bug. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
+
+Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
+
+
+### 2026-08-20 — LEDGER GATE BYPASSED (export_seed_ensemble.py)
+
+`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `export_seed_ensemble.py`. Reason given: 2026-08-20: promoting the 2026-08-07 seed-ensemble result to a citable supplementary table so it stops living only as prose in a commit message; no new modelling, reads committed frames only. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
+
+Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
+
+
+### 2026-08-20 — Seed-ensemble result promoted to a citable supplementary table
+
+**Decision.** The 2026-08-07 seed-ensemble result is promoted from prose into
+`reports/tables/seed_ensemble.{csv,tex}`, feeding thesis section **4-5-2**, and
+the `retrain-v2-seed-ensemble` branch is merged into `main`. It is
+**supplementary, outside `v1.0-results`** — not a new headline.
+
+**Why now.** The result was in a precarious state. The prediction frames sat in
+`data/processed/seed_ensemble{,_val}/`, which `.gitignore` excluded, so they
+existed on exactly one disk. No exported table carried the numbers. The result
+lived only in a commit message and the 2026-08-07 entry above. Four tests in
+`tests/test_seed_ensemble.py` read those ignored CSVs and so could not run on a
+clean clone.
+
+**What changed.**
+
+1. `.gitignore` now excepts `data/processed/seed_ensemble/` and
+   `seed_ensemble_val/`, matching the existing exceptions for `baselines/`,
+   `validation_preds/`, `daily_direct/`, `ood/` and `shap/`. Both directories
+   are committed whole (~6.4 MB), not just the averages: the validation-window
+   members are what the ensemble weights are fitted from, and the test-window
+   members are what the coverage tests assert against.
+2. `scripts/export_seed_ensemble.py` — new, modelled on
+   `run_lago_comparison.py`. Reads the committed frames, recomputes every
+   number, writes one new file pair. Nothing frozen is touched.
+3. `tests/test_seed_ensemble_table.py` — pins the headline values, both halves
+   of the 0.05 straddle, and that `results_canonical.csv` still carries the
+   seed-42 numbers (i.e. the freeze did not silently move).
+4. `thesis/outline.md` gains **4-5-1** and **4-5-2** under the existing 3pp
+   budget for 4-5. Worth recording: `lago_comparison.tex` and `dm_vs_lago.tex`,
+   exported 2026-08-07, had **no home in the outline at all** until now. The
+   chapter-4 total stays 29pp.
+
+**Numbers, recomputed and reconciling with 2026-08-07:**
+
+| row | MAE | rMAE | DM p vs their DNN Ensemble |
+|---|---|---|---|
+| LSTM seed 42 (frozen) | 3.8734 | 0.4244 | — |
+| LSTM 4-seed ensemble | 3.6460 | 0.3995 | — |
+| Ensemble (static), frozen | 3.5742 | 0.3916 | 0.0082 |
+| Ensemble (static), seed-ens. | 3.5260 | 0.3863 | 0.0460 |
+| Ensemble (regime-aware), frozen | 3.5569 | 0.3897 | 0.0127 |
+| Ensemble (regime-aware), seed-ens. | 3.4994 | 0.3834 | 0.0803 |
+| Their DNN Ensemble (reference) | 3.4135 | 0.3740 | — |
+
+The static seed-ensembled MAE (3.5260) is newly recorded here; the 2026-08-07
+entry quoted only the regime-aware arm.
+
+**Claim discipline for chapter 4 — both halves, always together.** On the
+seed-ensembled LSTM the regime-aware ensemble is no longer significantly worse
+than their DNN Ensemble (p=0.0803), **while the static ensemble still is**
+(p=0.0460). They straddle 0.05. This is a failure to reject, not equivalence,
+and the gap is not closed: the test-fitted oracle including this member scores
+3.5019, still short of 3.4135, because their best single model (3.592) beats
+ours (3.873) by 0.28.
+
+**What was deliberately NOT done.** No re-freeze on 3.4994. No edit to
+`results_canonical`, `dm_tests`, `dm_regime_split`, `ood_stress` or
+`shap_importance`. SHAP and the OOD stress test were not re-run against the
+seed-ensembled LSTM. Sections 4-2, 4-3, 4-6 and the OOD addendum all remain on
+the frozen seed-42 LSTM, and 4-5-2 must say so explicitly so the two sets of
+numbers are never read as one series.
+
+**Ledger honesty.** The gate blocked the export, as designed, and was bypassed
+once with a recorded reason (trace above). The table build was validated first
+by an in-process dry run that wrote nothing, so only one bypass trace exists
+rather than two. The ledger is still at 0.0 pages dated 2026-08-05 — that is
+the real outstanding problem, and this entry does not pretend otherwise.
