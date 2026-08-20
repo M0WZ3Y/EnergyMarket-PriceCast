@@ -1888,74 +1888,6 @@ version of the guarding test reproduced the same bug and had to be fixed too.
 
 Offline suite: 362 passed, 7 deselected.
 
----
-
-Pages banked: 0 / quota 60 by 2026-08-31 | Results table: v1.0-results + v1.1-ood | Backup: [ ]
-
-
-### 2026-08-07 — LEDGER GATE BYPASSED (run_lago_comparison.py)
-
-`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `run_lago_comparison.py`. Reason given: closing the last open technical item: formal Lago et al. benchmark comparison + DM tests, which back the central chapter-4 claim. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
-
-Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
-
-
-### 2026-08-07 — LEDGER GATE BYPASSED (run_lago_comparison.py)
-
-`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `run_lago_comparison.py`. Reason given: closing the last open technical item: formal Lago et al. benchmark comparison + DM tests, which back the central chapter-4 claim. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
-
-Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
-
-
-### 2026-08-07 — LEDGER GATE BYPASSED (run_seed_ensemble.py)
-
-`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `run_seed_ensemble.py`. Reason given: user decision 2026-08-07: retrain to close the gap to Lago's DNN Ensemble. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
-
-Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
-
-
-### 2026-08-07 — LEDGER GATE BYPASSED (run_seed_ensemble.py)
-
-`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `run_seed_ensemble.py`. Reason given: user decision 2026-08-07: retrain to close the gap to Lago's DNN Ensemble. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
-
-Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
-
-
-### 2026-08-07 — LEDGER GATE BYPASSED (run_seed_ensemble.py)
-
-`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `run_seed_ensemble.py`. Reason given: user decision 2026-08-07: validation-window seeds so ensemble weights can be fitted legitimately, not on test. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
-
-Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
-
-
-### 2026-08-07 — LEDGER GATE BYPASSED (run_seed_ensemble.py)
-
-`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `run_seed_ensemble.py`. Reason given: user decision 2026-08-07: seed-ensemble evaluation. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
-
-Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
-
-
-### 2026-08-07 — LEDGER GATE BYPASSED (run_seed_ensemble.py)
-
-`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `run_seed_ensemble.py`. Reason given: user decision 2026-08-07: seed-ensemble evaluation. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
-
-Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
-
-
-### 2026-08-07 — LEDGER GATE BYPASSED (run_seed_ensemble.py)
-
-`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `run_seed_ensemble.py`. Reason given: user decision 2026-08-07: seed-ensemble evaluation, rerun after fixing member-glob bug. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
-
-Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
-
-
-### 2026-08-20 — LEDGER GATE BYPASSED (export_seed_ensemble.py)
-
-`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `export_seed_ensemble.py`. Reason given: 2026-08-20: promoting the 2026-08-07 seed-ensemble result to a citable supplementary table so it stops living only as prose in a commit message; no new modelling, reads committed frames only. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
-
-Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
-
-
 ### 2026-08-20 — Seed-ensemble result promoted to a citable supplementary table
 
 **Decision.** The 2026-08-07 seed-ensemble result is promoted from prose into
@@ -2024,14 +1956,6 @@ once with a recorded reason (trace above). The table build was validated first
 by an in-process dry run that wrote nothing, so only one bypass trace exists
 rather than two. The ledger is still at 0.0 pages dated 2026-08-05 — that is
 the real outstanding problem, and this entry does not pretend otherwise.
-
-
-### 2026-08-20 — LEDGER GATE BYPASSED (export_seed_ensemble.py)
-
-`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `export_seed_ensemble.py`. Reason given: 2026-08-20: re-export of the same supplementary table to right-align its numeric columns; no number changes, formatting only. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
-
-Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
-
 
 ### 2026-08-20 — NOVELTY GATE (§5 of the new-model handoff): the primary novelty claim does NOT survive
 
@@ -2130,3 +2054,79 @@ equivalence — it forbids any source requiring registration, and ENTSO-E
 requires a registered API key. That conflict must be resolved by an explicit
 decision before the operational arm starts, not silently by whichever document
 is read last.
+
+
+---
+
+Pages banked: 0 / quota 60 by 2026-08-31 | Results table: v1.0-results + v1.1-ood | Backup: [ ]
+
+
+### 2026-08-07 — LEDGER GATE BYPASSED (run_lago_comparison.py)
+
+`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `run_lago_comparison.py`. Reason given: closing the last open technical item: formal Lago et al. benchmark comparison + DM tests, which back the central chapter-4 claim. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
+
+Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
+
+
+### 2026-08-07 — LEDGER GATE BYPASSED (run_lago_comparison.py)
+
+`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `run_lago_comparison.py`. Reason given: closing the last open technical item: formal Lago et al. benchmark comparison + DM tests, which back the central chapter-4 claim. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
+
+Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
+
+
+### 2026-08-07 — LEDGER GATE BYPASSED (run_seed_ensemble.py)
+
+`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `run_seed_ensemble.py`. Reason given: user decision 2026-08-07: retrain to close the gap to Lago's DNN Ensemble. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
+
+Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
+
+
+### 2026-08-07 — LEDGER GATE BYPASSED (run_seed_ensemble.py)
+
+`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `run_seed_ensemble.py`. Reason given: user decision 2026-08-07: retrain to close the gap to Lago's DNN Ensemble. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
+
+Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
+
+
+### 2026-08-07 — LEDGER GATE BYPASSED (run_seed_ensemble.py)
+
+`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `run_seed_ensemble.py`. Reason given: user decision 2026-08-07: validation-window seeds so ensemble weights can be fitted legitimately, not on test. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
+
+Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
+
+
+### 2026-08-07 — LEDGER GATE BYPASSED (run_seed_ensemble.py)
+
+`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `run_seed_ensemble.py`. Reason given: user decision 2026-08-07: seed-ensemble evaluation. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
+
+Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
+
+
+### 2026-08-07 — LEDGER GATE BYPASSED (run_seed_ensemble.py)
+
+`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `run_seed_ensemble.py`. Reason given: user decision 2026-08-07: seed-ensemble evaluation. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
+
+Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
+
+
+### 2026-08-07 — LEDGER GATE BYPASSED (run_seed_ensemble.py)
+
+`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `run_seed_ensemble.py`. Reason given: user decision 2026-08-07: seed-ensemble evaluation, rerun after fixing member-glob bug. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
+
+Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
+
+
+### 2026-08-20 — LEDGER GATE BYPASSED (export_seed_ensemble.py)
+
+`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `export_seed_ensemble.py`. Reason given: 2026-08-20: promoting the 2026-08-07 seed-ensemble result to a citable supplementary table so it stops living only as prose in a commit message; no new modelling, reads committed frames only. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
+
+Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
+
+
+### 2026-08-20 — LEDGER GATE BYPASSED (export_seed_ensemble.py)
+
+`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `export_seed_ensemble.py`. Reason given: 2026-08-20: re-export of the same supplementary table to right-align its numeric columns; no number changes, formatting only. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
+
+Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
+
