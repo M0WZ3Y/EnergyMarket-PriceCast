@@ -2024,3 +2024,10 @@ once with a recorded reason (trace above). The table build was validated first
 by an in-process dry run that wrote nothing, so only one bypass trace exists
 rather than two. The ledger is still at 0.0 pages dated 2026-08-05 — that is
 the real outstanding problem, and this entry does not pretend otherwise.
+
+
+### 2026-08-20 — LEDGER GATE BYPASSED (export_seed_ensemble.py)
+
+`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `export_seed_ensemble.py`. Reason given: 2026-08-20: re-export of the same supplementary table to right-align its numeric columns; no number changes, formatting only. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
+
+Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
