@@ -73,6 +73,18 @@ PUBLISHED_FC = REPO_ROOT / "data" / "raw" / "Forecasts_DE_DNN_LEAR_ensembles.csv
 
 # Lago et al. (2021) §4.4: 8 weeks, 12 weeks, 3 years, 4 years.
 LAGO_WINDOWS = (56, 84, 1092, 1456)
+
+# The subset actually runnable here. 56 and 84 are EXCLUDED because
+# LassoLarsIC refuses n_samples < n_features (247 features), not because they
+# were unpromising -- they are the short half of Lago et al.'s short/long mix
+# and therefore the half that carries their mechanism. Listed explicitly
+# rather than discovered by globbing whatever files exist, so a missing run
+# can never be mistaken for a deliberate exclusion.
+FEASIBLE_WINDOWS = (1092, 1456)
+INFEASIBLE_WINDOWS = {
+    56: "LassoLarsIC refuses n=56 < p=247",
+    84: "LassoLarsIC refuses n=84 < p=247",
+}
 FROZEN_WINDOW = 1092
 N_ORIGINS = 728
 
@@ -201,13 +213,17 @@ def holm(pvals: list[float]) -> list[float]:
 
 def combine() -> pd.DataFrame:
     frames = {FROZEN_WINDOW: _long(FROZEN_LEAR)}
-    for w in LAGO_WINDOWS:
+    for w in FEASIBLE_WINDOWS:
         if w == FROZEN_WINDOW:
             continue
-        p = _path(w)
-        if not p.exists():
+        path = _path(w)
+        if not path.exists():
             raise SystemExit(f"missing window {w}: run --windows {w} first")
-        frames[w] = _long(p)
+        frames[w] = _long(path)
+
+    print("windows in this ensemble:", ", ".join(str(w) for w in sorted(frames)))
+    for w, why in sorted(INFEASIBLE_WINDOWS.items()):
+        print(f"  EXCLUDED window {w}: {why}")
 
     origins = _common_origins(frames)
     frames = {w: _restrict(f, origins) for w, f in frames.items()}

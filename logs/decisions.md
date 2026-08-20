@@ -2400,6 +2400,69 @@ number could not have propagated into a result. But the claim was written into
 a pre-registration before being checked against the actual feature index, and
 a guard catching a mistake is not the same as not making it.
 
+### 2026-08-20 — LEAR SWEEP RESULT: averaging two long windows buys nothing; the gain lives in the short/long mix
+
+Run under the pre-registration and its two amendments, all committed before
+`run_lear_windows.py` produced a number. **The ensemble was NOT adopted.**
+
+All figures below are on the **721 common origins** (2016-01-11 to
+2017-12-31), NOT the frozen 728. They must never be placed in the same column
+as the results table.
+
+| model | MAE | RMSE | sMAPE | rMAE |
+|---|---|---|---|---|
+| our LEAR window 1092 (frozen arm) | 3.9039 | 6.4917 | 16.667 | 0.4260 |
+| our LEAR window 1456 | 3.9598 | 6.4807 | 16.976 | 0.4321 |
+| our LEAR window-ensemble (2 windows) | 3.9074 | 6.4534 | 16.752 | 0.4264 |
+| Lago LEAR 1092 (recomputed) | 3.9298 | 6.5259 | 16.795 | 0.4306 |
+| Lago LEAR Ensemble (recomputed) | **3.6091** | 6.5083 | 14.744 | 0.3954 |
+
+**Adoption: FAILED on both conditions.** MAE moves 3.9039 -> 3.9074, a delta
+of **-0.0035** — the ensemble is slightly WORSE than the single 1092 window,
+against a floor of +0.02. DM vs our own 1092 arm is p=0.380, i.e. the
+difference is not significant in either direction. Reported as no
+improvement, adopted nowhere.
+
+**Pre-registered test 2: we lose clearly.** Their LEAR Ensemble at 3.6091
+beats our 2-window ensemble at p < 0.001 (Holm-corrected, same 721 origins,
+same metric code). Unequal comparison by construction — their four mixed
+windows against our two long ones — and it must be labelled as such wherever
+it appears.
+
+**The interesting result is the one that was not the objective.** Their
+window averaging gains roughly 8.2% (LEAR 1092 3.9298 -> LEAR Ensemble
+3.6091 on these origins). Ours gains **nothing** (-0.09%). The only structural
+difference is that their set mixes short windows (56, 84) with long ones,
+while ours holds two long, highly correlated windows (3 and 4 years).
+
+That is indirect but real evidence for **their own stated mechanism**: the
+benefit comes from short/long DIVERSITY — long windows fitting better, short
+windows adapting faster under structural breaks — and not from averaging as
+such. Averaging two windows that see nearly the same data produces nearly the
+same forecast, and the ensemble inherits it. This is the same mechanism the
+OOD recalibration arm measured independently, where short correction windows
+(3-7 days) beat long ones.
+
+**A secondary confirmation.** Our LEAR-1092 (3.9039) again beats their LEAR
+1092 (3.9298) on identical origins with identical metric code, consistent
+with the 3.899 vs 3.930 figure recorded on 728 origins. The gap between our
+LEAR and their LEAR ENSEMBLE is therefore entirely the window-averaging
+effect, not a weaker base model on our side.
+
+**What must NOT be claimed.** This is not evidence that window averaging fails
+for our LEAR. It was never testable here: the short windows are structurally
+unreachable in this environment, so the mechanism was absent from the
+experiment by construction. The honest claim is narrow — "averaging two long,
+similar calibration windows yields no gain" — plus the reproducibility
+finding that their full four-window ensemble cannot be rebuilt in a current
+scikit-learn.
+
+**§11 status.** Step 6 is now closed. Every step of the design arm is
+complete or abandoned except step 4, the §10.3 feature-support diagnostic,
+which belongs to the operational arm and is untouched. The arm has produced
+three findings and zero accuracy gains, which is a defensible outcome and was
+the recorded expectation.
+
 
 ---
 
@@ -2475,3 +2538,17 @@ Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent t
 
 Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
 
+
+
+### 2026-08-20 — LEDGER GATE BYPASSED (run_lear_windows.py)
+
+`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `run_lear_windows.py`. Reason given: 2026-08-20: combine step of the pre-registered LEAR multi-window sweep; no new modelling, reads completed frames only. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
+
+Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
+
+
+### 2026-08-20 — LEDGER GATE BYPASSED (run_lear_windows.py)
+
+`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `run_lear_windows.py`. Reason given: 2026-08-20: combine step of the pre-registered LEAR multi-window sweep; reads completed frames only. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
+
+Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
