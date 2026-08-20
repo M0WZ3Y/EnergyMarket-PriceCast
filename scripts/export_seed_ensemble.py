@@ -201,6 +201,10 @@ def export(df: pd.DataFrame, stem: str, caption: str, label: str, dry_run: bool)
         caption=caption,
         label=label,
         position="htbp",
+        # Model names left, every numeric column right: decimals must line
+        # up on the page. pandas defaults all columns to 'l' here because
+        # _fmt has already turned the numbers into strings.
+        column_format="l" + "r" * (len(df.columns) - 1),
     )
     print(f"wrote {_rel(TABLES_DIR / f'{stem}.csv')} and {_rel(TABLES_DIR / f'{stem}.tex')}")
 
