@@ -89,6 +89,13 @@ CLAIM DISCIPLINE — do not restate these loosely in the thesis:
 - LSTM vs LEAR-LASSO is a TIE (p=0.404). Do not bury this — the OOD result
   shows the neural model is also the more fragile of the two.
 - The calm-day null is a sanity check, not independent corroboration.
+- Seed ensemble (4-5-2, SUPPLEMENTARY, outside v1.0-results): on the
+  seed-ensembled LSTM the regime-aware ensemble reaches p=0.0803 vs Lago's DNN
+  Ensemble (not significant) WHILE the static ensemble still fails at p=0.0460.
+  They straddle 0.05 — report both halves together. Failure to reject, NOT
+  equivalence, and the gap is not closed (oracle 3.5019 vs their 3.4135).
+  Chapter 4's headline numbers, SHAP and the OOD addendum all stay on the
+  frozen seed-42 LSTM; never merge the two sets into one series.
 - Ensemble weights were fitted on the window the members were tuned on;
   disclose in chapter 3 and phrase the LEAR-LASSO stress shift as a shift in
   fitted weights, not proof of intrinsic superiority.
