@@ -35,6 +35,10 @@ data/processed/*
 # evidence behind a thesis claim -- the null ladder -- so it is committed
 # rather than left regenerable-in-principle.
 !data/processed/combination_ladder/
+# LEAR multi-window sweep frames (2026-08-20). The 1456 arm costs ~1 hour of
+# compute to regenerate and is the evidence behind the window-averaging
+# finding, so it is committed rather than left regenerable-in-principle.
+!data/processed/lear_windows/
 
 # Models & experiment artifacts
 models/*
