@@ -2141,6 +2141,46 @@ sit outside that specific bound and are therefore unmeasured, but there is no
 strong prior that they will clear 0.02. A null ladder is the most likely
 outcome and is a publishable result under §6.6.
 
+### 2026-08-20 — AMENDMENT to the improvement gate, made before any rung ran
+
+Amending a pre-registration after seeing results is worthless; amending it
+before anything runs is just fixing a bug in the protocol. This is the latter,
+and the git history shows the ladder script did not exist when this was
+written.
+
+**The flaw.** §6.3 as pre-registered adopts a rung when "validation MAE
+improves by >= 0.02". But §6.1 fits the weights ON the validation window, so
+that quantity is IN-SAMPLE fit. Rung 1 (per-hour convex) has 24x the free
+parameters of rung 0, rung 2 more still. Each will show a lower validation MAE
+than its predecessor essentially by construction, whether or not it
+generalizes. Applied literally, the gate would adopt every rung and the 0.02
+floor would gate nothing.
+
+**The fix: an inner split of the validation window, declared now.** The
+364-day validation window is divided temporally, never randomly:
+
+  inner-fit    first 273 days  — weights are fitted here
+  inner-select last 91 days    — the §6.2.1 criterion is measured here
+
+So "validation MAE" in §6.3 now means OUT-OF-SAMPLE MAE on inner-select, from
+weights fitted on inner-fit only. That restores the floor's meaning: extra
+parameters now have to earn their place on days they were not fitted on.
+
+Once a rung is adopted, its weights are refitted on the FULL 364-day
+validation window and scored ONCE on test, per §6.1. The test window is still
+touched exactly once per adopted rung.
+
+**Unchanged:** the 0.02 EUR/MWh floor, the six-test Holm-Bonferroni family,
+the stopping rule, the straddle rule, the report-everything rule, and the
+recorded expectation that a null ladder is the likely outcome.
+
+**A consequence worth recording in advance.** Rung 3 (regime-gated per-hour)
+fits 2 regimes x 24 hours = 48 weight vectors. The validation window holds
+only 37 stressed days in 364, so the stressed vectors are fitted on very few
+observations per hour. If rung 3 fails, thin data is a likely cause and that
+should be reported as the explanation rather than as evidence that
+regime-gating cannot work.
+
 
 ---
 
