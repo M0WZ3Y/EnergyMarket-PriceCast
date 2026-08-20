@@ -31,6 +31,10 @@ data/processed/*
 # reproducible from a clean clone.
 !data/processed/seed_ensemble/
 !data/processed/seed_ensemble_val/
+# Combination-ladder result table (2026-08-20). One small CSV, and it is the
+# evidence behind a thesis claim -- the null ladder -- so it is committed
+# rather than left regenerable-in-principle.
+!data/processed/combination_ladder/
 
 # Models & experiment artifacts
 models/*

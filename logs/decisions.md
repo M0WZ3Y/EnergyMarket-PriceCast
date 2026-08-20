@@ -2181,6 +2181,76 @@ observations per hour. If rung 3 fails, thin data is a likely cause and that
 should be reported as the explanation rather than as evidence that
 regime-gating cannot work.
 
+### 2026-08-20 — LADDER RESULT: combination complexity beyond global convex weighting buys nothing
+
+Run under the pre-registered gate and its amendment, both committed before
+`scripts/run_combination_ladder.py` existed. **No rung was adopted in either
+member set.** Under §6.6 that is the result, not a failure to find one.
+
+| member set | rung | val MAE (held-out) | test MAE | test rMAE | val delta vs prev | clears 0.02 | DM p raw | DM p Holm |
+|---|---|---|---|---|---|---|---|---|
+| frozen | 0 global convex | 3.7459 | 3.5742 | 0.3916 | — | — | — | — |
+| frozen | 1 per-hour convex | 3.7695 | 3.6148 | 0.3960 | -0.0236 | no | 1.000 | 1.000 |
+| frozen | 2 per-hour unconstrained | 3.7265 | 3.6095 | 0.3955 | +0.0430 | yes | 0.307 | 1.000 |
+| frozen | 3 regime-gated per-hour | 3.8247 | 3.6045 | 0.3949 | -0.0982 | no | 0.339 | 1.000 |
+| seedens | 0 global convex | 3.6930 | 3.5260 | 0.3863 | — | — | — | — |
+| seedens | 1 per-hour convex | 3.7265 | 3.5692 | 0.3910 | -0.0336 | no | 1.000 | 1.000 |
+| seedens | 2 per-hour unconstrained | 3.6793 | 3.5718 | 0.3913 | +0.0473 | yes | 0.596 | 1.000 |
+| seedens | 3 regime-gated per-hour | 3.7497 | 3.5560 | 0.3900 | -0.0704 | no | 0.179 | 1.000 |
+
+Exactly six DM tests ran, matching the pre-registered family size. Every
+Holm-corrected p-value is 1.000.
+
+**Pipeline validity check.** Rung 0 reproduces the frozen ensembles exactly —
+3.5742 against `ensemble_static.csv`, and 3.5260 against the seed-ensembled
+static arm recorded earlier today. The ladder is therefore measuring what it
+claims to.
+
+**The one apparent pass is not one, and this is the trap the gate was built
+for.** Rung 2 clears the 0.02 floor *against rung 1*, per §6.3's
+against-the-previous-rung wording. But rung 1 is WORSE than rung 0, so rung 2
+is mostly recovering rung 1's own loss. Measured against rung 0, the honest
+comparison, rung 2 improves held-out validation MAE by only **+0.0194
+(frozen)** and **+0.0137 (seedens)** — both BELOW the pre-registered floor.
+It also fails §6.3's second condition outright, at raw p = 0.307 and 0.596.
+Reported here as "improves point estimate, not significant", exactly as §6.3
+requires, and adopted nowhere.
+
+**On test, every rung is worse than rung 0 in both member sets.** Per-hour and
+unconstrained weighting do not merely fail to help; they actively hurt out of
+sample. Rung 1 costs 0.041 (frozen) and 0.043 (seedens) test MAE.
+
+**Mechanism.** Splitting weights by hour multiplies free parameters by 24
+while dividing the observations each vector sees by 24 — roughly 266 days per
+hour on the inner-fit window. The members are highly correlated forecasts of
+the same quantity, so the per-hour fits chase validation noise. The
+held-out inner split is the only reason this is visible: on in-sample
+validation MAE every rung would have looked like an improvement, which is
+precisely the failure mode the amendment was written to prevent.
+
+**Rung 3 caveat, recorded in advance and now load-bearing.** The regime-gated
+rung fits 48 vectors, and its stressed vectors see only 21 inner-fit days.
+Its failure is at least partly thin data and should be reported as such, not
+as evidence that regime-gating cannot work. Note the frozen regime-aware
+ensemble — global weights, two regimes — remains the best model in the
+project at 3.5569, so regime CONDITIONING works; it is regime conditioning
+combined with per-hour splitting that collapses.
+
+**Claim for the thesis.** "Beyond global convex weighting, additional
+combination complexity — per-hour weights, unconstrained stacking, and
+regime-gated per-hour weights — yields no significant improvement on this
+benchmark, and degrades test accuracy." This is consistent with, and extends,
+the test-fitted oracle bound: the oracle showed no headroom *within* global
+convex weighting, and the ladder now shows none in three families outside it.
+
+**Scope of the claim, stated so it is not overread.** Four members, one
+market, one test period, an MAE criterion, and no intercept anywhere by
+design. It does not show that combination complexity never helps in EPF.
+
+**Status:** the ladder is complete. §11 steps 5 is done, step 7 was abandoned
+by the novelty gate, and step 6 (LEAR multi-window sweep) and step 4 (§10.3
+feature-support diagnostic) remain open.
+
 
 ---
 
