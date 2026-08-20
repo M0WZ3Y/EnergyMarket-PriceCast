@@ -2251,6 +2251,57 @@ design. It does not show that combination complexity never helps in EPF.
 by the novelty gate, and step 6 (LEAR multi-window sweep) and step 4 (§10.3
 feature-support diagnostic) remain open.
 
+### 2026-08-20 — PRE-REGISTRATION of the LEAR multi-window sweep (§11 step 6)
+
+Declared before the sweep runs. It sits OUTSIDE the six-test combination-ladder
+family declared earlier today, so it gets its own family here rather than being
+quietly folded into that one.
+
+**Design.** Run LEAR-LASSO at Lago et al.'s own four calibration windows —
+56, 84, 1092 and 1456 days — and combine them by ARITHMETIC MEAN, which is
+exactly their LEAR Ensemble construction. Our frozen LEAR-LASSO is the 1092
+arm and is reused, not recomputed.
+
+**Why no validation selection is needed, and why that is not a loophole.** The
+arithmetic mean has zero free parameters: nothing is fitted, so there is no
+selection to leak. The choice of WINDOWS is the only selection, and it is
+pre-specified by the published paper rather than chosen from our data — which
+is the point of replicating their set instead of searching for our own. Had we
+searched windows on our data, §6.1 would apply in full and the inner split
+would be mandatory.
+
+**Family: TWO tests, declared now.**
+
+1. LEAR window-ensemble vs our single-window LEAR-LASSO (1092) — the adoption
+   test.
+2. LEAR window-ensemble vs their shipped LEAR Ensemble (recomputed 3.609) —
+   the like-for-like external comparison.
+
+Holm-Bonferroni across these two. Any further comparison (e.g. against their
+printed table values, or against our other models) is descriptive context,
+reported with raw p-values and labelled as outside this family.
+
+**Adoption rule.** Same as §6.3: the ensemble is adopted as an improvement
+only if it lowers test MAE by >= 0.02 EUR/MWh over our 1092 arm AND the DM
+test is p < 0.05 in our favour after correction. Anything else is reported as
+"improves point estimate, not significant".
+
+**Recorded expectation.** Their window averaging gained 8.2% on LEAR (3.930 ->
+3.609 on shipped forecasts). Our 1092 arm is 3.899. A comparable relative gain
+would land near 3.58, which would beat their LEAR Ensemble outright. That is
+the upside case and it is NOT the prediction — it is what would have to happen
+for this to be a win, written down now so it cannot be adjusted afterwards.
+
+**Constraints observed.** The walk-forward window and the model's internal
+calibration window must be set together: `walk_forward_splits` sizes
+`train_days` from the evaluation config while `LEARLassoModel` reads its own
+`calibration_window_days`, so a mismatch would hand LEAR fewer rows than it
+believes it has. Data span 2012-01-09 to 2017-12-31 gives exactly 1456 days of
+history before the first test origin (2016-01-04), so the longest window fits
+with zero slack and no origin may be dropped to accommodate it. Seed 42
+unchanged. Output goes to a new gitignored-then-excepted namespace; nothing
+frozen is touched and the 1092 arm is read, never rewritten.
+
 
 ---
 
