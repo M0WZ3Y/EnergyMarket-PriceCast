@@ -1,0 +1,3 @@
+# graphify: exclude Claude Code tooling (hooks, skills, agents) from the
+# knowledge graph -- it is workspace automation, not thesis content.
+.claude/

@@ -78,10 +78,49 @@ by this repo map directly into chapter 3 (methodology sections 3-3
 through 3-8) and chapter 4 (results, DM tests, SHAP) — see outline.md for
 exact section numbers when generating tables/figures meant for the thesis.
 
-## Session startup (standing instruction, 2026-07-30)
-At the start of every task-oriented session in this project, invoke the
-task-observer skill and superpowers:using-superpowers before other work
-(also enforced by a SessionStart hook in .claude/settings.json).
+## Session startup (standing instruction, 2026-07-30; extended 2026-08-26)
+At the start of every task-oriented session in this project, work through
+these four steps before anything else.
+
+**1. Skills.** Invoke the task-observer skill and
+superpowers:using-superpowers (also enforced by a SessionStart hook in
+.claude/settings.json).
+
+**2. Read the map before reading the code.** `graphify-out/` holds a built
+knowledge graph of this repo — 1,649 nodes, 3,323 edges, 108 hand-labelled
+communities, rebuilt 2026-08-26. For any question about structure, call
+paths, or what touches a given module, query the graph before grepping cold:
+
+    graphify query "<question>"
+    graphify explain "<node>"          # e.g. build_features
+    graphify path "<A>" "<B>"
+
+`graphify-out/GRAPH_REPORT.md` carries the community map, the god nodes and
+the known gaps. Two standing cautions: the graph is a lookup index, never an
+authority — confirm anything it implies against the source file before acting
+on it (~9% of extracted edges were dropped as dangling, and 84 nodes are
+isolated). And it reflects the repo as of its last build; after substantial
+code changes, refresh with `/graphify . --update`.
+
+**3. Establish where we left off from the files, not from memory.** In
+priority order:
+
+    CHECKLIST.md                 what is left, already prioritized P0-P4
+    logs/decisions.md            why, plus corrections to earlier claims
+    thesis/CONVERSION_QUEUE.md   drafts awaiting conversion
+    thesis/page_ledger.csv       pages actually banked
+    git log --oneline -15        what actually landed
+
+NEXT_SESSION.md is a handoff snapshot and goes stale — as of 2026-08-26 its
+week number was three weeks out of date. Treat its dates and status claims as
+things to verify, not facts.
+
+**4. Then plan and execute.** Track multi-step work in a todo list where the
+harness offers one, so session state survives compaction; otherwise keep the
+running state in CHECKLIST.md, which is the durable version of the same
+thing. Honour the mandatory post-task reconciliation rule
+in NEXT_SESSION.md: when a technical task finishes, either bank pages or
+write a dated deferral line in logs/decisions.md — never neither.
 
 ## Conventions
 - Config-driven: market/zone/splits come from configs/*.yaml, not code.

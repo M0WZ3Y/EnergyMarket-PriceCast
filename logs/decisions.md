@@ -2464,6 +2464,68 @@ three findings and zero accuracy gains, which is a defensible outcome and was
 the recorded expectation.
 
 
+### 2026-08-26 — WRITING DEFERRED: knowledge-graph map rebuilt, no pages banked
+
+Recorded under the mandatory post-task reconciliation rule (NEXT_SESSION.md).
+A technical task finished today and the ledger did not move, so this entry is
+the required explicit deferral rather than a silent skip.
+
+**What ran.** The interrupted 2026-08-25 `/graphify` build was resumed and
+completed. That earlier run died between extraction and graph assembly,
+leaving 14 chunk files and outputs still dated 2026-07-30. A coverage audit
+against `.graphify_uncached.txt` found the chunks covered only 41 of 48
+content files — the seven figures 10-16 had never been dispatched. Those were
+extracted and the pipeline finished: **1,649 nodes, 3,323 edges, 108
+hand-labelled communities**, from 120 files / ~259k words. Outputs in
+`graphify-out/` (`graph.html`, `GRAPH_REPORT.md`, `graph.json`). Extraction
+quality 94% EXTRACTED / 5% INFERRED / 0% AMBIGUOUS; the health check flagged
+333 dangling-endpoint edges (dropped at build) and 84 isolated nodes.
+
+Read-only with respect to the thesis: nothing outside `graphify-out/` was
+modified, no frozen artifact was touched, and `git status` showed only the
+untracked `.graphifyignore`.
+
+**Why it was worth the slot.** It is analysis of the existing repo, not new
+modelling, and it produced two things the writing needs. First, a traced
+account of `build_features()` as the single leakage-enforcement point in the
+project: all five models, every tuning script, the walk-forward runner, SHAP,
+the OOD arm and the PriceCast app import it, and no path constructs a feature
+matrix independently (verified — the only other `.shift()` calls in `src/`,
+`scripts/` and `app/` are the documented causal ones in `ensemble.py` and
+`run_ood_recalibration.py`). That is the argument section 3-4 has to make.
+Second, it establishes that `src/features/pipeline.py` should be treated as
+frozen alongside `v1.0-results`, which the freeze hook does NOT currently
+cover — the hook intercepts Edit/Write under `reports/`, `models/` and
+`data/processed` only.
+
+**What is being deferred, and it is the same thing as always.** Zero pages.
+The ledger still holds one row, `2026-08-05, 0.0`, now 21 days old. Four
+drafts totalling ~3,300 words (3-5, 3-6, 3-7-1, 3-7-2) sit in
+`thesis/drafts/` unconverted. The week-9 partial review opens 2026-08-31, in
+five days, against a 60-page quota.
+
+**Why deferred rather than done.** Conversion is a manual step outside this
+repo: the official Amirkabir `.docx` template is not here, so no script can
+paste into it or read back a real page count. The session had no window in
+which that human step could happen. This is an explanation, not a
+justification — it is the twelfth consecutive time technical work has been
+picked up ahead of the conversion that banks pages, and the ledger gate has
+now been bypassed 12 times with zero pages banked afterward.
+
+**Correction carried out of this session.** `CLAUDE.md` records the regime
+stress threshold as 62.65 EUR/MWh. The value in `configs/evaluation.yaml` is
+**62.6989**, which is what figure 13's "62.70" correctly rounds to, and what
+CHECKLIST.md already carries for section 3-8. The CLAUDE.md figure is the
+stale one; use 62.6989 when writing. No result is affected — the calm/stressed
+split is 651/77 either way.
+
+**Standing instruction added.** `CLAUDE.md`'s session-startup section now
+requires querying the graphify map before grepping cold, and re-establishing
+state from CHECKLIST.md / decisions.md / the conversion queue / the ledger
+rather than from NEXT_SESSION.md, whose week number had drifted three weeks
+out of date.
+
+
 ---
 
 Pages banked: 0 / quota 60 by 2026-08-31 | Results table: v1.0-results + v1.1-ood | Backup: [ ]
