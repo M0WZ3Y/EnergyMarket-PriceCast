@@ -40,7 +40,7 @@ separate journal article deliverable is English.
   sanctioned scope (not scope creep):
   - Regime-aware ensemble weighting — calm/stressed weight sets switched
     on `regime.stress_threshold_eur_mwh` in configs/evaluation.yaml
-    (62.65 EUR/MWh = train mean + 1.5*std). The week-2 EDA's 3-sigma
+    (62.6989 EUR/MWh = train mean + 1.5*std). The week-2 EDA's 3-sigma
     84.04 value left only 3 stressed validation days and was superseded
     on 2026-08-04; k is fixed by a validation-only rule, never by test
     behaviour — see logs/decisions.md 2026-08-04.
