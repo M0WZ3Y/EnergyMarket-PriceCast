@@ -2734,3 +2734,58 @@ template pages. Ledger still 0.0 dated 2026-08-05. Deferred to the next
 writing session — this is now the second consecutive deferral, and both
 class-(b) numbers from the T0 audit are closed, which removes the last
 technical excuse for not writing.
+
+
+### 2026-08-26 — T1: validation_preds writes are atomic (the 2026-08-02 corruption)
+
+**The defect was still live.** Only one script writes `validation_preds/`:
+`run_full_baselines.py`, via two paths — the full rewrite in
+`repair_partial_origins` and, once per origin, `rows.to_csv(out_path,
+mode="a", ...)` in `run_one`. Everything else that names `VAL_DIR`
+(`run_ensemble`, `run_ood_stress`, `run_combination_ladder`,
+`run_seed_ensemble`) only reads. The append is what let two concurrent runs
+interleave rows into `lightgbm.csv` on 2026-08-02.
+
+**Fix.** New `src/atomic_io.atomic_write_csv`: same-directory temp file,
+flush, `os.fsync`, `os.replace`. Both write paths in `run_full_baselines.py`
+route through it. No locking library, no new dependency. 29 statements,
+against a 40-line cap.
+
+**What atomicity does and does not buy.** It does NOT preserve both writers.
+It converts an interleaved, unparseable file into clean last-writer-wins:
+every reader sees one complete version, never a spliced one. That is the
+right trade here — runs are resumable, so a lost update costs a rerun, while
+a corrupt file costs a silent wrong number.
+
+**Windows needed one concession.** `os.replace` is atomic on Windows, but
+returns ERROR_ACCESS_DENIED while the destination is momentarily open — the
+concurrent case this exists for. `_replace_with_retry` retries past it. This
+does not weaken atomicity: each attempt replaces the whole file or does
+nothing. Readers can likewise be refused transiently during the swap; the
+test retries there rather than counting it as corruption, because the file
+is never half-written, only briefly unopenable.
+
+**The first version of the regression test was worthless, and the mutation
+check is what caught it.** It asserted the FINAL state after concurrent
+writers. That passes against the original bug: the last writer to finish
+leaves a complete file whether or not writes are atomic. Reverting the
+helper to a plain open-and-write left it green. The rewritten test asserts
+the guarantee that actually matters — a concurrent READER never observes a
+partial file — and needs frames large enough (20k rows) that a plain write
+is catchable mid-flight; at 400 rows the write finished between two reads
+and the race was invisible. It also asserts the reader got at least one read
+in, so it cannot pass vacuously.
+
+**Mutation result, both directions.** Against plain open-and-write:
+`test_a_reader_never_observes_a_partial_file` and
+`test_failed_write_leaves_the_original_intact_and_no_debris` FAIL. With the
+helper restored: 5 passed, stable over three consecutive runs.
+
+pytest 380 passed before, 385 after (five new tests).
+
+**Not touched, deliberately.** `run_daily_direct.py:100` uses the same
+`mode="a"` pattern, but writes to `daily_direct/`, outside what T1 names.
+Flagged, not fixed — same fix would apply if it ever matters.
+
+**Ledger: no pages banked.** Third consecutive technical session. Ledger
+still 0.0 dated 2026-08-05.
