@@ -63,6 +63,28 @@ FILES = {
 REGIME = "Ensemble (regime-aware)"
 STATIC = "Ensemble (static)"
 
+SENSITIVITY_TABLE = REPO_ROOT / "reports" / "tables" / "dm_bootstrap_sensitivity.csv"
+
+
+def reported_range(table: "pd.DataFrame", subset: str) -> tuple[float, float]:
+    """The (min, max) p across dependence corrections, as the caption quotes it.
+
+    Defined here, next to the sweep that produces it, so that every consumer
+    derives the range the same way. The floor takes the HAC p-value into
+    account as well as the bootstrap sweep — HAC is one of the "dependence
+    corrections" the range spans, and on the stressed subset it is the
+    smallest of them, so dropping it would silently narrow the claim.
+
+    Rounded to 3 decimals because that is the precision the captions quote;
+    returning full precision here would make the caption and this function
+    disagree in the last digit.
+    """
+    rows = table[table["subset"] == subset]
+    if rows.empty:
+        raise KeyError(f"no rows for subset {subset!r} in the sensitivity table")
+    lo = min(float(rows["p_bootstrap"].min()), float(rows["p_hac"].iloc[0]))
+    return round(lo, 3), round(float(rows["p_bootstrap"].max()), 3)
+
 
 def _block_bootstrap_p(d: np.ndarray, block: int) -> float:
     """One-sided CIRCULAR block bootstrap p-value for H0: mean(d) <= 0.
@@ -172,7 +194,7 @@ def _report(piv, truth, days, name: str) -> tuple[dict[int, float], float]:
     return sweep, p_hac
 
 
-def main() -> None:
+def main(export: bool = False) -> None:
     frames = {name: load_long_frame(TEST_DIR / f) for name, f in FILES.items()}
 
     threshold = float(load_evaluation_config()["regime"]["stress_threshold_eur_mwh"])
@@ -199,17 +221,55 @@ def main() -> None:
     print("\n" + "=" * 78)
     print("FOCUSED: regime-aware vs static")
     print("=" * 78)
-    _report(piv, truth, sorted(labels), "ALL test days")
-    _report(piv, truth, stressed, "STRESSED days only (where the mechanism acts)")
-    _report(piv, truth, calm, "CALM days only (near-null check)")
+    subsets = {
+        "all": sorted(labels),
+        "stressed": stressed,
+        "calm": calm,
+    }
+    results = {
+        "all": _report(piv, truth, subsets["all"], "ALL test days"),
+        "stressed": _report(piv, truth, subsets["stressed"],
+                            "STRESSED days only (where the mechanism acts)"),
+        "calm": _report(piv, truth, subsets["calm"], "CALM days only (near-null check)"),
+    }
+
+    if export:
+        rows = []
+        for subset, (sweep, p_hac) in results.items():
+            for block, p_boot in sorted(sweep.items()):
+                rows.append({
+                    "subset": subset,
+                    "days": len(subsets[subset]),
+                    "block_length": block,
+                    "p_bootstrap": p_boot,
+                    "p_hac": p_hac,
+                })
+        table = pd.DataFrame(rows)
+        SENSITIVITY_TABLE.parent.mkdir(parents=True, exist_ok=True)
+        table.to_csv(SENSITIVITY_TABLE, index=False)
+        print()
+        print(table.to_string(index=False))
+        print()
+        print(f"wrote {SENSITIVITY_TABLE.relative_to(REPO_ROOT)}")
+        for subset in ("stressed", "all"):
+            lo, hi = reported_range(table, subset)
+            print(f"  reported range, {subset}: {lo:.3f} - {hi:.3f}")
 
 
 if __name__ == "__main__":
     # Writing is the binding constraint; new technical output does not
     # move it. Gate is inside the guard on purpose -- at module level it
     # would fire on import and gate the test suite too.
+    import argparse
+
     from src.ledger_gate import require_ledger_progress
 
     require_ledger_progress(__file__)
 
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--export", action="store_true",
+        help=f"write the block-bootstrap sensitivity sweep to "
+             f"{SENSITIVITY_TABLE.relative_to(REPO_ROOT)}",
+    )
+    main(export=parser.parse_args().export)

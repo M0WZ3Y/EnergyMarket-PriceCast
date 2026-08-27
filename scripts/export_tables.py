@@ -53,18 +53,47 @@ OOD_DIR = REPO_ROOT / "data" / "processed" / "ood"
 FROZEN_META = REPO_ROOT / "models" / "frozen" / "metadata.json"
 
 # Block-bootstrap sensitivity ranges for the regime-split DM comparison,
-# (min p, max p) across block lengths. Produced by
-# scripts/run_dm_ensembles.py, which this script never runs — so they
-# cannot be interpolated here and are pinned as literals instead
-# (tests/test_regressions_scripts.py fails loudly if they drift).
+# (min p, max p) across dependence corrections. Read from the artifact that
+# COMPUTES them — reports/tables/dm_bootstrap_sensitivity.csv, written by
+# `run_dm_ensembles.py --export`.
+#
+# Until 2026-08-26 these were literals, because this script never runs the
+# sweep. That made them unfalsifiable: the pinning test compared the literal
+# against itself, so the ranges could not drift but could not be checked
+# either, and the sweep that produced them was printed to stdout and never
+# committed. Reading the artifact costs nothing here and makes the numbers
+# traceable to a computation.
+#
+# The range rule is duplicated from run_dm_ensembles.reported_range rather
+# than imported: scripts in this repo deliberately never import each other
+# (see the duplicated `_rel` helpers here and in run_ood_stress.py).
+# tests/test_regressions_scripts.py asserts the two agree, so the
+# duplication cannot drift silently.
 #
 # They are not optional decoration: CLAUDE.md's claim discipline requires
 # the stressed-day result and its not-robust-over-all-days counterpart to
 # always be reported together. Quoting the stressed range without the
 # all-days range would turn a hedged finding into an unqualified claim, so
 # neither may be dropped from the caption.
-BOOTSTRAP_P_RANGE_STRESSED = (0.006, 0.044)
-BOOTSTRAP_P_RANGE_ALL = (0.013, 0.057)
+BOOTSTRAP_SENSITIVITY = REPO_ROOT / "reports" / "tables" / "dm_bootstrap_sensitivity.csv"
+
+
+def _bootstrap_range(subset: str) -> tuple[float, float]:
+    if not BOOTSTRAP_SENSITIVITY.exists():
+        raise FileNotFoundError(
+            f"{BOOTSTRAP_SENSITIVITY.relative_to(REPO_ROOT)} is missing — "
+            "regenerate it with: python scripts/run_dm_ensembles.py --export"
+        )
+    rows = pd.read_csv(BOOTSTRAP_SENSITIVITY)
+    rows = rows[rows["subset"] == subset]
+    if rows.empty:
+        raise KeyError(f"no rows for subset {subset!r} in the sensitivity table")
+    lo = min(float(rows["p_bootstrap"].min()), float(rows["p_hac"].iloc[0]))
+    return round(lo, 3), round(float(rows["p_bootstrap"].max()), 3)
+
+
+BOOTSTRAP_P_RANGE_STRESSED = _bootstrap_range("stressed")
+BOOTSTRAP_P_RANGE_ALL = _bootstrap_range("all")
 
 # Fixed presentation order (export-results skill).
 HOURLY_FILES = {

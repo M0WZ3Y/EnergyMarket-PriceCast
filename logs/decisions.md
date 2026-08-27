@@ -2676,3 +2676,61 @@ freeze. The ledger gate was bypassed once, trace above.
 banked zero template pages. The ledger still reads 0.0 dated 2026-08-05 — the
 real outstanding problem, unchanged by this entry. Deferred again to the next
 writing session.
+
+
+### 2026-08-27 — LEDGER GATE BYPASSED (run_dm_ensembles.py)
+
+`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `run_dm_ensembles.py`. Reason given: T0 follow-up: commit provenance for the block-bootstrap p ranges, which exist only as pinned literals. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
+
+Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
+
+
+### 2026-08-26 — The block-bootstrap ranges now have provenance: both reproduce exactly
+
+**Same defect as the oracle bound, same fix.** `BOOTSTRAP_P_RANGE_STRESSED`
+and `BOOTSTRAP_P_RANGE_ALL` in `export_tables.py` were literals, and
+`test_block_bootstrap_caption_constants_are_pinned` asserted them against
+themselves. That pinned them against drift but could never catch them being
+wrong. The sweep that produced them lived in `run_dm_ensembles.py`, which
+printed to stdout and wrote nothing — so the ranges quoted in the
+`dm_regime_split` caption, and the "not robust, therefore not claimed"
+finding built on them, rested on numbers no committed artifact contained.
+
+**What was added.** `run_dm_ensembles.py --export` writes
+`reports/tables/dm_bootstrap_sensitivity.csv`: one row per (subset, block
+length) with the circular block-bootstrap p and the HAC p, for all three
+subsets. `reported_range()` defines the caption's range rule next to the
+sweep that produces it.
+
+| subset | days | bootstrap p by block (3/4/5/7/9/10) | HAC p | reported range |
+|---|---|---|---|---|
+| all | 728 | .0129 .0204 .0269 .0396 .0503 .0571 | .0226 | **0.013 - 0.057** |
+| stressed | 77 | .0082 .0126 .0193 .0311 .0377 .0439 | .0063 | **0.006 - 0.044** |
+| calm | 651 | .8525 .8500 .8509 .8506 .8462 .8399 | .8465 | 0.840 - 0.853 |
+
+**Both pinned ranges reproduce exactly** — 0.006-0.044 and 0.013-0.057. As
+with the oracle, the prose was accurate and only unevidenced. No caption
+changed: `dm_regime_split.tex` is byte-identical, and no table was
+regenerated.
+
+**Why the range floor includes HAC.** On the stressed subset the HAC p
+(0.0063) is smaller than every bootstrap value, so a floor taken from the
+sweep alone would have reported 0.008 and silently narrowed the claim. The
+rule is min(min bootstrap, HAC) to max bootstrap, and it now lives in one
+function rather than in whoever last computed it by hand.
+
+**Duplication, deliberately.** `export_tables.py` re-implements the range
+rule instead of importing it, because scripts in this repo never import each
+other (the same reason `_rel` is duplicated). A new test asserts the two
+implementations agree on the same artifact, so the duplication cannot drift
+silently. Verified to bite: perturbing the sweep's b=10 row fails
+`test_block_bootstrap_caption_ranges_come_from_the_computed_sweep`.
+
+pytest 379 passed before, 380 after (one new test). Ledger gate bypassed
+once, trace above.
+
+**Ledger reconciliation: no pages banked.** Technical work again, zero
+template pages. Ledger still 0.0 dated 2026-08-05. Deferred to the next
+writing session — this is now the second consecutive deferral, and both
+class-(b) numbers from the T0 audit are closed, which removes the last
+technical excuse for not writing.

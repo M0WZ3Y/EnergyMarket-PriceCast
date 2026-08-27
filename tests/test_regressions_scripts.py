@@ -126,19 +126,39 @@ def test_captions_report_the_data_actually_exported(tmp_path, monkeypatch):
     assert "100 origins" in caption
 
 
-def test_block_bootstrap_caption_constants_are_pinned():
-    """The two block-bootstrap p ranges in the dm_regime_split caption come
-    from scripts/run_dm_ensembles.py, which export_tables.py never runs, so
-    they cannot be interpolated from the frames it holds.
+def test_block_bootstrap_caption_ranges_come_from_the_computed_sweep():
+    """The two block-bootstrap p ranges in the dm_regime_split caption.
 
-    Pinning them here is what keeps them honest: if run_dm_ensembles.py's
-    sensitivity analysis ever changes, this fails loudly instead of letting
-    a stale range be printed under a freshly computed table. Both ranges are
-    pinned together on purpose -- the stressed-day result and the
-    not-robust-over-all-days counterpart must always be reported as a pair.
+    These used to be literals asserted against themselves, which pinned them
+    against drift but could never catch them being WRONG -- the sweep that
+    produced them was printed to stdout and never committed. They are now
+    derived from reports/tables/dm_bootstrap_sensitivity.csv.
+
+    The expected values below are still written out, because the caption
+    quotes them and a silent change to the sweep must fail loudly rather
+    than flow through into freshly generated prose. The difference is that
+    they are now checked against a computation instead of a copy of
+    themselves. Both ranges are checked together on purpose -- the
+    stressed-day result and the not-robust-over-all-days counterpart must
+    always be reported as a pair.
     """
     assert export_tables.BOOTSTRAP_P_RANGE_STRESSED == (0.006, 0.044)
     assert export_tables.BOOTSTRAP_P_RANGE_ALL == (0.013, 0.057)
+
+
+def test_export_tables_bootstrap_range_matches_run_dm_ensembles():
+    """export_tables duplicates the range rule rather than importing it,
+    because scripts in this repo never import each other. This is what stops
+    that duplication from drifting: both implementations must agree on the
+    same artifact.
+    """
+    run_dm = _load_script("run_dm_ensembles")
+    table = pd.read_csv(export_tables.BOOTSTRAP_SENSITIVITY)
+    for subset, expected in (
+        ("stressed", export_tables.BOOTSTRAP_P_RANGE_STRESSED),
+        ("all", export_tables.BOOTSTRAP_P_RANGE_ALL),
+    ):
+        assert run_dm.reported_range(table, subset) == expected
 
 
 # ==========================================================================
