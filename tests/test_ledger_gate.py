@@ -29,22 +29,39 @@ def _ledger(tmp_path: Path, rows: list[tuple[str, float, str]]) -> Path:
 
 NOW = datetime(2026, 8, 7, 12, 0)
 
+# Design B fixtures. Quota 3 pages/week accruing from the FIRST ledger row;
+# blocks at 2 weeks of debt (6 pages), bypass disabled at 3 weeks (9 pages).
+ON_QUOTA = [("2026-08-01", 4.0, "3-5"), ("2026-08-04", 8.0, "3-6")]  # debt -8
+NEARLY = [("2026-07-27", 0.0, "opened")]                             # debt  3
+BLOCKED = [("2026-07-20", 0.0, "opened")]                            # debt  6
+HARD_CAPPED = [("2026-07-06", 0.0, "opened")]                        # debt 12
+
 
 # --------------------------------------------------------------------------
 # blocking conditions
 # --------------------------------------------------------------------------
-def test_blocks_when_the_latest_entry_is_stale(tmp_path):
-    path = _ledger(tmp_path, [("2026-08-01", 4.0, "3-5"), ("2026-08-04", 8.0, "3-6")])
+def test_staleness_alone_does_not_block(tmp_path):
+    """The whole point of design B. Under the old gate this ledger blocked
+    for being three days old; a stale ledger is the normal state of a
+    legitimate technical session, and blocking on it is what trained the
+    bypass reflex."""
+    path = _ledger(tmp_path, ON_QUOTA)
     blocked, why = ledger_gate.evaluate(ledger_gate.read_ledger(path), now=NOW)
-    assert blocked
-    assert "hours old" in why
+    assert not blocked, why
 
 
-def test_blocks_when_the_latest_entry_did_not_move_forward(tmp_path):
-    path = _ledger(tmp_path, [("2026-08-06", 8.0, "3-6"), ("2026-08-07", 8.0, "no progress")])
+def test_blocks_once_two_weeks_of_quota_have_accrued_unbanked(tmp_path):
+    path = _ledger(tmp_path, BLOCKED)
     blocked, why = ledger_gate.evaluate(ledger_gate.read_ledger(path), now=NOW)
     assert blocked
-    assert "no forward movement" in why
+    assert "behind quota" in why
+
+
+def test_one_week_of_debt_is_not_yet_blocking(tmp_path):
+    """Boundary: the rule is two weeks, so one week of debt still runs."""
+    path = _ledger(tmp_path, NEARLY)
+    blocked, why = ledger_gate.evaluate(ledger_gate.read_ledger(path), now=NOW)
+    assert not blocked, why
 
 
 def test_blocks_on_an_empty_or_missing_ledger(tmp_path):
@@ -53,59 +70,42 @@ def test_blocks_on_an_empty_or_missing_ledger(tmp_path):
     assert "empty or missing" in why
 
 
-def test_the_repo_ledger_today_is_blocking():
-    """The state that motivated the gate must actually trip it.
-
-    A gate that would have let 2026-08-07's ledger through would not have
-    solved the problem it was built for.
-    """
-    blocked, why = ledger_gate.evaluate(
-        ledger_gate.read_ledger(ledger_gate.DEFAULT_LEDGER), now=NOW
-    )
-    assert blocked, f"expected the repo ledger to block on {NOW.date()}, got: {why}"
+def test_debt_accrues_from_the_first_row_not_the_last(tmp_path):
+    """Adding a row that banks nothing must not reset the clock -- that
+    would let an empty entry buy another two weeks, indefinitely."""
+    path = _ledger(tmp_path, BLOCKED + [("2026-08-07", 0.0, "still nothing")])
+    assert ledger_gate.page_debt(ledger_gate.read_ledger(path), NOW) == 6.0
 
 
-# --------------------------------------------------------------------------
-# allowing conditions
-# --------------------------------------------------------------------------
-def test_allows_a_fresh_progressing_ledger(tmp_path):
-    path = _ledger(tmp_path, [("2026-08-06", 8.0, "3-6"), ("2026-08-07", 11.5, "3-7-1")])
-    blocked, why = ledger_gate.evaluate(ledger_gate.read_ledger(path), now=NOW)
-    assert not blocked, why
-
-
-def test_a_lone_fresh_entry_is_allowed(tmp_path):
-    """Documented choice: with one entry there is no previous count to
-    compare, so only staleness applies. Treating it as 'no progress' would
-    block every new ledger forever."""
-    path = _ledger(tmp_path, [("2026-08-07", 3.0, "first")])
-    blocked, why = ledger_gate.evaluate(ledger_gate.read_ledger(path), now=NOW)
-    assert not blocked, why
-
-
-def test_exactly_48_hours_is_still_allowed(tmp_path):
-    """Boundary: the rule is 'more than 48 hours', so exactly 48 passes."""
-    path = _ledger(tmp_path, [("2026-08-04", 1.0, "a"), ("2026-08-05", 2.0, "b")])
-    blocked, _ = ledger_gate.evaluate(
-        ledger_gate.read_ledger(path), now=datetime(2026, 8, 7, 0, 0)
-    )
+def test_writing_ahead_buys_slack(tmp_path):
+    """Negative debt is returned as-is, so pages banked early genuinely
+    count later. Under the old rule this ledger blocked for not moving."""
+    path = _ledger(tmp_path, [("2026-07-06", 40.0, "way ahead")])
+    debt = ledger_gate.page_debt(ledger_gate.read_ledger(path), NOW)
+    assert debt < 0
+    blocked, _ = ledger_gate.evaluate(ledger_gate.read_ledger(path), now=NOW)
     assert not blocked
 
 
-def test_a_page_count_that_goes_down_counts_as_movement(tmp_path):
-    """A cut section is real forward work on the thesis, and the ledger is
-    explicitly allowed to decrease (page_quota.pages_banked takes the latest
-    row, not the maximum). Only an UNCHANGED count means nothing happened."""
-    path = _ledger(tmp_path, [("2026-08-06", 8.0, "3-6"), ("2026-08-07", 6.0, "cut 3-5")])
-    blocked, why = ledger_gate.evaluate(ledger_gate.read_ledger(path), now=NOW)
-    assert not blocked, why
+def test_the_repo_ledger_is_blocking_today():
+    """The state that motivated the gate must actually trip it.
+
+    Dated 2026-08-27, not 2026-08-07: the ledger opened 2026-08-05, so on
+    08-07 it was two days old and genuinely owed nothing yet. Design B
+    blocks on falling behind, not on being new.
+    """
+    blocked, why = ledger_gate.evaluate(
+        ledger_gate.read_ledger(ledger_gate.DEFAULT_LEDGER),
+        now=datetime(2026, 8, 27, 12, 0),
+    )
+    assert blocked, f"expected the repo ledger to block, got: {why}"
 
 
 # --------------------------------------------------------------------------
 # the enforcement itself: exit code, not a warning
 # --------------------------------------------------------------------------
 def test_require_exits_nonzero_when_blocked(tmp_path):
-    path = _ledger(tmp_path, [("2026-08-01", 4.0, "old")])
+    path = _ledger(tmp_path, BLOCKED)
     with pytest.raises(SystemExit) as exc:
         ledger_gate.require_ledger_progress(
             "scripts/run_something.py", ledger_path=path, now=NOW, env={},
@@ -115,7 +115,7 @@ def test_require_exits_nonzero_when_blocked(tmp_path):
 
 
 def test_require_returns_quietly_when_allowed(tmp_path):
-    path = _ledger(tmp_path, [("2026-08-06", 8.0, "a"), ("2026-08-07", 11.0, "b")])
+    path = _ledger(tmp_path, ON_QUOTA)
     ledger_gate.require_ledger_progress(
         "scripts/run_something.py", ledger_path=path, now=NOW, env={},
         decisions_path=tmp_path / "decisions.md",
@@ -123,7 +123,7 @@ def test_require_returns_quietly_when_allowed(tmp_path):
 
 
 def test_blocked_message_names_the_script_and_the_escape_hatch(tmp_path, capsys):
-    path = _ledger(tmp_path, [("2026-08-01", 4.0, "old")])
+    path = _ledger(tmp_path, BLOCKED)
     with pytest.raises(SystemExit):
         ledger_gate.require_ledger_progress(
             "scripts/run_ood_recalibration.py", ledger_path=path, now=NOW, env={},
@@ -136,10 +136,10 @@ def test_blocked_message_names_the_script_and_the_escape_hatch(tmp_path, capsys)
 
 
 # --------------------------------------------------------------------------
-# bypass: works, and is never free
+# bypass: works, is never free, and stops working past the hard cap
 # --------------------------------------------------------------------------
 def test_bypass_allows_a_blocked_run_and_writes_a_trace(tmp_path):
-    path = _ledger(tmp_path, [("2026-08-01", 4.0, "old")])
+    path = _ledger(tmp_path, BLOCKED)
     decisions = tmp_path / "decisions.md"
     decisions.write_text("# existing content\n", encoding="utf-8")
 
@@ -156,11 +156,34 @@ def test_bypass_allows_a_blocked_run_and_writes_a_trace(tmp_path):
     assert "LEDGER GATE BYPASSED" in text
     assert "run_ood_recalibration.py" in text
     assert "(no reason given)" in text
-    assert "2026-08-01" in text, "the trace should record the ledger state at bypass"
+
+
+def test_the_bypass_says_it_does_not_reduce_the_debt(tmp_path, capsys):
+    path = _ledger(tmp_path, BLOCKED)
+    ledger_gate.require_ledger_progress(
+        "scripts/run_shap.py", ledger_path=path, now=NOW,
+        env={ledger_gate.BYPASS_ENV: "1"}, decisions_path=tmp_path / "decisions.md",
+    )
+    assert "does not reduce it" in capsys.readouterr().err
+
+
+def test_bypass_is_refused_past_the_hard_cap(tmp_path, capsys):
+    """Constraint (a): the gate must not be satisfiable by bypassing. Debt
+    rolls forward, and this is where the escape hatch closes."""
+    path = _ledger(tmp_path, HARD_CAPPED)
+    decisions = tmp_path / "decisions.md"
+    with pytest.raises(SystemExit) as exc:
+        ledger_gate.require_ledger_progress(
+            "scripts/run_shap.py", ledger_path=path, now=NOW,
+            env={ledger_gate.BYPASS_ENV: "urgent"}, decisions_path=decisions,
+        )
+    assert exc.value.code == 1
+    assert "DISABLED" in capsys.readouterr().err
+    assert not decisions.exists(), "a refused bypass must not log itself as taken"
 
 
 def test_bypass_value_is_recorded_as_the_reason(tmp_path):
-    path = _ledger(tmp_path, [("2026-08-01", 4.0, "old")])
+    path = _ledger(tmp_path, BLOCKED)
     decisions = tmp_path / "decisions.md"
 
     ledger_gate.require_ledger_progress(
@@ -178,7 +201,7 @@ def test_bypass_value_is_recorded_as_the_reason(tmp_path):
 
 def test_empty_bypass_value_does_not_bypass(tmp_path):
     """An unset-but-present variable must not silently disable the gate."""
-    path = _ledger(tmp_path, [("2026-08-01", 4.0, "old")])
+    path = _ledger(tmp_path, BLOCKED)
     with pytest.raises(SystemExit):
         ledger_gate.require_ledger_progress(
             "scripts/run_something.py",
@@ -190,9 +213,9 @@ def test_empty_bypass_value_does_not_bypass(tmp_path):
 
 
 def test_bypass_on_an_already_passing_ledger_still_logs(tmp_path):
-    """Setting the variable when it was not needed still leaves a trace —
+    """Setting the variable when it was not needed still leaves a trace --
     otherwise it could be left permanently exported with no record."""
-    path = _ledger(tmp_path, [("2026-08-06", 8.0, "a"), ("2026-08-07", 11.0, "b")])
+    path = _ledger(tmp_path, ON_QUOTA)
     decisions = tmp_path / "decisions.md"
     ledger_gate.require_ledger_progress(
         "scripts/run_ensemble.py", ledger_path=path, now=NOW,
