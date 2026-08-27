@@ -31,6 +31,12 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
 from conftest import require_thesis_data
+from src.evaluation.walk_forward import load_evaluation_config
+
+# Never a literal: configs/evaluation.yaml is the single source (T3).
+STRESS_THRESHOLD = float(
+    load_evaluation_config()["regime"]["stress_threshold_eur_mwh"]
+)
 
 
 def _load_run_shap():
@@ -113,7 +119,7 @@ def test_every_path_the_figure_code_actually_writes_is_declared(monkeypatch, tmp
 
     facts = {
         "n_test_days": 728, "test_start": "2016-01-04", "test_end": "2017-12-31",
-        "n_calm": 651, "n_stressed": 77, "threshold": 62.6989,
+        "n_calm": 651, "n_stressed": 77, "threshold": STRESS_THRESHOLD,
         "train_start": "2013-01-07", "train_end": "2016-01-03", "n_train_days": 1092,
         "beeswarm_hour": 18, "waterfall_day": "2017-01-24",
         "waterfall_regime": "stressed", "waterfall_baseload": 101.9,
@@ -247,7 +253,7 @@ def test_the_committed_run_used_the_ensemble_chapters_regime_split():
     facts = _facts()
     assert facts["n_calm"] + facts["n_stressed"] == facts["n_test_days"]
     assert facts["n_stressed"] == 77
-    assert facts["threshold"] == pytest.approx(62.6989)
+    assert facts["threshold"] == pytest.approx(STRESS_THRESHOLD)
 
 
 def test_the_exported_table_matches_the_cached_values():
