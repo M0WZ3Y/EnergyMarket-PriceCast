@@ -31,6 +31,8 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
+from src.features.physical import build_physical_blocks
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG = REPO_ROOT / "configs" / "features.yaml"
 
@@ -134,6 +136,15 @@ def build_features(
             block = wide[[f"{exog}_{h}" for h in hours]]
             block.columns = [f"{exog}_D0_{h}" for h in hours]
             X_parts.append(block)
+
+    # Physical (power-engineering) blocks — residual load, merit-order
+    # position, ramps, scarcity proxy. Purely additive and OFF unless
+    # configs/features.yaml enables them, so the default path still emits
+    # exactly the epftoolbox-comparable column set the frozen v1.0-results
+    # numbers were produced from. See src/features/physical.py.
+    physical_cfg = cfg.get("physical_blocks") or {}
+    if physical_cfg:
+        X_parts.append(build_physical_blocks(wide, physical_cfg))
 
     if cfg["weekday_dummies"]:
         dow = pd.Categorical(wide.index.dayofweek, categories=range(7))
