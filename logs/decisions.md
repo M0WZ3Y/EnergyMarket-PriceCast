@@ -2830,3 +2830,43 @@ Restored: 7 passed.
 pytest 385 passed before, 392 after (seven new tests).
 
 **Ledger: no pages banked.** Ledger still 0.0 dated 2026-08-05.
+
+
+### 2026-08-26 — T3: configs is the single source for the 3-8 threshold (62.6989)
+
+**Survey (step 1).** Every occurrence of the threshold in any form:
+
+| location | value | class |
+|---|---|---|
+| `configs/evaluation.yaml:52` | 62.6989 | **canonical** |
+| `CLAUDE.md:43` | 62.6989 | correct (fixed earlier in b7f9cf8) |
+| `CHECKLIST.md:49`, `THESIS-BRIEF.md:132,299`, `thesis/outline.md:42`, `docs/HANDOFF_new_model_design.md:139` | 62.6989 | correct prose |
+| `reports/tables/shap_importance.tex:2` | 62.70 | **correct rounding — left alone** |
+| `logs/decisions.md:932,943,1089,2516-2519` | 62.65 / 62.6522 | **historical record — must not be edited** |
+| `tests/test_run_shap.py:116,250` | 62.6989 | **stale literal in code — fixed** |
+
+No module in `src/` or `scripts/` hardcoded it; they already read
+`configs/evaluation.yaml`. So T3 was smaller than the brief assumed: the
+only code literals in the repo were the two in `test_run_shap.py`.
+
+**What was NOT touched.** The `62.65` values in `logs/decisions.md` are the
+historical entries that recorded the original computation, plus the
+2026-08-26 entry that corrects it. Editing them would falsify the log. The
+figure caption's "62.70" is correct rounding of the canonical value and is
+not an error. Figure 13 was not regenerated and the value itself did not
+change.
+
+**Fix.** `test_run_shap.py` now derives `STRESS_THRESHOLD` from
+`load_evaluation_config()` and uses it in both places. New guard
+`test_the_stress_threshold_is_never_hardcoded_outside_configs` scans every
+`.py` under `src/`, `scripts/`, `tests/` and `app/` for `62.6989`,
+`62.6522` or `62.65`, excluding only itself. Prose and `.tex` are not
+scanned — a caption that rounds to 62.70 is correct, and the log must keep
+its history.
+
+**Verified to bite.** Planting `STALE = 62.6989` in `src/_t3_probe.py` fails
+the guard with the file and line named; removing the probe passes.
+
+pytest 392 passed before, 393 after (one new test).
+
+**Ledger: no pages banked.** Ledger still 0.0 dated 2026-08-05.

@@ -12,6 +12,7 @@ Nothing here writes outside tmp_path.
 from __future__ import annotations
 
 import importlib.util
+import re
 import sys
 from pathlib import Path
 
@@ -189,4 +190,31 @@ def test_fetch_live_honours_an_explicit_cache_override(tmp_path, monkeypatch):
     sig = inspect.signature(run_ood_stress.fetch_live)
     assert "cache" in sig.parameters, (
         "fetch_live() takes no cache argument, so --cache cannot be honoured"
+    )
+
+
+# T3: configs/evaluation.yaml is the single source for the regime threshold.
+# Matches the canonical value, the superseded 2026-08-04 one, and its stale
+# rounding -- any of them appearing as a literal in code is the defect.
+_THRESHOLD_LITERAL = re.compile(r"62\.6989|62\.6522|62\.65(?![0-9])")
+
+
+def test_the_stress_threshold_is_never_hardcoded_outside_configs():
+    """The value drifted across the repo once already (CLAUDE.md said 62.65
+    while configs said 62.6989). Prose can be corrected by reading; code
+    cannot, so code must read configs. Figure captions that round it to
+    62.70 are correct and are not scanned -- only .py files are.
+    """
+    here = Path(__file__).resolve()
+    offenders = []
+    for folder in ("src", "scripts", "tests", "app"):
+        for path in (REPO_ROOT / folder).rglob("*.py"):
+            if path.resolve() == here:
+                continue
+            for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                if _THRESHOLD_LITERAL.search(line):
+                    offenders.append(f"  {path.relative_to(REPO_ROOT)}:{n}: {line.strip()}")
+    assert not offenders, (
+        "regime threshold hardcoded outside configs/evaluation.yaml:\n"
+        + "\n".join(offenders)
     )
