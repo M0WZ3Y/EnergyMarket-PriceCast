@@ -20,6 +20,7 @@ import pandas as pd
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
+from src.atomic_io import atomic_write_csv
 from src.data.loader import BenchmarkLoader, load_config
 from src.evaluation.walk_forward import load_evaluation_config, walk_forward_splits
 from src.runtime import keep_awake
@@ -71,7 +72,7 @@ def repair_partial_origins(out_path: Path) -> int:
         return 0
     kept = df[df["origin"].isin(complete)]
     removed = len(df) - len(kept)
-    kept.to_csv(out_path, index=False)
+    atomic_write_csv(kept, out_path)
     print(
         f"repaired {out_path.name}: dropped {removed} row(s) from "
         f"{len(counts) - len(complete)} incomplete origin(s)",
@@ -133,7 +134,9 @@ def run_one(
                 model=model_name,
             )
         )
-        rows.to_csv(out_path, mode="a", header=not out_path.exists(), index=False)
+        # Was mode="a" until 2026-08-26. That append is what let two
+        # concurrent runs interleave rows into one file on 2026-08-02.
+        atomic_write_csv(rows, out_path, append=True)
 
         if i % 25 == 0 or i == len(todo):
             rate = (time.monotonic() - t0) / i
