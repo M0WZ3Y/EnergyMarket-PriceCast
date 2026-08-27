@@ -22,3 +22,28 @@ exog_current_day: true
 
 # One-hot day-of-week dummies for target_day (Monday=0 .. Sunday=6).
 weekday_dummies: true
+
+# Physical (power-engineering) feature blocks — src/features/physical.py.
+#
+# ADDITIVE and OFF BY DEFAULT. Every flag below is false, so the default
+# build_features() path emits exactly the epftoolbox-comparable column set
+# that the frozen v1.0-results / v1.1-ood numbers were produced from. The
+# ablation harness (scripts/run_physical_ablation.py) turns them on one
+# block at a time in an in-memory copy of this config; it never rewrites
+# this file and never touches a saved result.
+#
+# Each key is a function name in src/features/physical.BLOCKS. A value of
+# false disables the block; true runs it with its defaults; a mapping passes
+# keyword arguments (e.g. {window: 365}). An unknown key raises rather than
+# being ignored — a silently-dropped block would still train and still
+# score, and would quietly not be the experiment anyone thought they ran.
+#
+# Blocks with no entry here are the declared-unavailable stubs
+# (marginal_fuel_carbon, clean_spreads, market_coupling, storage_hydro).
+# They require registered data feeds, which CLAUDE.md forbids; enabling one
+# raises FeatureDataUnavailable rather than fabricating a series.
+physical_blocks:
+  residual_load_block: false
+  residual_load_gradient_block: false
+  merit_order_block: false
+  scarcity_block: false
