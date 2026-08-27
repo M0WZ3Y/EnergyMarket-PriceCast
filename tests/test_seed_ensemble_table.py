@@ -61,11 +61,23 @@ EXPECTED_P_VS_DNN_ENSEMBLE = {
     "Ensemble (regime-aware), seed-ensembled LSTM": 0.0803,
 }
 
-# The oracle upper bound quoted in the caption. Not recomputed here — it
-# comes from the test-fitted (i.e. cheating) weighting reported on
-# 2026-08-07 — but pinned so the caption cannot drift away from it.
-ORACLE_WITH_SEED_MEMBER = 3.5019
+# The oracle upper bound quoted in the caption. Read from the artifact that
+# COMPUTES it (reports/tables/oracle_bound.csv, written by
+# run_seed_ensemble.py --oracle) rather than pinned as a literal. A literal
+# only proved that the caption and the test agreed with each other, which is
+# all it did until 2026-08-26 — the number itself had no committed
+# provenance. The caption is now checked against a computed value.
+ORACLE_TABLE = REPO_ROOT / "reports" / "tables" / "oracle_bound.csv"
+ORACLE_CAPTION_VALUE = 3.5019
 THEIR_DNN_ENSEMBLE = 3.4135
+
+
+def _oracle(member_set: str) -> float:
+    if not ORACLE_TABLE.exists():
+        pytest.skip("oracle_bound.csv not exported yet")
+    return float(
+        pd.read_csv(ORACLE_TABLE).set_index("member_set").loc[member_set, "oracle_MAE"]
+    )
 
 
 @pytest.fixture(scope="module")
@@ -114,7 +126,10 @@ def test_the_gap_to_their_dnn_ensemble_is_not_closed(table):
     """
     ours = table.drop(index="Lago et al. DNN Ensemble (reference)")
     assert ours["MAE"].min() > THEIR_DNN_ENSEMBLE
-    assert ORACLE_WITH_SEED_MEMBER > THEIR_DNN_ENSEMBLE
+    # Even the cheating bound stays behind them, on BOTH member sets — that
+    # pair is the argument that the gap is not closable by reweighting.
+    assert _oracle("seed-ensembled LSTM") > THEIR_DNN_ENSEMBLE
+    assert _oracle("frozen seed-42 LSTM") > THEIR_DNN_ENSEMBLE
 
 
 def test_seed_ensemble_beats_every_member_it_averages(table):
@@ -178,4 +193,9 @@ def test_the_caption_reports_both_halves_of_the_straddle():
     assert "while the static ensemble" in caption
     assert "SUPPLEMENTARY" in caption
     assert "frozen seed-42 LSTM" in caption
-    assert str(ORACLE_WITH_SEED_MEMBER) in caption
+    assert str(ORACLE_CAPTION_VALUE) in caption
+    # ...and the figure the caption quotes must be the COMPUTED one. Without
+    # this, the caption and the constant could agree while both were wrong.
+    assert _oracle("seed-ensembled LSTM") == pytest.approx(
+        ORACLE_CAPTION_VALUE, abs=5e-5
+    )

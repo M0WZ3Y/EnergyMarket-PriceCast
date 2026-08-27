@@ -2614,3 +2614,65 @@ Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent t
 `THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `run_lear_windows.py`. Reason given: 2026-08-20: combine step of the pre-registered LEAR multi-window sweep; reads completed frames only. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
 
 Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
+
+
+### 2026-08-26 — LEDGER GATE BYPASSED (run_seed_ensemble.py)
+
+`THESIS_SKIP_LEDGER_GATE` was set, so the ledger-progress gate did not run before `run_seed_ensemble.py`. Reason given: T0 follow-up: commit provenance for the 3.5019 oracle bound, which existed only as prose and a pinned test literal. Ledger state at bypass: last entry 2026-08-05, pages_banked 0.
+
+Recorded automatically by `src/ledger_gate.py`. The bypass exists so an urgent technical task is never hard-blocked by writing admin — but it leaves this trace, so choosing it is visible rather than free.
+
+
+### 2026-08-26 — The oracle bound now has provenance: 3.5019 reproduces exactly
+
+**What was wrong.** The T0 provenance audit found that the oracle upper bound
+(3.5019) — quoted in the `seed_ensemble` caption, in the 2026-08-07 entry
+above, in NEXT_SESSION.md and in the new-model handoff — existed nowhere as a
+committed computation. It was prose, plus a literal pinned in
+`tests/test_seed_ensemble_table.py`. That test asserted the caption matched the
+literal, so it proved the caption and the constant agreed with each other and
+nothing more. Every other headline number in the Lago comparison resolved to a
+committed results file; this one did not.
+
+**`run_seed_ensemble.py` could not produce it.** Its `evaluate()` fits weights
+on VALIDATION by construction and documents why ("scoring a test-window seed
+ensemble under test-fitted weights would be in-sample selection"). The oracle
+is test-fitted, i.e. precisely what that function exists to avoid. Rerunning
+the script in any existing mode would have regenerated the numbers already in
+`seed_ensemble.csv` and produced no oracle; rerunning `--seeds` would have
+retrained four LSTMs for hours to the same end. No retraining was needed —
+the oracle is a derived statistic over forecasts already committed.
+
+**What was added.** A `--oracle` mode on `run_seed_ensemble.py` writing
+`reports/tables/oracle_bound.csv`: global convex weights (one scalar per model
+across all 24 hours, no intercept — the same family as `run_combination_ladder`
+rung 0) fitted directly on TEST, for both member sets.
+
+| member set | oracle MAE | SARIMAX | LEAR-LASSO | LightGBM | LSTM |
+|---|---|---|---|---|---|
+| frozen seed-42 LSTM | 3.558024 | 0.1160 | 0.3038 | 0.2369 | 0.3433 |
+| seed-ensembled LSTM | 3.501884 | 0.0858 | 0.2534 | 0.1265 | 0.5343 |
+
+**Both remembered figures reproduce exactly** — 3.558 at the 2026-08-07 entry
+and 3.5019 in the caption. The prose was accurate all along; it was only
+unevidenced. Nothing in the substantive argument changes, and no result moved:
+`seed_ensemble.csv` is byte-identical, and nothing under `v1.0-results` or
+`v1.1-ood` was touched.
+
+**The test now checks a computed value.** `ORACLE_WITH_SEED_MEMBER` (a literal)
+is replaced by a read of the artifact, and the caption's figure is asserted
+against it. Verified to bite: perturbing `oracle_bound.csv` to 3.4019 fails
+both `test_the_gap_to_their_dnn_ensemble_is_not_closed` and
+`test_the_caption_reports_both_halves_of_the_straddle`; restoring passes.
+pytest 379 passed before and 379 after.
+
+**Standing-constraint note.** The technical-remediation pack says "do not
+re-run any experiment". This was a user decision (2026-08-26) taken with that
+constraint in view, and it is compatible with it: no model was refit, no result
+changed, and the seed-ensemble arm is explicitly outside the `v1.0-results`
+freeze. The ledger gate was bypassed once, trace above.
+
+**Ledger reconciliation: no pages banked.** This was technical work and it
+banked zero template pages. The ledger still reads 0.0 dated 2026-08-05 — the
+real outstanding problem, unchanged by this entry. Deferred again to the next
+writing session.
