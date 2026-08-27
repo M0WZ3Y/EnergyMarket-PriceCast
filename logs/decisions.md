@@ -2870,3 +2870,51 @@ the guard with the file and line named; removing the probe passes.
 pytest 392 passed before, 393 after (one new test).
 
 **Ledger: no pages banked.** Ledger still 0.0 dated 2026-08-05.
+
+
+### 2026-08-27 — T4: the ledger gate is now a weekly settlement (design B)
+
+**Chosen by the user (2026-08-26) from the two designs proposed under T4.**
+Design A (bypass budget) was rejected: it caps the rate of technical
+invocations without ever requiring a page to exist, and batching a session's
+work behind fewer commands defeats it — 2026-08-07's eight bypasses would
+have cost two units under it, with the same zero pages banked.
+
+**Why the old gate failed, precisely.** `evaluate()` had two conditions:
+staleness over 48h, and "latest entry banks the same as the previous one".
+The second needs two ledger rows, and `thesis/page_ledger.csv` has only ever
+had one — so it has NEVER fired. Every block this gate has ever produced was
+a staleness block, which is exactly the condition the T4 brief forbids,
+because a stale ledger is the normal state of a legitimate technical session.
+That is what trained the bypass reflex: 14 bypasses across 4 days.
+
+**What replaced it.** A quota of 3.0 template pages/week accrues from the
+FIRST ledger row. `page_debt()` = accrued quota − pages banked. Blocking
+starts at 2 weeks of debt (6 pages); the bypass is refused entirely at 3
+weeks (9 pages). Staleness is not consulted at all, and the rule needs only
+one ledger row to work. Writing ahead produces negative debt and genuinely
+buys slack later. Adding a row that banks nothing does not reset the clock,
+because the clock runs from the first row — otherwise an empty entry would
+buy another two weeks indefinitely. 6 net new statements, cap 40.
+
+**Immediate consequence, and it is not theoretical.** The ledger opened
+2026-08-05 with 0.0 pages. As of 2026-08-27 that is 3 accrued weeks, so the
+debt is exactly **9.0 pages — precisely the hard cap**. All 17 gated scripts
+are now blocked AND the bypass is disabled. Banking 0.5 pages restores the
+bypass; 3.5 pages clears the block. This is the design working as specified,
+not a defect, but it means the next technical session cannot start without
+banking something first.
+
+**Failure mode this does not cover** (stated when the design was proposed and
+still true): `pages_banked` is self-reported, so the rule is defeated by
+writing a generous number into the CSV. It measures a claim about template
+pages, not template pages. It is also insensitive to timing within a week,
+and a legitimately lost week creates debt that must be paid or force-cleared.
+
+pytest 393 passed before, 394 after. The gate's own suite went from 39 to 44
+tests: staleness-blocking tests were replaced by their inverse
+(`test_staleness_alone_does_not_block`), and new tests pin the hard cap, the
+first-row clock, and that a refused bypass does not log itself as taken.
+
+**Ledger: no pages banked.** Unchanged at 0.0 dated 2026-08-05 — which is now
+a hard blocker rather than a note.

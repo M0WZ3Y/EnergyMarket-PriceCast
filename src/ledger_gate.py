@@ -34,7 +34,7 @@ from __future__ import annotations
 import csv
 import os
 import sys
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -42,7 +42,21 @@ DEFAULT_LEDGER = REPO_ROOT / "thesis" / "page_ledger.csv"
 DEFAULT_DECISIONS = REPO_ROOT / "logs" / "decisions.md"
 
 BYPASS_ENV = "THESIS_SKIP_LEDGER_GATE"
-STALE_HOURS = 48
+
+# Weekly settlement (T4, design B, chosen 2026-08-26). The gate no longer
+# blocks on staleness: a stale ledger is the NORMAL state during a
+# legitimate technical session, and blocking on it is what trained the
+# bypass reflex -- every block this gate ever produced was a staleness
+# block, because the "no forward movement" rule needs two ledger rows and
+# the ledger has only ever had one.
+#
+# What is measured instead is banked template pages against an accruing
+# weekly quota. Debt rolls forward, so a bypass does not clear it, and past
+# DEBT_HARD_CAP_WEEKS the bypass stops working altogether -- the cost that
+# makes the gate not satisfiable by bypassing.
+WEEKLY_PAGE_QUOTA = 3.0
+DEBT_BLOCK_WEEKS = 2
+DEBT_HARD_CAP_WEEKS = 3
 
 # Values that mean "on" but carry no explanation. Anything else set in the
 # variable is treated as the reason itself, so a bypass can be self-documenting.
@@ -80,24 +94,35 @@ def read_ledger(path: str | Path = DEFAULT_LEDGER) -> list[dict]:
     return sorted(rows, key=lambda r: r["date"])
 
 
+def page_debt(ledger: list[dict], now: datetime | None = None) -> float:
+    """Template pages owed: accrued quota since the ledger opened, minus banked.
+
+    Weeks accrue from the FIRST ledger row, so the clock starts when the
+    project started counting, not at whatever the latest row happens to say.
+    Debt is therefore unaffected by how recently anything was logged — which
+    is the point: staleness is not a violation, falling behind is.
+
+    Negative debt means ahead of quota and is returned as-is, so writing
+    ahead genuinely buys slack later.
+    """
+    now = now or datetime.now()
+    if not ledger:
+        return WEEKLY_PAGE_QUOTA * DEBT_BLOCK_WEEKS
+    weeks = max(0, (now.date() - ledger[0]["date"]).days // 7)
+    return WEEKLY_PAGE_QUOTA * weeks - ledger[-1]["pages_banked"]
+
+
 def evaluate(ledger: list[dict], now: datetime | None = None) -> tuple[bool, str]:
     """(blocked, reason). Reason is '' when not blocked.
 
-    Two independent block conditions, per the rule this implements:
+    ONE block condition: the accrued page debt has reached
+    DEBT_BLOCK_WEEKS worth of quota. Deliberately NOT staleness — a ledger
+    untouched for days is the normal state of a legitimate technical
+    session, and blocking on it is what made the old gate something to
+    bypass reflexively rather than satisfy.
 
-      1. The most recent entry is more than STALE_HOURS old.
-      2. The most recent entry banked the same page count as the one before
-         it — logged, but no forward movement.
-
-    Ledger dates have day granularity, so an entry is treated as made at
-    00:00 of its date. That is the conservative reading: it can only make an
-    entry look older, never fresher.
-
-    A ledger with exactly ONE entry cannot be evaluated on condition 2 —
-    there is nothing to compare against — so only staleness applies. The
-    alternative (treating a lone entry as "no progress") would block every
-    fresh ledger permanently, including a brand-new project's, which would
-    make the gate something people rip out rather than use.
+    A brand-new ledger owes nothing until a week has accrued, so this does
+    not block a fresh project, and it does not need two rows to work.
     """
     now = now or datetime.now()
 
@@ -107,23 +132,13 @@ def evaluate(ledger: list[dict], now: datetime | None = None) -> tuple[bool, str
             "any writing progress"
         )
 
-    last = ledger[-1]
-    age = now - datetime.combine(last["date"], datetime.min.time())
-    if age > timedelta(hours=STALE_HOURS):
-        hours = age.total_seconds() / 3600
+    debt = page_debt(ledger, now)
+    if debt >= WEEKLY_PAGE_QUOTA * DEBT_BLOCK_WEEKS:
         return True, (
-            f"the most recent ledger entry is dated {last['date']}, "
-            f"{hours:.0f} hours old (limit {STALE_HOURS})"
+            f"{debt:g} template pages behind quota "
+            f"({WEEKLY_PAGE_QUOTA:g}/week accruing since {ledger[0]['date']}; "
+            f"{ledger[-1]['pages_banked']:g} banked)"
         )
-
-    if len(ledger) >= 2:
-        prev = ledger[-2]
-        if last["pages_banked"] == prev["pages_banked"]:
-            return True, (
-                f"the most recent ledger entry ({last['date']}) banks "
-                f"{last['pages_banked']:g} pages, the same as the entry before it "
-                f"({prev['date']}) — logged, but no forward movement"
-            )
 
     return False, ""
 
@@ -187,10 +202,25 @@ def require_ledger_progress(
 
     reason = _bypass_reason(env)
     if reason is not None:
+        debt = page_debt(ledger, now or datetime.now())
+        if debt >= WEEKLY_PAGE_QUOTA * DEBT_HARD_CAP_WEEKS:
+            # The cost that makes this gate not satisfiable by bypassing.
+            print(
+                f"\n[ledger-gate] refusing to run {Path(script).name}\n\n"
+                f"  {debt:g} template pages behind quota — past the "
+                f"{WEEKLY_PAGE_QUOTA * DEBT_HARD_CAP_WEEKS:g}-page hard cap.\n\n"
+                f"  {BYPASS_ENV} is DISABLED at this level of debt. Bypassing does\n"
+                "  not clear debt, and this is the point where it stops working.\n\n"
+                "    ./.venv/Scripts/python.exe scripts/page_quota.py --add <pages> "
+                '--note "<section>"\n',
+                file=sys.stderr,
+            )
+            raise SystemExit(1)
         log_bypass(script, reason, ledger, now=now, decisions_path=decisions_path)
         print(
             f"[ledger-gate] BYPASSED via {BYPASS_ENV} ({reason}). "
-            f"Logged to {Path(decisions_path).name}.",
+            f"Logged to {Path(decisions_path).name}. "
+            f"Page debt is {debt:g} and this bypass does not reduce it.",
             file=sys.stderr,
         )
         return
