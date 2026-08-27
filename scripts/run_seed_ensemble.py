@@ -269,10 +269,81 @@ def evaluate() -> pd.DataFrame:
     return table
 
 
+ORACLE_TABLE = REPO_ROOT / "reports" / "tables" / "oracle_bound.csv"
+
+
+def oracle_bound() -> pd.DataFrame:
+    """Test-fitted ORACLE upper bound on global convex reweighting.
+
+    ILLEGITIMATE BY CONSTRUCTION and never a reportable forecast: the weights
+    are fitted directly on the test set, so this is cheating and is useful
+    only as a hard upper bound on what ANY global convex weighting of these
+    members could achieve. One scalar weight per model applied identically
+    across all 24 hours, no intercept -- the same family as
+    run_combination_ladder rung 0, which is why that ladder's rungs 1-3 sit
+    outside this bound and are unmeasured rather than known-futile.
+
+    Both member sets are emitted because the pair is the argument: swapping
+    the frozen seed-42 LSTM for the seed-ensembled one moves the bound from
+    3.558 to 3.5019, and BOTH remain above Lago et al.'s 3.4135. That is the
+    evidence that the gap is not closable by ensembling.
+    """
+    from scipy.optimize import minimize
+
+    def _matrix(path: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
+        d = _long(path)
+        return (d.pivot(index="origin", columns="hour", values="y_pred").sort_index(),
+                d.pivot(index="origin", columns="hour", values="y_true").sort_index())
+
+    def _fit(P: np.ndarray, y: np.ndarray) -> np.ndarray:
+        n = P.shape[0]
+        if not np.isfinite(P).all() or not np.isfinite(y).all():
+            raise ValueError("non-finite values reached the oracle weight fit")
+        res = minimize(lambda w: float(np.mean(np.abs(y - w @ P))), x0=np.full(n, 1.0 / n),
+                       method="SLSQP", bounds=[(0.0, 1.0)] * n,
+                       constraints={"type": "eq", "fun": lambda w: w.sum() - 1.0})
+        # SLSQP returns its start point on failure, which would silently
+        # degrade the bound to an equal-weight average. Fail loudly.
+        if not res.success:
+            raise RuntimeError(f"oracle weight fit did not converge: {res.message}")
+        return res.x / res.x.sum()
+
+    base = REPO_ROOT / "data" / "processed" / "baselines"
+    rows = []
+    for label, lstm in (("frozen seed-42 LSTM", base / "lstm.csv"),
+                        ("seed-ensembled LSTM", OUT_DIR / "lstm_seed_ensemble.csv")):
+        members = {"SARIMAX": base / "sarimax.csv", "LEAR-LASSO": base / "lear_lasso.csv",
+                   "LightGBM": base / "lightgbm.csv", "LSTM": lstm}
+        mats, truth = {}, None
+        for m, path in members.items():
+            mats[m], t = _matrix(path)
+            truth = t if truth is None else truth
+            if not mats[m].index.equals(truth.index):
+                raise ValueError(f"origin grid mismatch for {m} in {label}")
+        names = list(mats)
+        P = np.stack([mats[m].to_numpy().ravel() for m in names])
+        y = truth.to_numpy().ravel()
+        w = _fit(P, y)
+        rows.append({"member_set": label, "origins": int(truth.shape[0]),
+                     "oracle_MAE": float(np.mean(np.abs(y - w @ P))),
+                     **{f"w_{m}": float(v) for m, v in zip(names, w)}})
+
+    table = pd.DataFrame(rows)
+    ORACLE_TABLE.parent.mkdir(parents=True, exist_ok=True)
+    table.to_csv(ORACLE_TABLE, index=False)
+    print()
+    print(table.to_string(index=False))
+    print()
+    print(f"wrote {ORACLE_TABLE.relative_to(REPO_ROOT)}")
+    print("their DNN Ensemble: MAE 3.4135 -- both bounds stay above it")
+    return table
+
+
 def main(
     seeds: list[int] | None,
     do_combine: bool,
     do_evaluate: bool = False,
+    do_oracle: bool = False,
     first_origin=None,
     last_origin=None,
     out_dir: Path | None = None,
@@ -283,6 +354,8 @@ def main(
         combine()
     if do_evaluate:
         evaluate()
+    if do_oracle:
+        oracle_bound()
 
 
 if __name__ == "__main__":
@@ -298,8 +371,11 @@ if __name__ == "__main__":
     parser.add_argument("--combine", action="store_true")
     parser.add_argument("--evaluate", action="store_true",
                         help="fit weights on validation, score on test, DM vs Lago")
+    parser.add_argument("--oracle", action="store_true",
+                        help="test-fitted upper bound on global convex reweighting")
     parser.add_argument("--first-origin", type=pd.Timestamp, default=None)
     parser.add_argument("--last-origin", type=pd.Timestamp, default=None)
     parser.add_argument("--out-dir", type=Path, default=None)
     args = parser.parse_args()
-    main(args.seeds, args.combine, args.evaluate, args.first_origin, args.last_origin, args.out_dir)
+    main(args.seeds, args.combine, args.evaluate, args.oracle,
+         args.first_origin, args.last_origin, args.out_dir)
