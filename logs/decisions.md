@@ -2789,3 +2789,44 @@ Flagged, not fixed — same fix would apply if it ever matters.
 
 **Ledger: no pages banked.** Third consecutive technical session. Ledger
 still 0.0 dated 2026-08-05.
+
+
+### 2026-08-26 — T2: keep_awake() reports advisory-only status instead of failing silently
+
+**What it actually requests, and what the OS may ignore.**
+`SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED)` asks Windows not
+to fire the system idle timer; the OS is free to ignore it, because Modern
+Standby (S0) still suspends on lid close and under battery/DRIPS policy, and a
+user-initiated sleep always wins.
+
+**A third failure mode was hiding in the old code.** `SetThreadExecutionState`
+returns the previous state, or 0 on failure — and the return value was
+discarded. So an outright API failure was indistinguishable from success, on
+top of the advisory-only problem. It is now checked.
+
+**Changes.** `keep_awake()` yields a `KeepAwakeStatus(requested, guaranteed,
+detail)` instead of None. `guaranteed` is never True — it exists so a caller
+cannot read "the request was accepted" as "the run is safe". Every path logs
+at WARNING through `logging.getLogger("src.runtime")`, including the success
+path, because a granted request still does not make the run safe. The
+docstring now opens with "ADVISORY ONLY — cannot stop Windows Modern Standby
+from killing a run" rather than burying it three paragraphs down, and a test
+asserts that first line keeps saying so. 12 net new statements, cap 25.
+
+No attempt to defeat Modern Standby and no new dependency. The real
+mitigation is unchanged and is stated in the docstring: run on AC, where the
+idle timeout is "never".
+
+**Mutation result.** The first attempt reverted the whole module to its
+pre-fix version, which only produced a collection ImportError — that proves
+the tests need the new API, not that they catch the silence. Repeated with
+the defect isolated instead (keep the status object, revert `logger.warning`
+to `print`): exactly the three loudness tests fail
+(`test_warns_even_when_the_request_is_accepted`,
+`test_warns_loudly_when_the_platform_cannot_honour_the_request`,
+`test_warns_when_the_api_call_itself_fails`) and the other four still pass.
+Restored: 7 passed.
+
+pytest 385 passed before, 392 after (seven new tests).
+
+**Ledger: no pages banked.** Ledger still 0.0 dated 2026-08-05.
