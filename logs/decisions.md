@@ -2918,3 +2918,72 @@ first-row clock, and that a refused bypass does not log itself as taken.
 
 **Ledger: no pages banked.** Unchanged at 0.0 dated 2026-08-05 — which is now
 a hard blocker rather than a note.
+
+---
+
+## 2026-08-27 — Power-engineering feature layer added, all blocks default OFF
+
+**What.** A price-formation reference map (`src/features/price_formation.py`),
+a programmatic feature audit + gap scorer (`src/features/audit.py`), four
+buildable physical feature blocks (`src/features/physical.py`),
+regime-segmented error evaluation (`src/evaluation/regimes.py`) and a
+print-only ablation harness (`scripts/run_physical_ablation.py`). Branch
+`power-engineering-features`, five commits.
+
+**Why the scope is what it is.** The audit maps nine physical mechanisms.
+Only five are buildable from the sanctioned information set, because the
+benchmark data is exactly three series: `price`, `exog_1` (Amprion day-ahead
+LOAD forecast) and `exog_2` (day-ahead PV+wind forecast). Marginal
+fuel/carbon, clean spark/dark spreads, market coupling and storage/hydro all
+need registered feeds (EEX/ICE futures, ENTSO-E token), which the data rule
+in CLAUDE.md forbids. They are implemented as stubs that raise
+`FeatureDataUnavailable` rather than returning a stand-in series: a
+fabricated driver would make every downstream metric a statement about
+invented data. Scarcity is a partial case — the true reserve margin needs an
+outage feed, so only a tightness PROXY is built, and every column carries
+`_proxy` in its name so it cannot be misread as a measured reserve margin.
+
+**Data finding worth recording.** `exog_1` is Amprion ZONAL load (mean 21.4
+GW) while `exog_2` is all-Germany PV+wind (mean 10.7 GW, max 48.6 GW — above
+the zonal load maximum of 35.5 GW). Residual load `exog_1 - exog_2` is
+therefore negative in 9.9% of hours, and `res_share` exceeds 1. This is a
+scale mismatch inherent to the epftoolbox DE dataset, NOT a physical fact
+about Germany, and it was NOT "corrected": rescaling would require inventing
+a zonal-to-national factor. The construct still earns its place —
+corr(residual_load, price) = 0.689 against corr(exog_1, price) = 0.611 and
+corr(exog_2, price) = -0.389, so it carries more price information than
+either input alone.
+
+**Frozen results are untouched, and this is verified, not assumed.** Every
+flag in the new `physical_blocks:` section of configs/features.yaml is
+false. The default `build_features()` output was compared against
+`main`'s: 2177x247, identical column order, identical value hash. The
+ablation harness applies variant configs to an in-memory copy of the config,
+so a crashed run cannot leave the default pipeline with physical features
+switched on, and it writes no file at all — hence it is correctly absent
+from `test_ledger_gate.py`'s GATED list.
+
+**Fair-comparison rule.** merit_order and scarcity need a 365-day trailing
+reference, which drops ~358 early rows (2177 -> 1819). The harness scores
+every variant on the INTERSECTION of all variants' origins; scoring a
+variant on a later, easier day set than the baseline would manufacture an
+improvement out of nothing.
+
+**Leakage.** Tested as properties, not asserted in comments: perturbing the
+target day's price moves no physical column; perturbing day D+1 moves
+nothing for day D; merit-order position is recomputed by hand from days
+k-window..k-1. Mutation-checked — removing the `.shift(1)` in `_trailing`
+(the roll-then-shift ordering bug) fails two independent tests.
+
+**No existing code was modified except one additive hook** in
+`build_features()` — no defect was found in the feature layer to fix. The
+blocks are inserted BEFORE the weekday dummies so
+`LEARLassoModel._assert_dow_columns_last` keeps holding.
+
+pytest 389 passed + 44 ledger-gate tests = 433, zero failures.
+
+**Ledger: no pages banked** — this was a code task, not a writing task. Debt
+remains at the 9.0-page hard cap noted in the 2026-08-27 gate entry above;
+the new script is ungated because it saves nothing, so it was not blocked by
+that cap. Deferral logged here per the mandatory post-task reconciliation
+rule.
