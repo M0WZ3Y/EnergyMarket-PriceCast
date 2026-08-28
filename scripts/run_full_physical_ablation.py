@@ -35,6 +35,7 @@ THREE THINGS THAT WOULD RIG THE COMPARISON IF LEFT UNHANDLED, all enforced:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import sys
 import time
 from pathlib import Path
@@ -55,6 +56,16 @@ from src.features import leakage_guard as lg  # noqa: E402
 from src.features.audit import audit_features, prioritize_gaps  # noqa: E402
 from src.features.pipeline import build_features, load_feature_config  # noqa: E402
 from src.models import LEARLassoModel, load_models_config  # noqa: E402
+
+#: Where per-variant predictions are cached.
+#:
+#: Deliberately OUTSIDE data/processed. That directory is listed in
+#: .claude/hooks/frozen_results_guard.py's FROZEN_DIRS and the v1.0-results
+#: tag exists, so it is frozen -- and while a brand-new subdirectory there
+#: would not overwrite any existing result, putting ablation output inside
+#: the frozen tree invites exactly the ambiguity the freeze rule exists to
+#: prevent. This path is new, unfrozen, and regenerable.
+CACHE_DIR = REPO_ROOT / "data" / "ablation_cache"
 
 #: variant name -> (physical_blocks, exog_blocks)
 VARIANTS: dict[str, tuple[dict, dict]] = {
@@ -187,6 +198,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--origins", type=int, default=100)
     ap.add_argument("--calibration", type=int, default=728)
     ap.add_argument("--only", nargs="*", default=None)
+    ap.add_argument("--no-cache", action="store_true",
+                    help="refit every variant even if a cached prediction exists")
     ap.add_argument("--collinearity-only", action="store_true",
                     help="print the audit, guard and collinearity report, then stop")
     args = ap.parse_args(argv)
@@ -341,6 +354,22 @@ def main(argv: list[str] | None = None) -> int:
     # the interconnector is not binding. Drop them for THIS model and say so:
     # a column silently removed would make the variant a different experiment
     # from the one its name claims.
+    # PREDICTIONS ARE PERSISTED PER VARIANT, and reloaded on a later run.
+    #
+    # An earlier version held every variant's predictions in memory and
+    # computed all tables only after the last one finished. A kill during the
+    # final variant therefore discarded seven completed fits -- about two
+    # hours of compute -- with nothing recoverable, because success was only
+    # ever recorded at the very end. Each variant now writes its own file as
+    # soon as it finishes, so an interruption costs one variant instead of
+    # all of them, and a re-run resumes rather than restarts.
+    #
+    # This writes to a NEW directory and touches no frozen artifact.
+    cache_dir = CACHE_DIR / f"o{args.origins}_c{calibration}"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    print(f"prediction cache  {cache_dir}")
+    print()
+
     unscalable: dict[str, list[str]] = {}
     results: dict[str, pd.DataFrame] = {}
     for name, (X, Y, _) in built.items():
@@ -348,13 +377,33 @@ def main(argv: list[str] | None = None) -> int:
         Xa, dropped = col.drop_unscalable_over_windows(Xa, origins, calibration)
         if dropped:
             unscalable[name] = dropped
+
+        # The cache key includes the feature-set fingerprint, so a variant
+        # whose columns changed since it was cached is refit rather than
+        # silently reused -- a stale prediction file would otherwise be
+        # scored as if it came from the current feature set.
+        fingerprint = hashlib.md5(
+            ("|".join(Xa.columns) + f"|{len(Xa)}").encode()
+        ).hexdigest()[:12]
+        cache_file = cache_dir / f"{name}__{fingerprint}.csv"
+
+        if cache_file.exists() and not args.no_cache:
+            results[name] = pd.read_csv(cache_file, parse_dates=["origin"])
+            print(f"[cached] {name:<20} X={Xa.shape}  "
+                  f"{len(results[name]) // 24} origins from {cache_file.name}")
+            continue
+
         print(f"[run] {name:<20} X={Xa.shape} ...", end=" ", flush=True)
         t0 = time.time()
-        results[name] = run_model(
+        frame = run_model(
             name, LEARLassoModel(models_cfg["lear_lasso"]), Xa, Ya,
             eval_cfg=eval_cfg, first_origin=origins.min(),
         )
-        print(f"{len(results[name]) // 24} origins in {time.time() - t0:.0f}s")
+        results[name] = frame
+        # Write immediately -- the whole point is that this survives a kill.
+        frame.to_csv(cache_file, index=False, lineterminator="\n")
+        print(f"{len(frame) // 24} origins in {time.time() - t0:.0f}s "
+              f"-> {cache_file.name}")
 
     # --- pooled ------------------------------------------------------------
     print()

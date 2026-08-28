@@ -75,3 +75,9 @@ logs/runs/
 # a live source is not reproducible, and each file's sha256 in
 # provenance.json is what makes drift fail loudly instead of silently.
 !data/raw/physical/
+
+# Per-variant ablation predictions (scripts/run_full_physical_ablation.py).
+# Regenerable intermediate data, cached only so an interrupted run resumes
+# instead of restarting. Deliberately NOT under data/processed, which the
+# frozen_results_guard hook protects.
+data/ablation_cache/
