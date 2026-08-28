@@ -88,3 +88,11 @@ exog_blocks:
   # the ENTSO-E outage feed rests on more than the one proxy guaranteed to be
   # degenerate.
   dispatchable_headroom_block: false  # idle dispatchable capacity, lagged
+  # Coupling re-encoded as STATE + signed magnitude, replacing the raw spread
+  # of coupling_block, which made its own target regime WORSE (coupling_stress
+  # MAE +10.8%) while carrying information the baseline lacks -- i.e. the
+  # encoding was the problem, not the mechanism. A coupled border clears at an
+  # identical price, so the spread is a point mass at zero (FR 33%, NL 38%,
+  # BE 31%) plus a continuous tail, and one coefficient cannot serve both.
+  # CH is exempt at 0.1%: Switzerland sits outside EU market coupling.
+  coupling_state_block: false         # binding count + signed magnitude, lagged
