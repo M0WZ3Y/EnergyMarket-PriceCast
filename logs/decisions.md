@@ -3108,3 +3108,59 @@ pytest 467 passed (423 + 44 ledger-gate), zero failures.
 **Ledger: no pages banked** — this was a code task. Debt remains at the 9.0-page
 hard cap; the new scripts are ungated because they save no thesis results.
 Deferral logged here per the mandatory post-task reconciliation rule.
+
+---
+
+## 2026-08-28 — PRE-REGISTERED: B4 coupling diagnosis, recorded before the result
+
+**Status at the time of writing: the full-scale ablation is RUNNING and has
+reported only its baseline variant. No B4_coupling number at 80 origins exists
+yet, here or anywhere.** This entry is committed first precisely so the
+diagnosis cannot be fitted to the number afterwards. Whatever the run reports,
+this is what was predicted beforehand.
+
+**Evidence already in hand** (from a 2-origin smoke run, which is far too small
+to judge accuracy but is perfectly adequate for a correlation structure):
+`diagnose_block` reported B4_coupling as median max|r| = 0.599 against the
+baseline columns, with 0% of its columns at |r| >= 0.90.
+
+**Prediction.** If B4_coupling fails to improve its `coupling_stress` target
+regime at full scale, the diagnosis is MISSPECIFICATION, not redundancy.
+Redundancy is already ruled out by the correlation structure above: the coupling
+columns carry information the baseline does not have. A block that is
+independent of the baseline and still fails the regime it physically targets is
+failing on construction, not on the mechanism being absent from the market.
+
+**Named suspect: the spread encoding.** A raw continuous DE-vs-neighbour spread
+is zero-inflated by the physics of market coupling — the two zones clear at
+exactly the same price whenever the interconnector is not binding, which for
+DE-NL is 51.2% of hours at 04-07 and 18-19 (this is the same property that
+gave those columns zero MAD and broke LEAR's scaler). The informative content
+of coupling is therefore mostly the DISCRETE question "is the border binding at
+all", and a single continuous column buries that question inside a large mass of
+structural near-zeros. A linear model asked to read a regime indicator out of a
+zero-inflated continuous variable is being asked the wrong question.
+
+**Remedy to try IF the prediction holds** — not implemented yet, deliberately:
+decompose the mechanism into the two physically distinct parts a single spread
+conflates.
+
+  (i)  BINDING INDICATOR — is the border congested. A discrete state.
+  (ii) SIGNED MAGNITUDE conditional on binding — direction is independently
+       meaningful, because DE-LU importing and DE-LU exporting are different
+       price regimes. One continuous signed column forces the model to learn
+       both regimes through a single parameter.
+
+**LEAKAGE TRAP attached to that remedy, to be enforced when it is built.**
+Target-day congestion state is NOT knowable before gate closure. The binding
+indicator must be built from lagged or scheduled quantities only — lagged
+binding frequency, or scheduled flow relative to NTC — and never from realized
+congestion on the delivery day. This one is easy to get wrong precisely because
+a congestion indicator FEELS structural rather than price-like, and structural
+quantities have so far been the legal ones (installed capacity is legal at lag
+0). It is not: congestion is an auction outcome. `leakage_guard.SOURCE_TIMING`
+must classify it accordingly, and the guard must cover the new columns.
+
+**Falsification condition.** If B4_coupling DOES improve `coupling_stress`, this
+prediction is simply wrong and the spread encoding is adequate as built; the
+entry stays as written rather than being edited to match.
