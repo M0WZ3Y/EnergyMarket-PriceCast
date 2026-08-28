@@ -333,9 +333,21 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  NOTE: mechanism context missing {missing_segments}; the")
         print("  segments depending on them are OMITTED, not reported empty.")
 
+    # LEAR standardises with median/MAD, so a column whose values are more
+    # than half identical to its median has MAD 0 and divides by zero --
+    # surfacing much later as an opaque "Input X contains NaN" from sklearn.
+    # Neighbour-price SPREADS are zero-inflated exactly this way, because
+    # market coupling clears DE and its neighbour at the same price whenever
+    # the interconnector is not binding. Drop them for THIS model and say so:
+    # a column silently removed would make the variant a different experiment
+    # from the one its name claims.
+    unscalable: dict[str, list[str]] = {}
     results: dict[str, pd.DataFrame] = {}
     for name, (X, Y, _) in built.items():
         Xa, Ya = X.loc[common], Y.loc[common]
+        Xa, dropped = col.drop_unscalable_over_windows(Xa, origins, calibration)
+        if dropped:
+            unscalable[name] = dropped
         print(f"[run] {name:<20} X={Xa.shape} ...", end=" ", flush=True)
         t0 = time.time()
         results[name] = run_model(
@@ -346,6 +358,21 @@ def main(argv: list[str] | None = None) -> int:
 
     # --- pooled ------------------------------------------------------------
     print()
+    if unscalable:
+        print("-" * 78)
+        print("COLUMNS DROPPED FOR LEAR (zero MAD — unscalable by its "
+              "median/MAD scaler)")
+        print("-" * 78)
+        for n, cols in unscalable.items():
+            print(f"  {n:<20} {len(cols)} dropped: {cols}")
+        print("  Checked over EVERY training window the run uses, not just the")
+        print("  full series: LEAR rescales per window, so a column can be fine")
+        print("  globally and degenerate inside one window.")
+        print("  These are physically meaningful and would be usable by a tree")
+        print("  or neural model; a spread is zero-inflated because coupled")
+        print("  markets clear at the SAME price whenever the border is not")
+        print("  binding, so over half its values equal its median.")
+        print()
     print("=" * 78)
     print("POOLED METRICS")
     print("=" * 78)
