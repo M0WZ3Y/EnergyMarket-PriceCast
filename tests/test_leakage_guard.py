@@ -144,3 +144,123 @@ def test_real_pipeline_with_all_blocks_passes_the_guard():
     X, _ = build_features(df, cfg)
     assert len(lg.registry()) > 0, "no columns declared -- the test is vacuous"
     assert lg.assert_no_leakage(strict=False) == []
+
+
+# ==========================================================================
+# End-to-end negative tests (requested explicitly, 2026-08-28).
+#
+# The declaration-level tests above prove the RULE table is enforced. These
+# prove the rule fires through the REAL pipeline, on real columns built from
+# the pinned snapshot -- the case that actually matters, because a guard that
+# has only ever been exercised on hand-made declarations is untested where it
+# is relied upon.
+#
+# Both feed the guard a construction that is genuinely tempting: a same-day
+# neighbour day-ahead price (it looks like an ordinary exogenous input) and a
+# target-day realized cross-border flow (the series feels "historical"). Each
+# must FAIL the build.
+# ==========================================================================
+
+
+def _snapshot_or_skip(key: str):
+    from src.data.sources import snapshot
+
+    if not snapshot.has(key):
+        pytest.skip(f"{key} not pinned in this checkout")
+    return snapshot
+
+
+def _wide_and_index():
+    import pandas as pd
+
+    from src.data.loader import BenchmarkLoader, load_config
+    from src.features.pipeline import _pivot_to_daily_wide
+
+    tr, te = BenchmarkLoader(load_config()).load()
+    df = pd.concat([tr, te])
+    return _pivot_to_daily_wide(df), df.index
+
+
+def test_end_to_end_same_day_neighbour_price_fails_the_build():
+    """NEGATIVE TEST: build real neighbour-price columns at lag 0.
+
+    No monkeypatching -- `lags=(0,)` is passed to the real block, which is
+    precisely the edit someone would make to "use fresher data". The block
+    then declares its own columns at lag 0 and the guard must reject them.
+
+    (An earlier version of this test patched the internal lag helper and
+    passed for the wrong reason: the block re-declares its columns at the end
+    with its configured lag, so the injected declaration was overwritten and
+    the guard was never actually challenged. Driving the real parameter is
+    what makes this a test rather than a tautology.)
+    """
+    _snapshot_or_skip("ec_price_neighbours")
+    from src.features import physical_exog as px
+
+    wide, hourly_index = _wide_and_index()
+    lg.clear_registry()
+
+    out = px.coupling_block(wide, hourly_index, zones=("FR",), lags=(0,))
+    assert out.shape[1] > 0, "no columns built -- the test would be vacuous"
+
+    with pytest.raises(lg.LeakageError) as exc:
+        lg.assert_no_leakage(strict=False)
+    msg = str(exc.value)
+    assert "coupled_auction" in msg
+    assert "needs lag >= 1d" in msg
+    assert "at lag 0d" in msg
+
+
+def test_end_to_end_target_day_realized_flow_fails_the_build():
+    """NEGATIVE TEST: build real cross-border flow columns at lag 0.
+
+    Realized physical flows for the delivery day are not known at the
+    forecast origin, however historical the series feels.
+    """
+    _snapshot_or_skip("ec_cross_border")
+    from src.features import physical_exog as px
+
+    wide, hourly_index = _wide_and_index()
+    lg.clear_registry()
+
+    out = px.cross_border_flow_block(wide, hourly_index, lag=0)
+    assert out.shape[1] > 0, "no columns built -- the test would be vacuous"
+
+    with pytest.raises(lg.LeakageError) as exc:
+        lg.assert_no_leakage(strict=False)
+    msg = str(exc.value)
+    assert "realized" in msg
+    assert "at lag 0d" in msg
+
+
+def test_end_to_end_same_day_realized_generation_fails_the_build():
+    """NEGATIVE TEST: the delivery day's dispatch mix, at lag 0."""
+    _snapshot_or_skip("ec_public_power")
+    from src.features import physical_exog as px
+
+    wide, hourly_index = _wide_and_index()
+    lg.clear_registry()
+
+    out = px.merit_order_explicit_block(wide, hourly_index, lags=(0,))
+    assert out.shape[1] > 0, "no columns built -- the test would be vacuous"
+
+    with pytest.raises(lg.LeakageError, match="realized"):
+        lg.assert_no_leakage(strict=False)
+
+
+def test_the_unpatched_versions_of_those_blocks_pass():
+    """Control for the negative tests above.
+
+    Without it, all three would still pass if the guard rejected EVERYTHING
+    -- the failure mode a negative-only test cannot distinguish from correct
+    behaviour.
+    """
+    _snapshot_or_skip("ec_price_neighbours")
+    from src.features import physical_exog as px
+
+    wide, hourly_index = _wide_and_index()
+    lg.clear_registry()
+    px.coupling_block(wide, hourly_index, zones=("FR",), lags=(1,))
+    px.cross_border_flow_block(wide, hourly_index, lag=1)
+    px.merit_order_explicit_block(wide, hourly_index, lags=(1,))
+    assert lg.assert_no_leakage(strict=False) == []

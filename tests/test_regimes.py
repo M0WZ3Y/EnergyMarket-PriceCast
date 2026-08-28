@@ -121,11 +121,48 @@ def test_compare_does_not_mutate_the_baseline(frame):
     pd.testing.assert_frame_equal(frame, before)
 
 
-def test_coupling_stress_is_declared_unavailable_not_silently_omitted():
-    """The one segment the prompt asks for that this data cannot support.
-    It must be named, with a reason, rather than quietly missing."""
-    assert "coupling_stress" in regimes.UNAVAILABLE_SEGMENTS
-    assert "ENTSO-E" in regimes.UNAVAILABLE_SEGMENTS["coupling_stress"]
+def test_unavailable_segments_are_named_with_a_reason_not_silently_omitted():
+    """A regime that cannot be measured must be declared, with its blocker.
+
+    coupling_stress was in this table until 2026-08-28, when neighbour
+    day-ahead prices turned out to be keyless and got pinned -- it is now
+    built from the realized DE-vs-neighbour spread. What remains genuinely
+    unmeasurable is the OUTAGE-driven scarcity regime and the reservoir-level
+    hydro regime, both of which need an ENTSO-E token.
+    """
+    assert "coupling_stress" not in regimes.UNAVAILABLE_SEGMENTS
+    assert set(regimes.UNAVAILABLE_SEGMENTS) == {"outage_scarcity", "reservoir_hydro"}
+    for name, reason in regimes.UNAVAILABLE_SEGMENTS.items():
+        assert "ENTSO-E" in reason, f"{name} names no blocking source"
+
+
+def test_spike_is_not_presented_as_a_scarcity_regime():
+    """The distinction that keeps a physics check honest: 'spike' selects
+    hours where price WAS high, not hours where capacity WAS tight. A model
+    can score well on it without having anticipated scarcity at all, so the
+    unavailability table has to say so rather than letting 'spike' quietly
+    stand in for the missing outage regime."""
+    reason = regimes.UNAVAILABLE_SEGMENTS["outage_scarcity"]
+    assert "spike" in reason and "not the same thing" in reason
+
+
+def test_mechanism_segments_appear_when_the_snapshot_supports_them(frame, wide):
+    """gas_marginal, coupling_stress and high_hydro are the target regimes for
+    blocks 2/3, 4 and 6. Without them a physics check is a guess from
+    aggregate MAE."""
+    from src.data.sources import snapshot
+
+    if not snapshot.has("ec_public_power"):
+        pytest.skip("physical snapshot not pinned in this checkout")
+
+    idx = pd.date_range("2015-01-01", periods=24 * 40, freq="h")
+    mech = regimes.mechanism_context(idx)
+    assert not mech.empty
+    assert "gas_share" in mech.columns
+    # Every produced column must be a real fraction / magnitude, not a
+    # constant fill standing in for missing data.
+    gs = mech["gas_share"].dropna()
+    assert len(gs) > 0 and 0.0 <= gs.min() and gs.max() <= 1.0
 
 
 def test_physical_context_residual_load_matches_the_feature_definition(wide):

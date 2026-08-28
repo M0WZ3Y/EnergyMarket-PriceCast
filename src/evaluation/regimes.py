@@ -42,13 +42,32 @@ TAIL_Q = 0.90
 #: Segments this module cannot produce, with the reason. Kept as data so a
 #: caller can report the gap instead of silently returning fewer segments
 #: than it asked for.
-UNAVAILABLE_SEGMENTS = {
-    "coupling_stress": (
-        "needs neighbour day-ahead prices and NTC / scheduled cross-border "
-        "flows (ENTSO-E Transparency Platform, security token required); "
-        "not in the project's keyless information set"
-    )
+#:
+#: coupling_stress moved OUT of this table on 2026-08-28: neighbour
+#: day-ahead prices turned out to be keyless on Energy-Charts and are now
+#: pinned in the snapshot, so the segment is built from the realized DE-vs-
+#: neighbour price spread. NTC would sharpen it (a spread is the SYMPTOM of a
+#: binding interconnector, capacity is the cause) but is not required to
+#: define the regime.
+UNAVAILABLE_SEGMENTS: dict[str, str] = {
+    "outage_scarcity": (
+        "a true scarcity regime needs generation outages / available capacity "
+        "(ENTSO-E Transparency Platform, security token required). The 'spike' "
+        "segment is a price-tail stand-in for it, not the same thing: it "
+        "selects hours where price WAS high, not hours where capacity WAS "
+        "tight, so a model can score well on it without having anticipated "
+        "scarcity at all."
+    ),
+    "reservoir_hydro": (
+        "hydro reservoir FILLING RATES (the seasonal opportunity-cost signal) "
+        "need an ENTSO-E token. 'high_hydro' below uses observed pumped-"
+        "storage activity instead, which is a dispatch response rather than "
+        "the state variable that drives it."
+    ),
 }
+
+#: Quantile above which a mechanism-specific segment is defined.
+MECHANISM_Q = 0.90
 
 
 def _hourly_frame(wide: pd.DataFrame, series: str) -> pd.Series:
@@ -88,6 +107,69 @@ def physical_context(wide: pd.DataFrame) -> pd.DataFrame:
     )
     ctx.index.names = ["origin", "hour"]
     return ctx
+
+
+def mechanism_context(index: pd.DatetimeIndex) -> pd.DataFrame:
+    """Per-(origin, hour) context for the MECHANISM-specific segments.
+
+    Built from the pinned snapshot, so it exists only where that snapshot
+    does. Returns an empty frame when the relevant series is not pinned --
+    callers then omit the segment rather than reporting an all-False mask,
+    because "this regime never occurred" and "this regime was not measured"
+    must not look identical.
+
+    These segments describe the PHYSICAL STATE of the hour, which is what a
+    physics check needs. They deliberately use realized data: nothing here
+    feeds a model, and a post-hoc segment may use the outcome of the hour it
+    labels. Putting these in a feature would be leakage, which is why they
+    live in evaluation/ and not features/.
+
+    Columns (whichever are available):
+      gas_share       gas / (gas + hard coal + lignite) generation
+      coupling_spread |DE price - mean neighbour price|
+      pumped_activity |pumped-storage generation| + |pumping|
+    """
+    from src.data.sources import snapshot
+
+    out = pd.DataFrame(index=index)
+
+    if snapshot.has("ec_public_power"):
+        pp = snapshot.load_series("ec_public_power")
+        gas = pp.get("Fossil gas")
+        coal = pp.get("Fossil hard coal")
+        lig = pp.get("Fossil brown coal / lignite")
+        if gas is not None and coal is not None:
+            thermal = gas + coal + (lig if lig is not None else 0)
+            share = gas / thermal.where(thermal > 0)
+            out["gas_share"] = share.reindex(index)
+        gen = pp.get("Hydro pumped storage")
+        con = pp.get("Hydro pumped storage consumption")
+        if gen is not None or con is not None:
+            act = (gen.abs() if gen is not None else 0) + (
+                con.abs() if con is not None else 0
+            )
+            out["pumped_activity"] = act.reindex(index)
+
+    if snapshot.has("ec_price_neighbours") and snapshot.has("ec_price_de"):
+        nb = snapshot.load_series("ec_price_neighbours")
+        de = snapshot.load_series("ec_price_de")
+        if "price_de" in de.columns and len(nb.columns):
+            spread = (nb.mean(axis=1) - de["price_de"]).abs()
+            out["coupling_spread"] = spread.reindex(index)
+
+    return out
+
+
+def _stack_hourly(ctx: pd.DataFrame) -> pd.DataFrame:
+    """Reshape an hourly-indexed context frame to an (origin, hour) index."""
+    if ctx.empty:
+        return ctx
+    idx = pd.MultiIndex.from_arrays(
+        [ctx.index.normalize(), ctx.index.hour], names=["origin", "hour"]
+    )
+    out = ctx.copy()
+    out.index = idx
+    return out[~out.index.duplicated(keep="first")]
 
 
 def segment_masks(
@@ -140,6 +222,23 @@ def segment_masks(
     masks["low_residual"] = pd.Series(
         resload <= np.nanquantile(resload, 1 - TAIL_Q), index=frame.index
     )
+
+    # Mechanism-specific segments, present only where the snapshot supports
+    # them. Each is the regime a particular block physically targets, which
+    # is what makes a physics check possible rather than a guess from
+    # aggregate MAE.
+    for col, name, high in (
+        ("gas_share", "gas_marginal", True),
+        ("coupling_spread", "coupling_stress", True),
+        ("pumped_activity", "high_hydro", True),
+    ):
+        if col not in ctx.columns:
+            continue
+        vals = ctx[col].to_numpy(dtype=float)
+        if np.all(np.isnan(vals)):
+            continue
+        cut = np.nanquantile(vals, MECHANISM_Q if high else 1 - MECHANISM_Q)
+        masks[name] = pd.Series(vals >= cut if high else vals <= cut, index=frame.index)
 
     return masks
 
