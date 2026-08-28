@@ -83,6 +83,32 @@ VARIANTS: dict[str, tuple[dict, dict]] = {
             "scarcity_block": True,
         },
         {
+            # REDUNDANCY RULE applied: one lag and the two largest
+            # interconnections, not every zone at every lag. The full-fat
+            # version is ALL_FULL below and is normally unestimable.
+            "merit_order_explicit_block": {"lags": (1,)},
+            "capacity_structure_block": True,
+            "carbon_block": True,
+            "fuel_switch_proxy_block": True,
+            "coupling_block": {"zones": ("FR", "NL"), "lags": (1,)},
+            "cross_border_flow_block": True,
+            "reserve_margin_block": True,
+            "storage_block": True,
+        },
+    ),
+    # Every block at full width. Retained deliberately so the p > n limit is
+    # measured and reported rather than assumed: with the common day pool
+    # capped at ~1079 days by the 2015 Energy-Charts floor, this variant has
+    # more features than there are days to fit them, and LEAR cannot estimate
+    # it at all. It is skipped with that reason printed, not silently dropped.
+    "ALL_FULL": (
+        {
+            "residual_load_block": True,
+            "residual_load_gradient_block": True,
+            "merit_order_block": True,
+            "scarcity_block": True,
+        },
+        {
             "merit_order_explicit_block": True,
             "capacity_structure_block": True,
             "carbon_block": True,
@@ -230,15 +256,29 @@ def main(argv: list[str] | None = None) -> int:
           f"({common.min().date()} .. {common.max().date()})")
     print(f"scored origins   {len(origins)} "
           f"({origins.min().date()} .. {origins.max().date()})")
-    widest = max(X.shape[1] for X, _, _ in built.values())
-    if args.calibration <= widest:
-        raise SystemExit(
-            f"--calibration {args.calibration} too small: widest variant has "
-            f"{widest} features and LassoLarsIC needs more days than features."
-        )
+    # LassoLarsIC cannot estimate a model with more features than samples, and
+    # the ceiling here is structural: the common day pool is bounded by the
+    # 2015 Energy-Charts floor, so a wide variant is not merely expensive but
+    # UNESTIMABLE. Report which variants that excludes and carry on with the
+    # rest -- aborting the whole run would lose the seven measurable blocks
+    # because of the one that cannot be measured.
+    max_calibration = len(common) - len(origins)
+    calibration = min(args.calibration, max_calibration)
+    if calibration != args.calibration:
+        print(f"calibration      {args.calibration} -> {calibration} "
+              f"(capped by the {len(common)}-day common pool)")
+
+    unestimable = {n: X.shape[1] for n, (X, _, _) in built.items()
+                   if X.shape[1] >= calibration}
+    for n, p_cols in unestimable.items():
+        print(f"  SKIP {n:<20} {p_cols} features >= {calibration} calibration days "
+              f"— p > n, not estimable by LEAR on the available history")
+        built.pop(n)
+    if "baseline" not in built:
+        raise SystemExit("baseline itself is unestimable; nothing to compare against")
     print()
 
-    eval_cfg = {"walk_forward": {"calibration_window_days": args.calibration,
+    eval_cfg = {"walk_forward": {"calibration_window_days": calibration,
                                  "step_days": 1}}
     models_cfg = load_models_config()
     context = regimes.physical_context(wide)
