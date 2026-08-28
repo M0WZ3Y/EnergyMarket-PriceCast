@@ -2987,3 +2987,124 @@ remains at the 9.0-page hard cap noted in the 2026-08-27 gate entry above;
 the new script is ungated because it saves nothing, so it was not blocked by
 that cap. Deferral logged here per the mandatory post-task reconciliation
 rule.
+
+---
+
+## 2026-08-28 — Full physical feature set: pinned external data, blocks 2-6, leakage guard
+
+**What.** Branch `power-engineering-integration`, 13 commits. A pinned
+external-data layer (`src/data/sources/`), snapshot-derived feature blocks 2-6
+(`src/features/physical_exog.py`), a declarative information-set guard
+(`src/features/leakage_guard.py`), collinearity/VIF diagnostics
+(`src/features/collinearity.py`), three new mechanism-target regimes in
+`src/evaluation/regimes.py`, and a block-by-block ablation harness. Every block
+defaults OFF; the frozen v1.0-results / v1.1-ood artifacts are untouched.
+
+**Mechanism coverage went from 5/9 to 8/9.** Only `clean_spreads` remains
+structurally unavailable. Carbon, market coupling and storage/hydro moved from
+"unavailable" to PARTIAL once the data turned out to be reachable keylessly.
+
+**Data-availability findings, each verified by probing rather than assumed.**
+These are the substance of the session and every one contradicts a documented
+or assumed claim:
+
+- Energy-Charts serves NOTHING before 2015-01-01 on `/price`, `/public_power`
+  or `/cbpf` — not 2011 as commonly stated. The benchmark starts 2012-01-09, so
+  blocks built on these endpoints cover roughly half the window and the rest
+  goes NaN. Worse, a pre-2015 request returns HTTP 400 "end must be >= start",
+  which is untrue of the request and sends the reader after the date format.
+  Pinned as `clients.EC_DATA_START`.
+- The German bidding zone is DE-AT-LU before 2018-10-01, DE-LU after. Hardcoding
+  DE-LU returns 404 for the entire thesis window. Austria correctly has no
+  separate price series before the split.
+- `/public_power` and `/cbpf` are 15-MINUTE series. Aligning them to the hourly
+  grid without resampling silently keeps the instantaneous :00 reading in place
+  of an hourly mean — a column that looks complete, plausible and correctly
+  dated while being wrong.
+- EEX publishes the EU ETS primary-auction archive openly (2012-2025), so the
+  CARBON leg of SRMC is buildable keylessly across the whole benchmark window.
+  Gas (TTF) and coal (API2) are Montel-licensed and Ember republishes only
+  series DERIVED from them, which makes Ember a citation and not a source.
+  Clean spark spread, clean dark spread and a true coal-to-gas switch indicator
+  are therefore NOT buildable, and their builder raises rather than returning a
+  stand-in.
+
+**Reproducibility rule adopted (user instruction, non-negotiable).** A live API
+answers differently tomorrow, and the drift is silent. All external data is
+fetched once by `scripts/fetch_physical_snapshot.py`, written to
+`data/raw/physical/` with a provenance record per series (source, url, licence,
+fetch time, range, rows, sha256), and committed. Feature code reads only the
+snapshot; `tests/test_no_network_in_features.py` blocks the socket during a
+feature build so the separation is enforced rather than claimed. `.gitattributes`
+pins those files with `-text` because git's LF->CRLF normalisation would rewrite
+the bytes on a Windows checkout and break every hash in a fresh clone.
+
+**ENTSO-E permission, per user decision.** CLAUDE.md's "no registration-gated
+source" rule is amended to: no registration-gated source may feed thesis numbers
+without explicit written approval; ENTSO-E is pre-approved pending token
+arrival, and this does not generalise to any other gated source. The client is
+implemented and inert — token from `ENTSOE_API_TOKEN`, never hardcoded, raising
+when absent. Outages, NTC and reservoir levels are consequently absent and the
+dependent features skip; nothing is backfilled.
+
+**Leakage.** The existing perturbation tests can only catch leaks in data they
+perturb; once features come from nine external series the question becomes "when
+does this source publish?", which no DataFrame perturbation answers. So each
+source declares an availability class and each column its lag, and
+`assert_no_leakage` fails the build on any violation — including an undeclared
+column, which is the realistic way a leak arrives. Verified on the real
+846-column matrix. Four end-to-end NEGATIVE tests drive the real blocks at
+`lags=(0,)` and must fail; a control test proves the guard is not simply
+rejecting everything. Carbon is classified lag>=1 deliberately although EUA
+auctions clear ~11:00 CET, an hour before the 12:00 gate closure: auctions do
+not run daily so a fill is needed regardless, and a thesis leakage claim should
+not rest on a one-hour margin.
+
+**Defects found and fixed in this branch's own code, all before any result
+depended on them:**
+1. 15-minute series never resampled (above).
+2. The EEX header row moves from row 2 to row 5 in 2017; a hardcoded header
+   silently dropped every year from 2017 on (886 rows ending 2016-12-16).
+   Detecting the header recovers 2841 rows to 2025.
+3. Block 3 emitted four carbon columns that are constant multiples of one
+   another (fixed emission factors), measuring r = 1.0000 between every pair and
+   driving the matrix singular. Reduced to one column per the redundancy rule.
+4. Neighbour-price SPREADS have zero MAD and break LEAR's median/MAD scaler.
+   Market coupling clears DE and its neighbour at exactly the same price
+   whenever the border is not binding — DE-NL is identical 51.2% of hours at
+   04-07 and 18-19 — so median and MAD are both 0 while std is a healthy ~9.5
+   EUR/MWh. sklearn reports this three layers later as "Input X contains NaN",
+   pointing at the wrong thing entirely; chasing that message leads to
+   imputation, which would fabricate a physical driver. Dropped for LEAR only,
+   in the harness, with every dropped column reported. A first fix checked MAD
+   globally, found 4 columns and still failed — LEAR rescales per training
+   window, so the check must be the union over every window used (12 columns).
+
+**Structural limit measured, not assumed.** Every block at full width is 1238
+features against a common day pool of 1079 days (capped by the 2015 floor), so
+the fully-loaded variant is not merely expensive but UNESTIMABLE by LEAR: p > n.
+Applying the redundancy rule — one lag, two largest interconnections instead of
+nine zones — gives the same mechanism coverage in 806 columns. Coverage was
+never what cost the degrees of freedom; duplicated hourly vectors of the same
+driver were.
+
+**Collinearity context.** High VIF is NOT introduced by these blocks: the frozen
+247-column baseline already has 239 columns at VIF>=10 and 492 pairs at
+|r|>=0.95, inherent to the 24-hour-wide Lago representation, which LEAR handles
+by LASSO. What the new blocks add is near-EXACT dependence (max VIF 2.1e4 ->
+7.6e9), which is why the redundancy rule needs measuring rather than asserting.
+
+**Harness flaw corrected.** The ablation held all predictions in memory and
+wrote only after the last variant; a kill during the final variant discarded
+seven completed fits, about two hours of compute, with nothing recoverable.
+Predictions are now persisted per variant and reloaded on re-run, keyed by a
+fingerprint of the actual column set so a changed variant is refit rather than
+silently scored from a stale file. Cache lives in `data/ablation_cache/`,
+deliberately outside `data/processed/`, which `frozen_results_guard.py`
+protects.
+
+pytest 467 passed (423 + 44 ledger-gate), zero failures.
+
+**Ledger: no pages banked** — this was a code task. Debt remains at the 9.0-page
+hard cap; the new scripts are ungated because they save no thesis results.
+Deferral logged here per the mandatory post-task reconciliation rule.
