@@ -200,3 +200,99 @@ def test_fuel_switch_columns_are_named_as_a_proxy(wide, hourly_index):
     if out.empty:
         pytest.skip("no generation overlap")
     assert all(c.startswith("switch_proxy") for c in out.columns)
+
+
+# ----------------------------------------------------- non-degenerate proxy
+
+
+@pytest.mark.skipif(
+    not (px.snapshot.has("ec_public_power") and px.snapshot.has("ec_installed_power")),
+    reason="generation/capacity snapshot not pinned",
+)
+def test_headroom_proxy_is_not_a_rescaling_of_load():
+    """The property that distinguishes this block from reserve_margin_block.
+
+    reserve_margin_block divides forecast load by installed capacity, which is
+    constant within a year, so it is an EXACT linear function of load -- its
+    within-year residual is ~3e-15 of its own SD and it carries no information
+    beyond exog_1. This block's numerator is realized dispatchable generation,
+    which varies daily and is absent from the benchmark set, so the same test
+    must leave substantial residual variation.
+
+    Without this test the two blocks are indistinguishable from their names,
+    and a second degenerate proxy would look like independent corroboration
+    when it is nothing of the kind.
+    """
+    from src.data.loader import BenchmarkLoader, load_config
+    from src.features.pipeline import build_features, load_feature_config
+
+    tr, te = BenchmarkLoader(load_config()).load()
+    df = pd.concat([tr, te])
+    cfg = dict(load_feature_config())
+    cfg["exog_blocks"] = {"dispatchable_headroom_block": True}
+    lg.clear_registry()
+    X, _ = build_features(df, cfg)
+
+    col = "disputil_proxy_D-1_h13"
+    if col not in X.columns:
+        pytest.skip("no overlap between capacity years and the benchmark window")
+
+    years = pd.Index(X.index.year)
+    v = X[col].to_numpy(float)
+    load = X["exog_1_D0_h13"].to_numpy(float)
+    ok = np.isfinite(v) & np.isfinite(load)
+    v, load, yr = v[ok], load[ok], years[ok]
+
+    resid = np.full_like(v, np.nan)
+    for y in np.unique(yr):
+        m = yr == y
+        if m.sum() < 10:
+            continue
+        b, a = np.polyfit(load[m], v[m], 1)
+        resid[m] = v[m] - (a + b * load[m])
+
+    rel = np.nanstd(resid) / np.std(v)
+    assert rel > 0.5, (
+        f"within-year residual is only {rel:.3g} of the column's SD -- this "
+        "proxy is close to a rescaling of load, like reserve_margin_block, "
+        "and cannot serve as independent evidence about scarcity"
+    )
+
+
+@pytest.mark.skipif(
+    not px.snapshot.has("ec_installed_power"), reason="capacity snapshot not pinned"
+)
+def test_reserve_margin_proxy_is_documented_as_degenerate():
+    """Pins the measured fact, so nobody re-derives it or quietly assumes the
+    capacity margin carries scarcity information."""
+    from src.data.loader import BenchmarkLoader, load_config
+    from src.features.pipeline import build_features, load_feature_config
+
+    tr, te = BenchmarkLoader(load_config()).load()
+    df = pd.concat([tr, te])
+    cfg = dict(load_feature_config())
+    cfg["exog_blocks"] = {"reserve_margin_block": True}
+    lg.clear_registry()
+    X, _ = build_features(df, cfg)
+
+    years = pd.Index(X.index.year)
+    v = X["resmargin_nooutage_D0_h13"].to_numpy(float)
+    load = X["exog_1_D0_h13"].to_numpy(float)
+    ok = np.isfinite(v) & np.isfinite(load)
+    v, load, yr = v[ok], load[ok], years[ok]
+
+    resid = np.full_like(v, np.nan)
+    for y in np.unique(yr):
+        m = yr == y
+        if m.sum() < 10:
+            continue
+        b, a = np.polyfit(load[m], v[m], 1)
+        resid[m] = v[m] - (a + b * load[m])
+
+    rel = np.nanstd(resid) / np.std(v)
+    assert rel < 1e-8, (
+        f"within-year residual is {rel:.3g}; this block was measured to be an "
+        "EXACT linear function of load within a year. If that is no longer "
+        "true the capacity input has changed and the degeneracy finding in "
+        "scripts/check_scarcity_proxy.py needs revisiting."
+    )

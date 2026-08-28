@@ -77,3 +77,14 @@ exog_blocks:
   cross_border_flow_block: false      # lagged realized net flow
   reserve_margin_block: false         # load / installed capacity (no outages)
   storage_block: false                # lagged pumped-storage behaviour
+  # A SECOND, non-degenerate keyless scarcity proxy, kept separate from
+  # reserve_margin_block rather than folded into it. That one divides forecast
+  # load by installed capacity, which is constant within a year, making it an
+  # EXACT linear function of load -- within-year residual 3e-15, i.e. no
+  # information beyond exog_1 (see scripts/check_scarcity_proxy.py). This one
+  # uses realized dispatchable GENERATION, which varies daily and is absent
+  # from the benchmark set; its within-year residual keeps ~0.9 of its own SD.
+  # Having both means that if a daily-varying proxy ALSO fails, the case for
+  # the ENTSO-E outage feed rests on more than the one proxy guaranteed to be
+  # degenerate.
+  dispatchable_headroom_block: false  # idle dispatchable capacity, lagged

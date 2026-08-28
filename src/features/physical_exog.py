@@ -526,6 +526,103 @@ def storage_block(
     return out
 
 
+#: Technologies counted as dispatchable generation in /public_power. Must
+#: correspond to DISPATCHABLE_CAPACITY_TYPES so numerator and denominator
+#: describe the same fleet -- a utilisation ratio built from mismatched sets
+#: is not a utilisation of anything.
+DISPATCHABLE_GEN_TYPES = (
+    "Nuclear",
+    "Fossil brown coal / lignite",
+    "Fossil hard coal",
+    "Fossil gas",
+    "Fossil oil",
+    "Hydro water reservoir",
+    "Hydro pumped storage",
+    "Biomass",
+    "Waste",
+    "Others",
+)
+
+
+def dispatchable_headroom_block(
+    wide: pd.DataFrame, hourly_index: pd.DatetimeIndex, lag: int = 1
+) -> pd.DataFrame:
+    """A NON-DEGENERATE keyless scarcity proxy: unused dispatchable capacity.
+
+    Deliberately separate from `reserve_margin_block`, not folded into it,
+    because the two answer different questions and one of them is provably
+    empty.
+
+    WHY THE OTHER ONE IS EMPTY. `reserve_margin_block` computes forecast load
+    divided by installed capacity. Installed capacity is published yearly and
+    is constant within a year, so that ratio is an EXACT linear function of
+    load inside every year -- the within-year residual is zero to machine
+    precision (scripts/check_scarcity_proxy.py). It cannot carry scarcity
+    information because it carries nothing that `exog_1` does not already.
+
+    WHY THIS ONE IS NOT. The failure above is not caused by the denominator
+    being capacity; it is caused by dividing a series the model ALREADY HAS by
+    a within-year constant. The fix is a numerator the baseline does not
+    contain. Realized dispatchable GENERATION varies day to day and is absent
+    from the benchmark information set, so:
+
+        headroom     = installed dispatchable capacity - dispatchable generation
+        utilisation  = dispatchable generation / installed capacity
+
+    both vary daily and both carry genuinely new information. Headroom is the
+    physically meaningful one for scarcity: it is how much dispatchable plant
+    was still idle, which is what a tight system runs out of.
+
+    STILL A PROXY, and the naming says so. Capacity here is INSTALLED, not
+    available: a unit on outage counts as headroom that does not exist, so
+    this reads optimistic exactly on the days scarcity matters most. The true
+    margin needs the ENTSO-E outage feed. What this block buys is a fair test
+    -- if a DAILY-VARYING keyless proxy also fails, the case for the outage
+    feed is far stronger than if the only proxy tested were the one guaranteed
+    to be degenerate.
+
+    LAG. Generation is realized, so lagged; capacity is structural and legal at
+    lag 0. The combination is declared at the generation lag, which is the
+    binding constraint.
+    """
+    if not (snapshot.has("ec_public_power") and snapshot.has("ec_installed_power")):
+        return _empty(wide.index)
+
+    cap = capacity_structure_block(wide)
+    if cap.empty or "disp_capacity_D0" not in cap.columns:
+        return _empty(wide.index)
+
+    pp = snapshot.load_series("ec_public_power")
+    gen_cols = [t for t in DISPATCHABLE_GEN_TYPES if t in pp.columns]
+    if not gen_cols:
+        return _empty(wide.index)
+
+    disp_gen = pp[gen_cols].sum(axis=1).to_frame("dispgen")
+    wide_ext = _to_daily_wide(disp_gen, hourly_index)
+    if wide_ext.empty:
+        return _empty(wide.index)
+
+    cols = [c for c in wide_ext.columns if c.startswith("dispgen_h")]
+    gen_lagged = _lagged_block(wide_ext, cols, lag, "dispgen").reindex(wide.index)
+
+    denom = cap["disp_capacity_D0"].where(cap["disp_capacity_D0"] > 0)
+
+    out = pd.DataFrame(index=wide.index)
+    for h in HOURS:
+        g = gen_lagged[f"dispgen_D-{lag}_{h}"]
+        out[f"headroom_proxy_D-{lag}_{h}"] = denom - g
+        out[f"disputil_proxy_D-{lag}_{h}"] = g.div(denom)
+    out[f"headroom_proxy_min_D-{lag}"] = out[
+        [f"headroom_proxy_D-{lag}_{h}" for h in HOURS]
+    ].min(axis=1)
+
+    lg.declare_block(
+        out.columns, source="ec_public_power", lag_days=lag,
+        note="dispatchable headroom/utilisation; capacity is INSTALLED not available",
+    )
+    return out
+
+
 #: Blocks that need the hourly benchmark index as well as the daily-wide
 #: frame (they align an external hourly series onto it).
 NEEDS_HOURLY_INDEX = {
@@ -534,6 +631,7 @@ NEEDS_HOURLY_INDEX = {
     "coupling_block",
     "cross_border_flow_block",
     "storage_block",
+    "dispatchable_headroom_block",
 }
 
 EXOG_BLOCKS = {
@@ -545,6 +643,7 @@ EXOG_BLOCKS = {
     "cross_border_flow_block": cross_border_flow_block,
     "reserve_margin_block": reserve_margin_block,
     "storage_block": storage_block,
+    "dispatchable_headroom_block": dispatchable_headroom_block,
 }
 
 
