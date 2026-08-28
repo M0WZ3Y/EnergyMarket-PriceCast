@@ -146,6 +146,18 @@ def build_features(
     if physical_cfg:
         X_parts.append(build_physical_blocks(wide, physical_cfg))
 
+    # Snapshot-derived physical blocks (merit order, carbon, coupling,
+    # reserve margin, storage). Also OFF by default. These read the PINNED
+    # on-disk snapshot via src/data/sources/snapshot.py and never the
+    # network -- enforced by tests/test_no_network_in_features.py. A block
+    # whose series is not pinned returns nothing and is skipped, so a
+    # missing ENTSO-E token degrades the feature set rather than the run.
+    exog_cfg = cfg.get("exog_blocks") or {}
+    if exog_cfg:
+        from src.features.physical_exog import build_exog_blocks
+
+        X_parts.append(build_exog_blocks(wide, df.index, exog_cfg))
+
     if cfg["weekday_dummies"]:
         dow = pd.Categorical(wide.index.dayofweek, categories=range(7))
         dummies = pd.get_dummies(dow, prefix="dow").astype(float)
