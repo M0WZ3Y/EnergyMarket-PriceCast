@@ -125,12 +125,49 @@ VARIANTS: dict[str, tuple[dict, dict]] = {
 #: not move its own target regime is flagged: that is the signature of a
 #: specification bug, not of an unhelpful feature.
 TARGET_REGIME = {
-    "B1_ramp": "steep_ramp",
-    "B2_merit_explicit": "high_res",
-    "B3_carbon_switch": "spike",
-    "B4_coupling": "spike",
-    "B5_reserve_margin": "spike",
-    "B6_storage": "steep_ramp",
+    # Block 1: ramps, and the high-RES / low-residual-load hours the residual
+    # load construct is about.
+    "B1_ramp": ("steep_ramp", "high_res", "low_residual"),
+    # Block 2: which technology is setting the price -> gas-marginal hours.
+    "B2_merit_explicit": ("gas_marginal",),
+    # Block 3: carbon shifts the coal/gas switching point -> gas-marginal.
+    "B3_carbon_switch": ("gas_marginal",),
+    # Block 4: coupling -> hours where DE and its neighbours diverge.
+    "B4_coupling": ("coupling_stress",),
+    # Block 5: scarcity -> the price tail. NOTE this is a PROXY target: the
+    # spike segment selects hours where price WAS high, not hours where
+    # capacity WAS tight (see regimes.UNAVAILABLE_SEGMENTS['outage_scarcity']).
+    "B5_reserve_margin": ("spike",),
+    # Block 6: storage arbitrages the intraday shape -> low-residual-load and
+    # high pumped-storage-activity hours.
+    "B6_storage": ("low_residual", "high_hydro"),
+    "ALL": ("steep_ramp", "gas_marginal", "coupling_stress", "spike"),
+}
+
+#: Blocks running on keyless PROXIES rather than the real feed, with what the
+#: real feed would add. Muted or negative deltas here are an expected and
+#: legitimate result, not a failure -- and must never be reported as
+#: "this mechanism does not matter in DE-LU".
+PROXY_BLOCKS = {
+    "B5_reserve_margin": (
+        "installed dispatchable capacity, NOT net of outages. The real "
+        "ENTSO-E outage feed would make the denominator AVAILABLE capacity, "
+        "which is what actually tightens before a scarcity event; the proxy "
+        "denominator is near-constant within a year and so carries almost no "
+        "event-time information."
+    ),
+    "B6_storage": (
+        "observed pumped-storage dispatch, NOT reservoir filling rates. "
+        "Dispatch is the RESPONSE to the price shape; the filling rate is the "
+        "state variable that drives it. The proxy can only echo what the "
+        "market already did, one day late."
+    ),
+    "B3_carbon_switch": (
+        "carbon leg of SRMC only, plus an observed gas-vs-coal dispatch "
+        "split. The fuel legs (TTF gas, API2 coal) are Montel-licensed, so a "
+        "true clean spark/dark spread and a real switch indicator cannot be "
+        "built at all."
+    ),
 }
 
 
@@ -281,7 +318,20 @@ def main(argv: list[str] | None = None) -> int:
     eval_cfg = {"walk_forward": {"calibration_window_days": calibration,
                                  "step_days": 1}}
     models_cfg = load_models_config()
+    # Segmentation context = physical state (residual load, ramp, RES
+    # share) PLUS the mechanism-specific state (gas share, coupling
+    # spread, pumped-storage activity) that the physics check needs.
+    # Merged into one frame so every segment is defined on the same index.
     context = regimes.physical_context(wide)
+    mech = regimes._stack_hourly(regimes.mechanism_context(df.index))
+    if not mech.empty:
+        context = context.join(mech, how="left")
+    missing_segments = [c for c in ("gas_share", "coupling_spread",
+                                    "pumped_activity")
+                        if c not in context.columns]
+    if missing_segments:
+        print(f"  NOTE: mechanism context missing {missing_segments}; the")
+        print("  segments depending on them are OMITTED, not reported empty.")
 
     results: dict[str, pd.DataFrame] = {}
     for name, (X, Y, _) in built.items():
@@ -320,31 +370,163 @@ def main(argv: list[str] | None = None) -> int:
     print(regimes.segmented_metrics(results["baseline"], context).to_string())
     print()
 
-    verdicts = []
+    # ---------------------------------------------------------------- (a)
+    print("(a) PER-BLOCK x PER-REGIME  -  MAE delta vs baseline (negative = better)")
+    print("-" * 78)
+    seg_tables = {}
     for name, frame in results.items():
         if name == "baseline":
             continue
-        print(f"--- {name} vs baseline ---")
-        cmp = regimes.compare_segmented(results["baseline"], frame, context)
-        print(cmp.to_string())
-        tgt = TARGET_REGIME.get(name)
-        if tgt and tgt in cmp.index:
-            d = cmp.loc[tgt, "mae_delta"]
-            ok = d < 0
-            print(f"  target regime '{tgt}': MAE delta {d:+.4f}  "
-                  f"{'IMPROVED' if ok else 'DID NOT IMPROVE  <-- check specification'}")
-            verdicts.append((name, tgt, d, ok))
+        seg_tables[name] = regimes.compare_segmented(
+            results["baseline"], frame, context
+        )
+    base_seg = regimes.segmented_metrics(results["baseline"], context)
+    segs = list(base_seg.index)
+
+    print("  baseline by segment:")
+    print("    " + base_seg.to_string().replace("\n", "\n    "))
+    print()
+    hdr = "  " + "block".ljust(20) + "".join(x[:12].rjust(13) for x in segs)
+    print(hdr)
+    for name, cmp in seg_tables.items():
+        row = "  " + name.ljust(20)
+        for x in segs:
+            row += (f"{cmp.loc[x, 'mae_delta']:13.3f}" if x in cmp.index
+                    else "-".rjust(13))
+        print(row)
+    print()
+    print("  full per-block tables (MAE, RMSE, n):")
+    for name, cmp in seg_tables.items():
+        print(f"  --- {name} ---")
+        print("    " + cmp.to_string().replace("\n", "\n    "))
         print()
 
+    # ---------------------------------------------------------------- (b)
     print("=" * 78)
-    print("TARGET-REGIME VERDICTS")
+    print("(b) PHYSICS CHECK - did each block improve the regime it TARGETS?")
     print("=" * 78)
-    for name, tgt, d, ok in verdicts:
-        print(f"  {name:<20} {tgt:<14} {d:+9.4f}  "
-              f"{'OK' if ok else 'FLAGGED'}")
+    physics = {}
+    flagged = []
+    for name, cmp in seg_tables.items():
+        targets = TARGET_REGIME.get(name, ())
+        hits = []
+        for t in targets:
+            hits.append((t, float(cmp.loc[t, "mae_delta"]) if t in cmp.index else None))
+        measured = [(t, d) for t, d in hits if d is not None]
+        improved = bool(measured) and all(d < 0 for _, d in measured)
+        any_improved = any(d < 0 for _, d in measured)
+        agg = float(pooled.loc[name, "mae_delta"])
+        physics[name] = dict(targets=hits, improved=improved,
+                             any_improved=any_improved, aggregate=agg)
+        verdict = "YES" if improved else ("PARTIAL" if any_improved else "NO")
+        print(f"  {name:<20} target improved: {verdict:<8} "
+              f"aggregate MAE delta {agg:+.4f}")
+        for t, d in hits:
+            if d is None:
+                print(f"       {t:<18} NOT MEASURED (segment unavailable)")
+            else:
+                print(f"       {t:<18} {d:+9.4f}  "
+                      f"{'improved' if d < 0 else 'WORSE'}")
+        if agg < 0 and not any_improved:
+            flagged.append(name)
+            print("       *** FLAG: improved AGGREGATE MAE but NOT its own "
+                  "target regime.")
+            print("           A feature that helps everywhere except where its "
+                  "mechanism operates")
+            print("           is picking up a correlate, not the mechanism it "
+                  "claims. Diagnosed below.")
+        print()
 
-    # --- target sanity checks the brief asks for ---------------------------
+    # ---------------------------------------------------------------- (c)
+    print("=" * 78)
+    print("(c) DIAGNOSIS OF UNDERPERFORMING / FLAGGED BLOCKS")
+    print("=" * 78)
+    print("  REDUNDANT      new columns already explained by baseline features")
+    print("                 (the mechanism is already covered)")
+    print("  MISSPECIFIED   independent of baseline yet fails its target regime")
+    print("                 (independent-but-useless points at construction)")
+    print("  GENUINELY_WEAK independent, moved its regime, but small effect")
     print()
+    if flagged:
+        print(f"  FLAGGED (aggregate gain without target-regime gain): "
+              f"{', '.join(flagged)}")
+        print()
+    Xb = built["baseline"][0]
+    for name in seg_tables:
+        ph = physics[name]
+        d = col.diagnose_block(
+            built[name][0], Xb,
+            improved_target_regime=ph["improved"],
+            aggregate_gain=ph["aggregate"],
+        )
+        print(col.format_diagnosis(name, d))
+        if name in PROXY_BLOCKS:
+            print(f"       PROXY BLOCK - {PROXY_BLOCKS[name]}")
+        print()
+
+    # ---------------------------------------------------------------- (d)
+    print("=" * 78)
+    print("(d) COLLINEARITY PAIRS ABOVE THRESHOLD")
+    print("=" * 78)
+    target = built.get("ALL", built["baseline"])[0]
+    pairs = col.correlated_pairs(target, threshold=col.CORR_THRESHOLD)
+    print(f"  |r| >= {col.CORR_THRESHOLD}: {pairs.attrs['n_total_pairs']} pairs "
+          f"in the {target.shape[1]}-column ALL variant")
+    for _, r in pairs.head(15).iterrows():
+        ba, bb = col.block_of(r.feature_a), col.block_of(r.feature_b)
+        flag = "  <-- CROSS-BLOCK" if ba != bb else ""
+        print(f"    {r.r:.4f}  {r.feature_a:<30} {r.feature_b:<30}{flag}")
+    print()
+
+    # ---------------------------------------------------------------- (e)
+    print("=" * 78)
+    print("(e) LEAKAGE GUARD STATUS")
+    print("=" * 78)
+    print(f"  variants checked : {len(built)}   rejected: {len(rejected)}")
+    print(f"  {lg.summary()}")
+    print("  negative tests in tests/test_leakage_guard.py - the guard must")
+    print("  FAIL the build in each of these, and does:")
+    for t in (
+        "test_end_to_end_same_day_neighbour_price_fails_the_build",
+        "test_end_to_end_target_day_realized_flow_fails_the_build",
+        "test_end_to_end_same_day_realized_generation_fails_the_build",
+        "test_the_unpatched_versions_of_those_blocks_pass   [control]",
+    ):
+        print(f"    {t}")
+    print()
+
+    # ---------------------------------------------------------------- (f)
+    print("=" * 78)
+    print("(f) SOURCE STATUS - real data / proxy / unavailable stub")
+    print("=" * 78)
+    rows = [
+        ("REAL", "residual load, ramps", "benchmark exog_1/exog_2 forecasts"),
+        ("REAL", "merit-order position", "derived from the same forecasts"),
+        ("REAL", "dispatch shares", "Energy-Charts /public_power (lagged)"),
+        ("REAL", "installed capacity", "Energy-Charts /installed_power"),
+        ("REAL", "EUA carbon", "EEX auction archive 2012-2025"),
+        ("REAL", "neighbour prices", "Energy-Charts /price (lagged)"),
+        ("REAL", "cross-border flows", "Energy-Charts /cbpf (realized, lagged)"),
+        ("REAL", "pumped storage", "Energy-Charts /public_power (lagged)"),
+        ("PROXY", "fuel switching", "dispatch split; TTF/API2 are licensed"),
+        ("PROXY", "reserve margin", "installed capacity, NOT net of outages"),
+        ("PROXY", "scarcity (keyless)", "trailing-max residual load"),
+        ("STUB", "generation outages", "ENTSO-E token required"),
+        ("STUB", "NTC", "ENTSO-E token required"),
+        ("STUB", "hydro reservoir levels", "ENTSO-E token required"),
+        ("STUB", "clean spark spread", "TTF gas price is Montel-licensed"),
+        ("STUB", "clean dark spread", "API2 coal price is Montel-licensed"),
+    ]
+    for kind, what, why in rows:
+        print(f"  {kind:<6} {what:<24} {why}")
+    print()
+    print("  UNBUILDABLE SUB-FEATURES, explicitly: clean spark spread, clean")
+    print("  dark spread, and a true coal-to-gas switch indicator. All three")
+    print("  need gas and coal prices. Ember publishes only series DERIVED from")
+    print("  Montel-licensed inputs, which makes Ember a citation, not a source.")
+    print()
+
+    # --- target sanity -----------------------------------------------------
     print("=" * 78)
     print("TARGET SANITY")
     print("=" * 78)
@@ -354,8 +536,8 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  min / max observed      : {yt.min():.2f} / {yt.max():.2f} EUR/MWh")
     print(f"  within [-500, 4000]     : "
           f"{bool(yt.min() >= -500 and yt.max() <= 4000)}")
-    print("  target transform        : none (raw EUR/MWh) — no log, so negative "
-          "prices survive intact")
+    print("  target transform        : none (raw EUR/MWh); no log, so negative")
+    print("                            prices survive intact")
     return 0
 
 

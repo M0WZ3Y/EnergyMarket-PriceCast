@@ -187,3 +187,111 @@ def report(
             lines.append(f"  ... and {len(high) - max_print} more")
 
     return "\n".join(lines)
+
+
+# --------------------------------------------------------------------------
+# Diagnosis of an underperforming block
+# --------------------------------------------------------------------------
+
+#: |r| against the baseline above which a block's columns are judged to be
+#: already covered by existing features.
+REDUNDANT_R = 0.90
+
+#: Median |r| below which a block is judged independent of the baseline.
+INDEPENDENT_R = 0.50
+
+
+def diagnose_block(
+    X_variant: pd.DataFrame,
+    X_baseline: pd.DataFrame,
+    improved_target_regime: bool,
+    aggregate_gain: float,
+) -> dict:
+    """Classify why a block underperformed: REDUNDANT / MISSPECIFIED / WEAK.
+
+    The three are different problems with different fixes, and an ablation
+    delta alone cannot tell them apart -- a block that does nothing because
+    the mechanism is already covered looks identical to one that does nothing
+    because it was built wrong.
+
+    The discriminator is how much of each NEW column is already explained by
+    the columns that were there before:
+
+      REDUNDANT     new columns are highly correlated with existing ones. The
+                    mechanism is already represented; adding it again buys
+                    nothing and costs degrees of freedom.
+      MISSPECIFIED  new columns are INDEPENDENT of the baseline (so they do
+                    carry new information) yet fail to help the regime they
+                    physically target. Independent-but-useless points at the
+                    construction, not the mechanism.
+      GENUINELY_WEAK new columns are independent and DID move their target
+                    regime, but the effect is small. Correct, distinct, and
+                    simply low-signal in this market.
+
+    `aggregate_gain` is signed as MAE delta: negative means the variant
+    improved. A block that improves aggregate MAE while failing its target
+    regime is flagged separately -- it is picking up a correlate rather than
+    the mechanism it claims, and that is the case worth investigating.
+    """
+    new_cols = [c for c in X_variant.columns if c not in set(X_baseline.columns)]
+    if not new_cols:
+        return {"verdict": "NO_NEW_COLUMNS", "n_new": 0}
+
+    common_rows = X_variant.index.intersection(X_baseline.index)
+    V = X_variant.loc[common_rows, new_cols].select_dtypes(include=[np.number])
+    B = X_baseline.loc[common_rows].select_dtypes(include=[np.number])
+
+    V = V.loc[:, V.nunique() > 1]
+    B = B.loc[:, B.nunique() > 1]
+    if V.empty or B.empty:
+        return {"verdict": "DEGENERATE", "n_new": len(new_cols)}
+
+    joint = pd.concat([V, B], axis=1).dropna()
+    if len(joint) < 30:
+        return {"verdict": "INSUFFICIENT_OVERLAP", "n_new": len(new_cols)}
+
+    corr = joint.corr().abs()
+    cross = corr.loc[V.columns, B.columns]
+    # For each new column, how much of it is already in the baseline.
+    best = cross.max(axis=1)
+
+    frac_redundant = float((best >= REDUNDANT_R).mean())
+    median_r = float(best.median())
+
+    if frac_redundant >= 0.5:
+        verdict = "REDUNDANT"
+    elif median_r < INDEPENDENT_R and not improved_target_regime:
+        verdict = "MISSPECIFIED"
+    elif not improved_target_regime:
+        verdict = "PARTIALLY_REDUNDANT"
+    else:
+        verdict = "GENUINELY_WEAK" if abs(aggregate_gain) < 0.05 else "EFFECTIVE"
+
+    worst = best.sort_values(ascending=False)
+    top = [
+        (c, cross.loc[c].idxmax(), float(best[c])) for c in worst.index[:5]
+    ]
+    return {
+        "verdict": verdict,
+        "n_new": len(new_cols),
+        "median_max_r_vs_baseline": median_r,
+        "frac_cols_r_ge_0.90": frac_redundant,
+        "most_redundant": top,
+        "improved_target_regime": improved_target_regime,
+        "aggregate_mae_delta": aggregate_gain,
+    }
+
+
+def format_diagnosis(name: str, d: dict) -> str:
+    """One block's diagnosis, printed."""
+    if d.get("n_new", 0) == 0:
+        return f"  {name:<20} {d['verdict']}"
+    lines = [
+        f"  {name:<20} {d['verdict']:<20} "
+        f"{d['n_new']:>4} new cols, median max|r| vs baseline "
+        f"{d['median_max_r_vs_baseline']:.3f}, "
+        f"{100 * d['frac_cols_r_ge_0.90']:.0f}% at |r|>=0.90"
+    ]
+    for col, against, r in d.get("most_redundant", [])[:3]:
+        lines.append(f"       {r:.4f}  {col:<32} ~ {against}")
+    return "\n".join(lines)
