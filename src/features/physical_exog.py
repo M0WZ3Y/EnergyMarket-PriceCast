@@ -623,6 +623,114 @@ def dispatchable_headroom_block(
     return out
 
 
+#: |spread| above which a border is treated as binding. Not zero: prices are
+#: published to 2 decimals, so exact equality is the right test in principle
+#: but floating-point round-trips through CSV make a small tolerance safer.
+BINDING_EUR = 0.01
+
+
+def coupling_state_block(
+    wide: pd.DataFrame,
+    hourly_index: pd.DatetimeIndex,
+    zones: tuple[str, ...] = ("FR", "NL", "BE", "CH"),
+    lag: int = 1,
+    freq_window: int = 7,
+) -> pd.DataFrame:
+    """Market coupling decomposed into BINDING STATE and SIGNED MAGNITUDE.
+
+    Replaces the raw continuous spread of `coupling_block`, which was measured
+    to make its own target regime WORSE (coupling_stress MAE +10.8% at 80
+    origins) despite carrying information the baseline lacks (median max|r|
+    0.599, nothing above 0.90). Independent-but-harmful points at the
+    encoding, and the encoding is the thing changed here.
+
+    WHY THE RAW SPREAD FAILS. A coupled border clears DE and its neighbour at
+    exactly the same price, so the spread distribution is a point mass at zero
+    plus a continuous tail: FR 33.1% exactly zero, NL 38.0%, BE 31.2%. One
+    linear coefficient has to serve both the discrete question "is this border
+    congested at all" and the continuous question "by how much", and the
+    column's scale is dominated by the tail, so the discrete part is buried.
+    (CH is the exception at 0.1% zero -- Switzerland sits outside EU market
+    coupling, so DE-CH essentially never clears identically. The zero-
+    inflation argument applies to the coupled borders, not to CH.)
+
+    WHAT IS EMITTED, per target hour:
+      coupnbind_D-{lag}_h..    how many borders were congested (0..len(zones))
+      coupsigned_D-{lag}_h..   mean SIGNED spread over congested borders.
+                               Sign is kept because DE importing and DE
+                               exporting are different price regimes; folding
+                               them into |spread| would make one parameter
+                               serve two opposite states, which is the same
+                               mistake one level down.
+      coupbindfreq_D-{lag}_h.. share of the previous `freq_window` days in
+                               which that hour had any border congested --
+                               the persistent, slow-moving part of congestion.
+
+    LEAKAGE, and this one is a trap. Target-day congestion is NOT knowable at
+    the forecast origin: it is an outcome of the very auction being forecast,
+    published with the prices. A binding indicator FEELS structural, which is
+    exactly why it is easy to build at lag 0 by accident -- installed capacity
+    genuinely is legal at lag 0, and this looks similar. It is not. Every
+    column here is built from realized prices at D-lag and earlier, declared
+    against `ec_price_neighbours` (COUPLED_AUCTION, minimum lag 1), and the
+    guard rejects the whole build if that is ever violated.
+    """
+    if not (snapshot.has("ec_price_neighbours") and snapshot.has("ec_price_de")):
+        return _empty(wide.index)
+
+    nb = snapshot.load_series("ec_price_neighbours")
+    de = snapshot.load_series("ec_price_de")
+    if "price_de" not in de.columns:
+        return _empty(wide.index)
+
+    de_s = de["price_de"].reindex(nb.index)
+    present = [z for z in zones if f"price_{z}" in nb.columns]
+    if not present:
+        return _empty(wide.index)
+
+    spreads = pd.DataFrame(
+        {z: nb[f"price_{z}"] - de_s for z in present}, index=nb.index
+    )
+    binding = spreads.abs() > BINDING_EUR
+
+    state = pd.DataFrame(index=nb.index)
+    state["coupnbind"] = binding.sum(axis=1).astype(float)
+    # Mean over congested borders only. Where nothing is congested the mean is
+    # undefined, and 0 is the correct value there rather than a fill: a fully
+    # coupled hour genuinely has zero signed divergence.
+    state["coupsigned"] = spreads.where(binding).mean(axis=1).fillna(0.0)
+
+    wide_ext = _to_daily_wide(state, hourly_index)
+    if wide_ext.empty:
+        return _empty(wide.index)
+
+    parts = []
+    for base in ("coupnbind", "coupsigned"):
+        cols = [c for c in wide_ext.columns if c.startswith(f"{base}_h")]
+        if cols:
+            parts.append(_lagged_block(wide_ext, cols, lag, base))
+
+    # Persistent congestion: rolling share of recent days with any binding
+    # border, computed on ALREADY-LAGGED values so the window can never reach
+    # the target day.
+    nbind_cols = [c for c in wide_ext.columns if c.startswith("coupnbind_h")]
+    if nbind_cols:
+        any_bind = (wide_ext[nbind_cols] > 0).astype(float).shift(lag)
+        freq = any_bind.rolling(window=freq_window, min_periods=freq_window).mean()
+        freq.columns = [f"coupbindfreq_D-{lag}_{c.split('_')[-1]}" for c in nbind_cols]
+        parts.append(freq)
+
+    if not parts:
+        return _empty(wide.index)
+
+    out = pd.concat(parts, axis=1).reindex(wide.index)
+    lg.declare_block(
+        out.columns, source="ec_price_neighbours", lag_days=lag,
+        note="congestion STATE is an auction outcome, legal only lagged",
+    )
+    return out
+
+
 #: Blocks that need the hourly benchmark index as well as the daily-wide
 #: frame (they align an external hourly series onto it).
 NEEDS_HOURLY_INDEX = {
@@ -632,6 +740,7 @@ NEEDS_HOURLY_INDEX = {
     "cross_border_flow_block",
     "storage_block",
     "dispatchable_headroom_block",
+    "coupling_state_block",
 }
 
 EXOG_BLOCKS = {
@@ -644,6 +753,7 @@ EXOG_BLOCKS = {
     "reserve_margin_block": reserve_margin_block,
     "storage_block": storage_block,
     "dispatchable_headroom_block": dispatchable_headroom_block,
+    "coupling_state_block": coupling_state_block,
 }
 
 

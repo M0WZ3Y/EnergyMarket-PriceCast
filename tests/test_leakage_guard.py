@@ -264,3 +264,41 @@ def test_the_unpatched_versions_of_those_blocks_pass():
     px.cross_border_flow_block(wide, hourly_index, lag=1)
     px.merit_order_explicit_block(wide, hourly_index, lags=(1,))
     assert lg.assert_no_leakage(strict=False) == []
+
+
+def test_end_to_end_same_day_congestion_state_fails_the_build():
+    """NEGATIVE TEST for the congestion-state trap.
+
+    Target-day congestion is an OUTCOME of the auction being forecast,
+    published with the prices -- not a structural quantity. It is easy to build
+    at lag 0 by accident precisely because a binding indicator feels
+    structural, and structural quantities (installed capacity) genuinely ARE
+    legal at lag 0. The guard must not be fooled by that resemblance.
+    """
+    _snapshot_or_skip("ec_price_neighbours")
+    from src.features import physical_exog as px
+
+    wide, hourly_index = _wide_and_index()
+    lg.clear_registry()
+
+    out = px.coupling_state_block(wide, hourly_index, zones=("FR",), lag=0)
+    assert out.shape[1] > 0, "no columns built -- the test would be vacuous"
+
+    with pytest.raises(lg.LeakageError) as exc:
+        lg.assert_no_leakage(strict=False)
+    msg = str(exc.value)
+    assert "coupled_auction" in msg
+    assert "at lag 0d" in msg
+
+
+def test_lagged_congestion_state_passes():
+    """Control: the same block at lag 1 must be accepted."""
+    _snapshot_or_skip("ec_price_neighbours")
+    from src.features import physical_exog as px
+
+    wide, hourly_index = _wide_and_index()
+    lg.clear_registry()
+    out = px.coupling_state_block(wide, hourly_index, zones=("FR", "NL"), lag=1)
+    assert out.shape[1] > 0
+    assert [c for c in out.columns if "_D0_" in c] == []
+    assert lg.assert_no_leakage(strict=False) == []
