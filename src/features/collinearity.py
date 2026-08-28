@@ -295,3 +295,119 @@ def format_diagnosis(name: str, d: dict) -> str:
     for col, against, r in d.get("most_redundant", [])[:3]:
         lines.append(f"       {r:.4f}  {col:<32} ~ {against}")
     return "\n".join(lines)
+
+
+# --------------------------------------------------------------------------
+# Scaler compatibility
+# --------------------------------------------------------------------------
+
+#: Number of trailing weekday-dummy columns that LEAR excludes from scaling.
+#: This is why LEARLassoModel._assert_dow_columns_last exists: epftoolbox's
+#: LEAR standardises all but the last 7 columns, so the dummies -- which have
+#: MAD 0 by construction, being 6/7 zeros -- never reach the scaler.
+N_DOW_COLUMNS = 7
+
+
+def zero_mad_columns(X: pd.DataFrame, exclude_trailing: int = N_DOW_COLUMNS) -> list[str]:
+    """Columns LEAR's median/MAD scaler cannot standardise.
+
+    epftoolbox's LEAR scales with median and MEDIAN ABSOLUTE DEVIATION, not
+    mean and standard deviation. A column can therefore have healthy variance
+    and still be unscalable: if more than half its values equal its median,
+    MAD is exactly 0 and the transform divides by zero, producing NaN that
+    surfaces much later as an opaque "Input X contains NaN" from sklearn.
+
+    This is not a hypothetical. A neighbour-price SPREAD is zero-inflated by
+    construction: market coupling means DE and its neighbour clear at exactly
+    the same price whenever the interconnector is not binding, which for
+    DE-NL is over half of all hours at 06 and 18. The feature is physically
+    meaningful and would be usable by a tree or a neural model; it is this
+    particular scaler it defeats.
+
+    The trailing weekday dummies are excluded because LEAR does not scale
+    them, so their MAD of 0 is harmless.
+    """
+    if exclude_trailing:
+        candidate = X.iloc[:, :-exclude_trailing]
+    else:
+        candidate = X
+    num = candidate.select_dtypes(include=[np.number])
+    if num.empty:
+        return []
+    med = num.median()
+    mad = (num - med).abs().median()
+    return list(mad[mad == 0].index)
+
+
+def drop_unscalable(
+    X: pd.DataFrame, exclude_trailing: int = N_DOW_COLUMNS
+) -> tuple[pd.DataFrame, list[str]]:
+    """Drop zero-MAD columns, preserving the dummies-last ordering.
+
+    Returns (X_kept, dropped). Dropping is done here rather than inside the
+    model wrapper deliberately: the limitation belongs to LEAR's scaler, not
+    to the feature, and the existing model code is frozen. Callers MUST report
+    what was dropped -- a feature silently removed from a variant makes that
+    variant a different experiment from the one its name claims.
+    """
+    dropped = zero_mad_columns(X, exclude_trailing=exclude_trailing)
+    if not dropped:
+        return X, []
+    return X.drop(columns=dropped), dropped
+
+
+def zero_mad_in_any_window(
+    X: pd.DataFrame,
+    origins,
+    window: int,
+    exclude_trailing: int = N_DOW_COLUMNS,
+) -> list[str]:
+    """Columns with zero MAD in ANY training window the run will use.
+
+    A global MAD check is not sufficient, and assuming otherwise costs a
+    whole run: LEAR refits on a trailing window at every origin and scales
+    against THAT window's median and MAD. A column can have healthy MAD over
+    the full series and still be exactly constant-at-its-median inside one
+    899-day window, which divides by zero for that origin alone and fails the
+    run partway through.
+
+    So the check has to be the union over every window actually used, which
+    is also what makes the resulting feature set identical across origins --
+    a per-window drop would silently change the model's inputs from day to
+    day, making the ablation a comparison of moving targets.
+    """
+    if exclude_trailing:
+        candidate = X.iloc[:, :-exclude_trailing]
+    else:
+        candidate = X
+    num = candidate.select_dtypes(include=[np.number])
+    if num.empty:
+        return []
+
+    bad: set[str] = set()
+    idx = X.index
+    for o in origins:
+        pos = idx.get_loc(o)
+        start = max(0, pos - window)
+        chunk = num.iloc[start:pos]
+        if len(chunk) < 2:
+            continue
+        med = chunk.median()
+        mad = (chunk - med).abs().median()
+        bad.update(mad[mad == 0].index)
+    return sorted(bad)
+
+
+def drop_unscalable_over_windows(
+    X: pd.DataFrame,
+    origins,
+    window: int,
+    exclude_trailing: int = N_DOW_COLUMNS,
+) -> tuple[pd.DataFrame, list[str]]:
+    """Drop columns unscalable in any training window, dummies kept last."""
+    dropped = zero_mad_in_any_window(
+        X, origins, window, exclude_trailing=exclude_trailing
+    )
+    if not dropped:
+        return X, []
+    return X.drop(columns=dropped), dropped
