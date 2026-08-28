@@ -47,3 +47,33 @@ physical_blocks:
   residual_load_gradient_block: false
   merit_order_block: false
   scarcity_block: false
+
+# Snapshot-derived physical blocks — src/features/physical_exog.py.
+#
+# ADDITIVE and OFF BY DEFAULT, same contract as physical_blocks above: the
+# default build_features() path is unchanged, so the frozen v1.0-results /
+# v1.1-ood numbers still describe the pipeline that exists.
+#
+# These read the PINNED snapshot in data/raw/physical/ (committed, with a
+# provenance hash per series) and NEVER the network — a live source would
+# make results irreproducible, and silently so. Enforced by
+# tests/test_no_network_in_features.py.
+#
+# COVERAGE COST, stated deliberately: the Energy-Charts endpoints serve
+# nothing before 2015-01-01, while the benchmark window starts 2012-01-09.
+# Any block below is NaN for the first three years and those rows are
+# dropped, roughly halving available training history. carbon_block is the
+# exception — the EEX auction archive covers the whole window.
+#
+# Blocks needing an ENTSO-E token (true outage-adjusted reserve margin, NTC,
+# reservoir levels) are absent: they skip cleanly until a token exists and
+# are never backfilled with substitute values.
+exog_blocks:
+  merit_order_explicit_block: false   # observed dispatch shares, lagged
+  capacity_structure_block: false     # installed dispatchable capacity
+  carbon_block: false                 # EUA cost per MWh_el (no fuel leg)
+  fuel_switch_proxy_block: false      # gas-vs-coal dispatch split, lagged
+  coupling_block: false               # LAGGED neighbour prices + spreads
+  cross_border_flow_block: false      # lagged realized net flow
+  reserve_margin_block: false         # load / installed capacity (no outages)
+  storage_block: false                # lagged pumped-storage behaviour
