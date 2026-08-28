@@ -67,3 +67,11 @@ logs/runs/
 # Claude Code: personal/session-local state (shared config in .claude/ is committed)
 .claude/settings.local.json
 .claude/worktrees/
+
+# Pinned physical-data snapshot (Energy-Charts + EEX), ~9.7 MB.
+# Committed deliberately, following the !data/raw/live_ood_de.csv precedent
+# above: feature code reads ONLY these files and never the live API, so the
+# snapshot is an input to the results, not a cache. A result computed against
+# a live source is not reproducible, and each file's sha256 in
+# provenance.json is what makes drift fail loudly instead of silently.
+!data/raw/physical/
