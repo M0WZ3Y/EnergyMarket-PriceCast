@@ -14,15 +14,31 @@ day-ahead price is set:
                    ->  ramping / flexibility  ->  scarcity / reserve margin
                    ->  storage / hydro
 
-DATA REALITY (as of this repo): the benchmark information set is exactly
-three series -- `price`, `exog_1` (Amprion day-ahead LOAD forecast) and
-`exog_2` (day-ahead PV+WIND forecast); see data/raw/DE.csv. Everything
-derivable from those two forecasts is buildable here. Everything else
-(carbon, fuel curves, cross-border capacity, outages, hydro reservoir
-levels) needs a registered data feed, which CLAUDE.md forbids
-("Never introduce a data source that needs registration"). Those mechanisms
-are therefore declared with `available=False` and a named blocking source.
-They are represented honestly as gaps, never as fabricated columns.
+DATA REALITY (updated 2026-08-28, after the pinned snapshot landed). Two
+tiers of input now exist:
+
+  * The benchmark series -- `price`, `exog_1` (Amprion day-ahead LOAD
+    forecast), `exog_2` (day-ahead PV+WIND forecast); see data/raw/DE.csv.
+  * The pinned external snapshot in data/raw/physical/ -- Energy-Charts
+    (neighbour prices, generation mix, cross-border flows, installed
+    capacity; keyless, CC BY 4.0, but serving nothing before 2015-01-01) and
+    the EEX EU ETS primary-auction archive (carbon, 2012-2025, keyless).
+
+That takes 8 of the 9 mechanisms below from unrepresented to represented,
+though several only PARTIALLY -- the keyless half of the mechanism is built
+and the rest names its blocker. Those are marked `available=True` WITH a
+`blocked_by`, which `audit.classify` reports as "partial" and never as
+"present", so a proxy can never be mistaken for the physics it stands in for.
+
+One mechanism remains structurally unavailable: `clean_spreads`. Gas (TTF)
+and coal (API2) prices are Montel-licensed, and Ember publishes only series
+derived from them, which makes Ember a citation and not a source. Its builder
+raises rather than returning a stand-in, because a fabricated driver would
+make every downstream metric a statement about invented data.
+
+Still gated behind an ENTSO-E token (free, academic, ~3 working days):
+generation outages -- so the reserve margin here is not net of outages -- NTC
+as opposed to realized flows, and hydro reservoir filling rates.
 
 INFORMATION-SET DISCIPLINE: every `builder` referenced here consumes only
 quantities knowable before gate closure (day-ahead forecasts and strictly
@@ -128,16 +144,23 @@ MECHANISMS: tuple[Mechanism, ...] = (
             "Short-run marginal cost of the price-setting thermal unit: fuel "
             "cost plus EUA carbon cost divided by efficiency."
         ),
-        requires=("gas_price", "coal_price", "eua_price"),
+        requires=("eua_price", "gas_price", "coal_price"),
         driver_strength=5,
-        features=(),
-        builder=None,
-        available=False,
-        blocked_by="EEX/ICE gas, coal and EUA futures settlement prices (registered feed)",
+        features=("carbon_cost_gas_D-1", "switch_proxy_D-1_h"),
+        builder="carbon_block",
+        available=True,
+        blocked_by=(
+            "gas (TTF) and coal (API2) prices are Montel-licensed; Ember "
+            "publishes only series DERIVED from them, so Ember is a citation "
+            "and not a source. Only the CARBON leg of SRMC is buildable."
+        ),
         notes=(
-            "No fuel or carbon series exists in the benchmark information "
-            "set. Declared as a structural gap; stubbed in physical.py so the "
-            "absence is explicit and testable, never silently fabricated."
+            "PARTIAL, and upgraded from unavailable on 2026-08-28. EEX "
+            "publishes the EU ETS primary-auction archive openly (2012-2025), "
+            "so carbon cost per MWh_el IS buildable keylessly and covers the "
+            "whole benchmark window. The fuel legs are not, so this can never "
+            "become a true SRMC. Paired with an explicitly-named dispatch "
+            "split proxy for the switching signal."
         ),
     ),
     Mechanism(
@@ -168,10 +191,13 @@ MECHANISMS: tuple[Mechanism, ...] = (
         ),
         requires=("neighbor_price", "ntc", "scheduled_flow"),
         driver_strength=4,
-        features=(),
-        builder=None,
-        available=False,
-        blocked_by="ENTSO-E Transparency Platform (security token required)",
+        features=("nbpriceFR_D-1_h", "nbspreadFR_D-1_h", "netimport_D-1_h"),
+        builder="coupling_block",
+        available=True,
+        blocked_by=(
+            "NTC (transfer CAPACITY) needs an ENTSO-E token; only realized "
+            "flows and lagged neighbour prices are keyless"
+        ),
         notes=(
             "Neighbour day-ahead prices are published simultaneously with "
             "DE-LU, so same-day neighbour prices are NOT knowable at the "
@@ -207,7 +233,10 @@ MECHANISMS: tuple[Mechanism, ...] = (
         ),
         requires=("exog_1", "available_capacity", "planned_outages"),
         driver_strength=4,
-        features=("tightness_proxy_D0_h", "tightness_proxy_peak_D0"),
+        features=(
+            "tightness_proxy_D0_h",
+            "resmargin_nooutage_D0_h",
+        ),
         builder="scarcity_block",
         available=True,
         blocked_by=(
@@ -229,12 +258,15 @@ MECHANISMS: tuple[Mechanism, ...] = (
             "Reservoir and pumped-storage opportunity cost links today's "
             "price to expected future prices and smooths the intraday shape."
         ),
-        requires=("reservoir_level", "hydro_generation"),
+        requires=("hydro_generation", "reservoir_level"),
         driver_strength=2,
-        features=(),
-        builder=None,
-        available=False,
-        blocked_by="ENTSO-E aggregated filling rate / hydro generation (token required)",
+        features=("pumpgen_D-1_h", "pumpcon_D-1_h"),
+        builder="storage_block",
+        available=True,
+        blocked_by=(
+            "reservoir FILLING RATES (the seasonal opportunity-cost signal) "
+            "need an ENTSO-E token; only pumped-storage dispatch is keyless"
+        ),
         notes=(
             "Lowest-strength mechanism for DE-LU specifically (limited "
             "reservoir hydro); listed for completeness of the chain."

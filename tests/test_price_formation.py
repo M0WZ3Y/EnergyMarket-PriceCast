@@ -34,12 +34,16 @@ def test_every_declared_builder_exists():
     and the audit would report a mechanism as buildable that nothing can
     build.
     """
+    from src.features import physical_exog
+
+    known = set(physical.BLOCKS) | set(physical_exog.EXOG_BLOCKS)
     for m in MECHANISMS:
         if m.builder is None:
             continue
-        assert m.builder in physical.BLOCKS, (
-            f"mechanism '{m.key}' names builder '{m.builder}', which is not "
-            f"in physical.BLOCKS ({sorted(physical.BLOCKS)})"
+        assert m.builder in known, (
+            f"mechanism '{m.key}' names builder '{m.builder}', which is in "
+            f"neither physical.BLOCKS nor physical_exog.EXOG_BLOCKS "
+            f"({sorted(known)})"
         )
 
 
@@ -66,10 +70,19 @@ def test_driver_strength_in_range():
 
 
 def test_audit_reports_missing_when_columns_absent():
+    """A buildable mechanism with no columns is 'missing'; one whose DATA
+    cannot be obtained at all is 'unavailable'. The distinction is the whole
+    point of the audit -- 'missing' is a to-do, 'unavailable' is a limit.
+
+    market_coupling moved from unavailable to missing on 2026-08-28, when
+    lagged neighbour prices became buildable from the pinned snapshot.
+    clean_spreads is used here instead because it is the one mechanism still
+    structurally blocked (Montel-licensed gas and coal prices)."""
     X = pd.DataFrame(columns=["price_D-1_h00", "dow_0"])
     a = audit_features(X)
     assert a.loc["residual_load", "status"] == "missing"
-    assert a.loc["market_coupling", "status"] == "unavailable"
+    assert a.loc["market_coupling", "status"] == "missing"
+    assert a.loc["clean_spreads", "status"] == "unavailable"
 
 
 def test_audit_reports_present_when_columns_exist():
