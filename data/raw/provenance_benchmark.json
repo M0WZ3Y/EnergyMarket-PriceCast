@@ -1,0 +1,36 @@
+{
+  "de_benchmark": {
+    "key": "de_benchmark",
+    "source": "epftoolbox (Lago et al. 2021) open benchmark dataset",
+    "url": "https://raw.githubusercontent.com/jeslago/epftoolbox/master/datasets/DE.csv",
+    "licence": "epftoolbox open benchmark, AGPL-3.0 toolbox; dataset redistributed for research reproducibility",
+    "fetched_at_utc": "2026-08-29T08:31:14Z",
+    "date_start": "2012-01-09 00:00:00",
+    "date_end": "2017-12-31 23:00:00",
+    "n_rows": 52416,
+    "n_cols": 3,
+    "columns": [
+      "Price",
+      "Ampirion Load Forecast",
+      "PV+Wind Forecast"
+    ],
+    "sha256": "8d14bb68ed2c948da3edf9ddf7a031edcbdc784068f08bab5f981dbb7a2670c0",
+    "filename": "DE.csv",
+    "size_bytes": 2424875,
+    "verified_download_identical": true,
+    "verified_at_utc": "2026-08-29T08:31:14Z",
+    "feature_matrix_check": {
+      "note": "build_features() on this file with the DEFAULT config must reproduce exactly this shape and hash. If it does not, the file is not the one the frozen results came from.",
+      "shape": [
+        2177,
+        247
+      ],
+      "md5_of_hash_pandas_object": "6c8f0c5d66e5895b69d0c15d3c061c5c"
+    },
+    "binds_to_tags": [
+      "v1.0-results",
+      "v1.1-ood"
+    ],
+    "notes": "THIS IS THE INPUT THE FROZEN THESIS RESULTS WERE PRODUCED FROM. The tags v1.0-results and v1.1-ood ship NO benchmark data -- only data/raw/.gitkeep -- so a checkout of either tag CANNOT reproduce the reported numbers on its own. Anyone reproducing from a tag must bring this file with them. v1.1-ood additionally ships live_ood_de.csv, but still needs THIS file for the benchmark reference. Verified 2026-08-29: a fresh download from the epftoolbox server was byte-identical to this copy, so upstream had not drifted as of that date."
+  }
+}
