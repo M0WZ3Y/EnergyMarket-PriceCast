@@ -3369,3 +3369,62 @@ The work is no longer a single copy on one machine.
 
 **Ledger: no pages banked** — code task. Deferral logged per the mandatory
 post-task reconciliation rule.
+
+---
+
+## 2026-08-29 — Flag-logic defect: full scope, and what it does and does not invalidate
+
+Recorded separately from the fix commit because the SCOPE is wider than the two
+symptoms that happened to be noticed, and a later reader must not have to
+reconstruct which results survive.
+
+**The defect was structural, not a single wrong constant.** The ablation
+harness compared every variant to `baseline`. That is correct for a
+single-block variant and wrong for a pairwise one, because a `B1+X` variant
+CONTAINS B1: comparing it to the baseline credits B1's large aggregate gain to
+the block under test. The reference was inconsistent across THREE places that
+were supposed to agree:
+
+1. the per-regime comparison table (always vs baseline),
+2. the physics check's AGGREGATE delta, which read from the pooled table's
+   always-vs-baseline column,
+3. the collinearity diagnosis, which measured a variant's new columns against
+   the baseline's feature matrix.
+
+The worst consequence was inside (2): the physics check compared the TARGET
+REGIME delta against one reference while comparing the AGGREGATE delta against
+another. That mismatch is precisely what manufactures the flag it exists to
+raise — "improved aggregate MAE but missed its own target regime", the
+signature of a feature tracking a correlate rather than its mechanism.
+
+**Scope: EVERY physics-check flag produced before commit 823cc40 is suspect.**
+Not only the two that were noticed (B1+headroom, B1+B3). Any flag emitted by
+the pre-fix harness for a pairwise variant was computed from a mismatched pair
+of references and cannot be trusted without recomputation. The single-block
+variants (B1_ramp, B2..B6, ALL) were unaffected, since baseline was their
+correct reference — but a reader should not have to infer that, hence this
+entry.
+
+**What is NOT invalidated: the reported conclusions.** Every vs-B1 number in
+the 2026-08-29 pairwise analysis was computed DIRECTLY from the persisted
+prediction files -- MAE differences taken against B1's own predictions, and DM
+tests run with B1 as the reference model -- not read off the harness's flag
+logic. The flag output was inspected, found inconsistent with the direct
+computation, and that inconsistency is what exposed the defect. So the
+direction of causation matters here: the conclusions did not survive the bug by
+luck, they were derived by a path that never went through it.
+
+Concretely, these stand unchanged: no pairwise block beats B1 (all p >= 0.23
+raw, all 1.000 Holm); the coupling re-encodings recover 59% / 78% of B4's
+coupling_stress damage while remaining worse than B1 and non-significant; and
+B1 remains the only variant significantly better than baseline.
+
+**Fix.** `VARIANT_REFERENCE` maps each variant to what it ADDS TO, defaulting
+to baseline, and is now used in all three places. Five tests in
+`tests/test_ablation_reference.py` pin the selection, including that a missing
+reference falls back to baseline rather than to self-comparison — the latter
+would report a zero delta for every regime, which reads as "this block changes
+nothing" and is a wrong conclusion wearing the costume of a measurement.
+
+**Ledger: no pages banked** — code task. Deferral logged per the mandatory
+post-task reconciliation rule.

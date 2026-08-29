@@ -87,20 +87,40 @@ superpowers:using-superpowers (also enforced by a SessionStart hook in
 .claude/settings.json).
 
 **2. Read the map before reading the code.** `graphify-out/` holds a built
-knowledge graph of this repo — 1,649 nodes, 3,323 edges, 108 hand-labelled
-communities, rebuilt 2026-08-26. For any question about structure, call
-paths, or what touches a given module, query the graph before grepping cold:
+knowledge graph of this repo — nodes, edges and hand-labelled communities over
+the whole tree. For any question about structure, call paths, or what touches a
+given module, query the graph before grepping cold:
 
     graphify query "<question>"
     graphify explain "<node>"          # e.g. build_features
     graphify path "<A>" "<B>"
 
-`graphify-out/GRAPH_REPORT.md` carries the community map, the god nodes and
-the known gaps. Two standing cautions: the graph is a lookup index, never an
-authority — confirm anything it implies against the source file before acting
-on it (~9% of extracted edges were dropped as dangling, and 84 nodes are
-isolated). And it reflects the repo as of its last build; after substantial
-code changes, refresh with `/graphify . --update`.
+**The graph is NOT in git** — `graphify-out/` is gitignored, because it is
+generated output that goes stale on every code change and has no mechanism to
+announce that it has. A fresh clone has no graph until it builds one:
+
+    /graphify .                        # first build in a fresh clone
+    /graphify . --update               # incremental, after code changes
+
+The rebuild is cheap. Code is extracted structurally by AST with no LLM call,
+so a code-only change costs zero tokens; only changed docs need a semantic
+pass.
+
+**Current figures live in the generated output, not here.** Read them from
+`graphify-out/GRAPH_REPORT.md` (community map, god nodes, known gaps) and
+`graphify-out/cost.json` (per-run token cost and file counts). This file
+deliberately quotes NO node/edge/community counts: it is read at the start of
+every session, so a stale number here is worse than no number — sessions trust
+it. The counts were hardcoded until 2026-08-29 and had already drifted by a
+full rebuild (they described the graph as of 2026-08-26 while the built graph
+was substantially larger). If you ever add a figure back, attach its build date
+to it so the staleness is visible on sight.
+
+Standing caution: the graph is a lookup index, never an authority. Confirm
+anything it implies against the source file before acting on it — a share of
+extracted edges is dropped as dangling and some nodes are isolated, both
+reported in GRAPH_REPORT.md for the current build. And it reflects the repo as
+of its last build, so refresh after substantial code changes.
 
 **3. Establish where we left off from the files, not from memory.** In
 priority order:
