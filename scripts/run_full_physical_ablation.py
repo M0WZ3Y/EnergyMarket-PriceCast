@@ -101,6 +101,7 @@ VARIANTS: dict[str, tuple[dict, dict]] = {
     # effect, and B5's spike result must be retracted.
     "CTRL_noise": ({}, {"control_noise_block": True}),
     "CTRL_shifted_load": ({}, {"control_shifted_load_block": True}),
+    "CTRL_scrambled_year": ({}, {"control_scrambled_year_block": True}),
     "B1+CTRL_noise": (
         {"residual_load_gradient_block": True},
         {"control_noise_block": True},
@@ -229,6 +230,7 @@ TARGET_REGIME = {
     "B1+B6": ("high_hydro",),
     "CTRL_noise": ("spike",),
     "CTRL_shifted_load": ("spike",),
+    "CTRL_scrambled_year": ("spike",),
     "B1+CTRL_noise": ("spike",),
 }
 

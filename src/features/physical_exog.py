@@ -930,6 +930,84 @@ def control_shifted_load_block(wide: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
+def control_scrambled_year_block(wide: pd.DataFrame) -> pd.DataFrame:
+    """CONTROL: B5's structure with the year->constant mapping permuted.
+
+    Tests the mechanism proposed for the B5 spike anomaly. B5 is
+    load / installed_capacity_year, and installed capacity is a yearly STEP
+    function, so within any year the block is load x a year-specific constant.
+    That is why its within-year residual against exog_1 is 3e-15 -- and why
+    "zero residual within a year" is NOT the same statement as "zero
+    information". A year-varying rescaling of load is an INTERACTION that a
+    linear model carrying a single load coefficient cannot construct for
+    itself.
+
+    This control keeps that structure exactly and destroys only the mapping:
+    the SET of capacity constants is identical, but which constant belongs to
+    which year is permuted. So it carries a year-varying rescaling of load
+    that is not the TRUE one.
+
+      gain REPRODUCES  -> any year-varying rescaling helps; the specific
+                          capacity values are irrelevant. Deflationary, and
+                          the mechanism is confirmed.
+      gain DIES        -> the specific constants carry something beyond the
+                          year interaction, and the explanation is incomplete.
+
+    Constructed through the same path as reserve_margin_block so the only
+    difference between them is the permutation. Legal at lag 0 for the same
+    reason B5 is: forecast load over structural capacity.
+    """
+    if not snapshot.has("ec_installed_power"):
+        return _empty(wide.index)
+
+    cap = capacity_structure_block(wide)
+    if cap.empty or "disp_capacity_D0" not in cap.columns:
+        return _empty(wide.index)
+
+    load_cols = [f"exog_1_{h}" for h in HOURS]
+    if not all(c in wide.columns for c in load_cols):
+        return _empty(wide.index)
+
+    years = pd.Index(wide.index.year)
+    per_year = pd.Series(cap["disp_capacity_D0"].to_numpy(), index=years)
+    mapping = per_year.groupby(level=0).first().dropna()
+    if len(mapping) < 2:
+        # Nothing to permute: with one year the control IS B5 and would answer
+        # nothing. Return empty rather than a silently-identical block.
+        return _empty(wide.index)
+
+    rng = np.random.default_rng(CONTROL_SEED)
+    vals = mapping.to_numpy().copy()
+    order = np.arange(len(vals))
+    # Require a derangement: an identity permutation would reproduce B5
+    # exactly and the control would be vacuous while looking like it ran.
+    for _ in range(100):
+        perm = rng.permutation(order)
+        if not np.any(perm == order):
+            break
+    else:
+        perm = np.roll(order, 1)
+    scrambled = pd.Series(vals[perm], index=mapping.index)
+
+    denom = pd.Series(years.map(scrambled.to_dict()), index=wide.index, dtype=float)
+    denom = denom.where(denom > 0)
+
+    ratio = wide[load_cols].div(denom, axis=0)
+    out = ratio.copy()
+    out.columns = [f"ctrlscramble_D0_{h}" for h in HOURS]
+    out["ctrlscramble_peak_D0"] = ratio.max(axis=1)
+
+    ref = reserve_margin_block(wide)
+    if not ref.empty:
+        out = out.where(ref.notna().all(axis=1), other=np.nan)
+
+    lg.declare_block(
+        out.columns, source="exog_1", lag_days=0,
+        note="CONTROL: load / capacity with the year->constant mapping permuted",
+    )
+    return out
+
+
 #: Blocks that need the hourly benchmark index as well as the daily-wide
 #: frame (they align an external hourly series onto it).
 NEEDS_HOURLY_INDEX = {
@@ -957,6 +1035,7 @@ EXOG_BLOCKS = {
     "coupling_split_block": coupling_split_block,
     "control_noise_block": control_noise_block,
     "control_shifted_load_block": control_shifted_load_block,
+    "control_scrambled_year_block": control_scrambled_year_block,
 }
 
 
