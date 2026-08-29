@@ -3279,3 +3279,93 @@ explanation.
 
 **Ledger: no pages banked** — code task. Deferral logged per the mandatory
 post-task reconciliation rule.
+
+---
+
+## 2026-08-29 — Pairwise ablation, coupling re-encodings, and two framing points
+
+### Pairwise vs B1: no block adds anything on top of what works
+
+The single-vs-ALL design could not separate "this feature is weak" from "this
+feature is drowned in a 6-block set". Eight pairwise variants, each B1 plus one
+block, measured against B1 rather than the baseline:
+
+    variant              cols     MAE     vs B1    p raw   p Holm
+    B1_ramp               274   5.7811        -        -        -
+    B1+coupling_split     346   5.7199   -0.061    0.229    1.000
+    B1+coupling_state     322   5.7732   -0.008    0.447    1.000
+    B1+B5                 299   5.7889   +0.008    0.553    1.000
+    B1+B4                 418   5.8195   +0.038    0.619    1.000
+    B1+B2                 419   5.8494   +0.068    0.632    1.000
+    B1+B3                 299   5.8660   +0.085    0.870    1.000
+    B1+headroom           323   5.8742   +0.093    0.876    1.000
+    B1+B6                 346   5.9030   +0.122    0.923    1.000
+
+Nothing is significant, raw or adjusted. The pairwise design rules out
+crowding-out as the explanation: these blocks are weak against B1 ALONE, not
+merely lost inside ALL.
+
+### (a) The coupling re-encoding result is TWO claims, and they must stay separate
+
+Collapsing them into one sentence overstates or understates depending on which
+way it is collapsed.
+
+CLAIM 1 — the misspecification diagnosis was CONFIRMED. The pre-registered
+prediction (commit 5c0eb1f, written before the number existed) was that B4's
+failure was an encoding problem, not an absent mechanism. Re-encoding recovered
+most of the damage on coupling_stress, in the predicted direction:
+
+    variant                     coupling_stress MAE   vs B1    damage recovered
+    B1 alone                            14.288            -            -
+    B1+B4 (raw pooled spread)           15.752       +10.2%            -
+    B1+coupling_split (CH separated)    14.893        +4.2%          59%
+    B1+coupling_state (state+signed)    14.605        +2.2%          78%
+
+The state/signed decomposition OUTPERFORMED the CH split, which is worth
+recording on its own: the dominant defect was the zero-inflated continuous
+encoding, not the pooling of an uncoupled border with coupled ones. Both are
+real; the encoding mattered more.
+
+CLAIM 2 — the mechanism still contributes NOTHING measurable on this window.
+All three coupling variants remain WORSE than B1 alone, and none is significant
+(p >= 0.978 for "better than B1"). Fixing the encoding recovered most of what
+the raw spread broke; it did not turn coupling into a useful feature here.
+
+Claim 1 is about the diagnosis being right. Claim 2 is about the feature being
+useful. They are independent, and only Claim 1 was pre-registered.
+
+### (b) Methodological point: the significance testing earned its place
+
+B1+coupling_split improved on B1 by -0.061 MAE (-1.1%) and was the best of the
+eight pairwise variants. Without a DM test it would have been reported as an
+improvement -- a plausible-looking 1% gain from a physically-motivated
+re-encoding, in exactly the direction a pre-registered hypothesis predicted.
+
+p = 0.229. It is indistinguishable from noise.
+
+This is the clearest case in the project of significance testing preventing a
+wrong claim rather than decorating a right one, and it is worth keeping on
+record for the thesis's evaluation chapter. The same applies at the per-regime
+level, where Holm correction over the 56-test family removed 6 of 11 raw
+significances, including both of B4's off-target "gains".
+
+### Harness defect fixed: comparison reference
+
+Every variant was compared to the baseline, including pairwise ones. A B1+X
+variant CONTAINS B1, so its aggregate gain was credited to the block under
+test, and the physics check flagged B1+headroom and B1+B3 as "improved
+aggregate but missed target" -- the signature of a correlate-chaser -- when the
+gain was B1's. No conclusion changed, because the vs-B1 numbers were computed
+by hand, but the harness would have misled the next run. VARIANT_REFERENCE now
+maps each variant to what it ADDS TO, used consistently in the per-regime
+table, the physics check's aggregate delta and the collinearity diagnosis;
+five tests pin it.
+
+### Branch pushed
+
+24 commits on origin/power-engineering-integration, remote SHA verified equal
+to local HEAD. main unchanged at 73ab326, v1.0-results and v1.1-ood intact.
+The work is no longer a single copy on one machine.
+
+**Ledger: no pages banked** — code task. Deferral logged per the mandatory
+post-task reconciliation rule.
