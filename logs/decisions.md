@@ -2918,3 +2918,635 @@ first-row clock, and that a refused bypass does not log itself as taken.
 
 **Ledger: no pages banked.** Unchanged at 0.0 dated 2026-08-05 — which is now
 a hard blocker rather than a note.
+
+---
+
+## 2026-08-27 — Power-engineering feature layer added, all blocks default OFF
+
+**What.** A price-formation reference map (`src/features/price_formation.py`),
+a programmatic feature audit + gap scorer (`src/features/audit.py`), four
+buildable physical feature blocks (`src/features/physical.py`),
+regime-segmented error evaluation (`src/evaluation/regimes.py`) and a
+print-only ablation harness (`scripts/run_physical_ablation.py`). Branch
+`power-engineering-features`, five commits.
+
+**Why the scope is what it is.** The audit maps nine physical mechanisms.
+Only five are buildable from the sanctioned information set, because the
+benchmark data is exactly three series: `price`, `exog_1` (Amprion day-ahead
+LOAD forecast) and `exog_2` (day-ahead PV+wind forecast). Marginal
+fuel/carbon, clean spark/dark spreads, market coupling and storage/hydro all
+need registered feeds (EEX/ICE futures, ENTSO-E token), which the data rule
+in CLAUDE.md forbids. They are implemented as stubs that raise
+`FeatureDataUnavailable` rather than returning a stand-in series: a
+fabricated driver would make every downstream metric a statement about
+invented data. Scarcity is a partial case — the true reserve margin needs an
+outage feed, so only a tightness PROXY is built, and every column carries
+`_proxy` in its name so it cannot be misread as a measured reserve margin.
+
+**Data finding worth recording.** `exog_1` is Amprion ZONAL load (mean 21.4
+GW) while `exog_2` is all-Germany PV+wind (mean 10.7 GW, max 48.6 GW — above
+the zonal load maximum of 35.5 GW). Residual load `exog_1 - exog_2` is
+therefore negative in 9.9% of hours, and `res_share` exceeds 1. This is a
+scale mismatch inherent to the epftoolbox DE dataset, NOT a physical fact
+about Germany, and it was NOT "corrected": rescaling would require inventing
+a zonal-to-national factor. The construct still earns its place —
+corr(residual_load, price) = 0.689 against corr(exog_1, price) = 0.611 and
+corr(exog_2, price) = -0.389, so it carries more price information than
+either input alone.
+
+**Frozen results are untouched, and this is verified, not assumed.** Every
+flag in the new `physical_blocks:` section of configs/features.yaml is
+false. The default `build_features()` output was compared against
+`main`'s: 2177x247, identical column order, identical value hash. The
+ablation harness applies variant configs to an in-memory copy of the config,
+so a crashed run cannot leave the default pipeline with physical features
+switched on, and it writes no file at all — hence it is correctly absent
+from `test_ledger_gate.py`'s GATED list.
+
+**Fair-comparison rule.** merit_order and scarcity need a 365-day trailing
+reference, which drops ~358 early rows (2177 -> 1819). The harness scores
+every variant on the INTERSECTION of all variants' origins; scoring a
+variant on a later, easier day set than the baseline would manufacture an
+improvement out of nothing.
+
+**Leakage.** Tested as properties, not asserted in comments: perturbing the
+target day's price moves no physical column; perturbing day D+1 moves
+nothing for day D; merit-order position is recomputed by hand from days
+k-window..k-1. Mutation-checked — removing the `.shift(1)` in `_trailing`
+(the roll-then-shift ordering bug) fails two independent tests.
+
+**No existing code was modified except one additive hook** in
+`build_features()` — no defect was found in the feature layer to fix. The
+blocks are inserted BEFORE the weekday dummies so
+`LEARLassoModel._assert_dow_columns_last` keeps holding.
+
+pytest 389 passed + 44 ledger-gate tests = 433, zero failures.
+
+**Ledger: no pages banked** — this was a code task, not a writing task. Debt
+remains at the 9.0-page hard cap noted in the 2026-08-27 gate entry above;
+the new script is ungated because it saves nothing, so it was not blocked by
+that cap. Deferral logged here per the mandatory post-task reconciliation
+rule.
+
+---
+
+## 2026-08-28 — Full physical feature set: pinned external data, blocks 2-6, leakage guard
+
+**What.** Branch `power-engineering-integration`, 13 commits. A pinned
+external-data layer (`src/data/sources/`), snapshot-derived feature blocks 2-6
+(`src/features/physical_exog.py`), a declarative information-set guard
+(`src/features/leakage_guard.py`), collinearity/VIF diagnostics
+(`src/features/collinearity.py`), three new mechanism-target regimes in
+`src/evaluation/regimes.py`, and a block-by-block ablation harness. Every block
+defaults OFF; the frozen v1.0-results / v1.1-ood artifacts are untouched.
+
+**Mechanism coverage went from 5/9 to 8/9.** Only `clean_spreads` remains
+structurally unavailable. Carbon, market coupling and storage/hydro moved from
+"unavailable" to PARTIAL once the data turned out to be reachable keylessly.
+
+**Data-availability findings, each verified by probing rather than assumed.**
+These are the substance of the session and every one contradicts a documented
+or assumed claim:
+
+- Energy-Charts serves NOTHING before 2015-01-01 on `/price`, `/public_power`
+  or `/cbpf` — not 2011 as commonly stated. The benchmark starts 2012-01-09, so
+  blocks built on these endpoints cover roughly half the window and the rest
+  goes NaN. Worse, a pre-2015 request returns HTTP 400 "end must be >= start",
+  which is untrue of the request and sends the reader after the date format.
+  Pinned as `clients.EC_DATA_START`.
+- The German bidding zone is DE-AT-LU before 2018-10-01, DE-LU after. Hardcoding
+  DE-LU returns 404 for the entire thesis window. Austria correctly has no
+  separate price series before the split.
+- `/public_power` and `/cbpf` are 15-MINUTE series. Aligning them to the hourly
+  grid without resampling silently keeps the instantaneous :00 reading in place
+  of an hourly mean — a column that looks complete, plausible and correctly
+  dated while being wrong.
+- EEX publishes the EU ETS primary-auction archive openly (2012-2025), so the
+  CARBON leg of SRMC is buildable keylessly across the whole benchmark window.
+  Gas (TTF) and coal (API2) are Montel-licensed and Ember republishes only
+  series DERIVED from them, which makes Ember a citation and not a source.
+  Clean spark spread, clean dark spread and a true coal-to-gas switch indicator
+  are therefore NOT buildable, and their builder raises rather than returning a
+  stand-in.
+
+**Reproducibility rule adopted (user instruction, non-negotiable).** A live API
+answers differently tomorrow, and the drift is silent. All external data is
+fetched once by `scripts/fetch_physical_snapshot.py`, written to
+`data/raw/physical/` with a provenance record per series (source, url, licence,
+fetch time, range, rows, sha256), and committed. Feature code reads only the
+snapshot; `tests/test_no_network_in_features.py` blocks the socket during a
+feature build so the separation is enforced rather than claimed. `.gitattributes`
+pins those files with `-text` because git's LF->CRLF normalisation would rewrite
+the bytes on a Windows checkout and break every hash in a fresh clone.
+
+**ENTSO-E permission, per user decision.** CLAUDE.md's "no registration-gated
+source" rule is amended to: no registration-gated source may feed thesis numbers
+without explicit written approval; ENTSO-E is pre-approved pending token
+arrival, and this does not generalise to any other gated source. The client is
+implemented and inert — token from `ENTSOE_API_TOKEN`, never hardcoded, raising
+when absent. Outages, NTC and reservoir levels are consequently absent and the
+dependent features skip; nothing is backfilled.
+
+**Leakage.** The existing perturbation tests can only catch leaks in data they
+perturb; once features come from nine external series the question becomes "when
+does this source publish?", which no DataFrame perturbation answers. So each
+source declares an availability class and each column its lag, and
+`assert_no_leakage` fails the build on any violation — including an undeclared
+column, which is the realistic way a leak arrives. Verified on the real
+846-column matrix. Four end-to-end NEGATIVE tests drive the real blocks at
+`lags=(0,)` and must fail; a control test proves the guard is not simply
+rejecting everything. Carbon is classified lag>=1 deliberately although EUA
+auctions clear ~11:00 CET, an hour before the 12:00 gate closure: auctions do
+not run daily so a fill is needed regardless, and a thesis leakage claim should
+not rest on a one-hour margin.
+
+**Defects found and fixed in this branch's own code, all before any result
+depended on them:**
+1. 15-minute series never resampled (above).
+2. The EEX header row moves from row 2 to row 5 in 2017; a hardcoded header
+   silently dropped every year from 2017 on (886 rows ending 2016-12-16).
+   Detecting the header recovers 2841 rows to 2025.
+3. Block 3 emitted four carbon columns that are constant multiples of one
+   another (fixed emission factors), measuring r = 1.0000 between every pair and
+   driving the matrix singular. Reduced to one column per the redundancy rule.
+4. Neighbour-price SPREADS have zero MAD and break LEAR's median/MAD scaler.
+   Market coupling clears DE and its neighbour at exactly the same price
+   whenever the border is not binding — DE-NL is identical 51.2% of hours at
+   04-07 and 18-19 — so median and MAD are both 0 while std is a healthy ~9.5
+   EUR/MWh. sklearn reports this three layers later as "Input X contains NaN",
+   pointing at the wrong thing entirely; chasing that message leads to
+   imputation, which would fabricate a physical driver. Dropped for LEAR only,
+   in the harness, with every dropped column reported. A first fix checked MAD
+   globally, found 4 columns and still failed — LEAR rescales per training
+   window, so the check must be the union over every window used (12 columns).
+
+**Structural limit measured, not assumed.** Every block at full width is 1238
+features against a common day pool of 1079 days (capped by the 2015 floor), so
+the fully-loaded variant is not merely expensive but UNESTIMABLE by LEAR: p > n.
+Applying the redundancy rule — one lag, two largest interconnections instead of
+nine zones — gives the same mechanism coverage in 806 columns. Coverage was
+never what cost the degrees of freedom; duplicated hourly vectors of the same
+driver were.
+
+**Collinearity context.** High VIF is NOT introduced by these blocks: the frozen
+247-column baseline already has 239 columns at VIF>=10 and 492 pairs at
+|r|>=0.95, inherent to the 24-hour-wide Lago representation, which LEAR handles
+by LASSO. What the new blocks add is near-EXACT dependence (max VIF 2.1e4 ->
+7.6e9), which is why the redundancy rule needs measuring rather than asserting.
+
+**Harness flaw corrected.** The ablation held all predictions in memory and
+wrote only after the last variant; a kill during the final variant discarded
+seven completed fits, about two hours of compute, with nothing recoverable.
+Predictions are now persisted per variant and reloaded on re-run, keyed by a
+fingerprint of the actual column set so a changed variant is refit rather than
+silently scored from a stale file. Cache lives in `data/ablation_cache/`,
+deliberately outside `data/processed/`, which `frozen_results_guard.py`
+protects.
+
+pytest 467 passed (423 + 44 ledger-gate), zero failures.
+
+**Ledger: no pages banked** — this was a code task. Debt remains at the 9.0-page
+hard cap; the new scripts are ungated because they save no thesis results.
+Deferral logged here per the mandatory post-task reconciliation rule.
+
+---
+
+## 2026-08-28 — PRE-REGISTERED: B4 coupling diagnosis, recorded before the result
+
+**Status at the time of writing: the full-scale ablation is RUNNING and has
+reported only its baseline variant. No B4_coupling number at 80 origins exists
+yet, here or anywhere.** This entry is committed first precisely so the
+diagnosis cannot be fitted to the number afterwards. Whatever the run reports,
+this is what was predicted beforehand.
+
+**Evidence already in hand** (from a 2-origin smoke run, which is far too small
+to judge accuracy but is perfectly adequate for a correlation structure):
+`diagnose_block` reported B4_coupling as median max|r| = 0.599 against the
+baseline columns, with 0% of its columns at |r| >= 0.90.
+
+**Prediction.** If B4_coupling fails to improve its `coupling_stress` target
+regime at full scale, the diagnosis is MISSPECIFICATION, not redundancy.
+Redundancy is already ruled out by the correlation structure above: the coupling
+columns carry information the baseline does not have. A block that is
+independent of the baseline and still fails the regime it physically targets is
+failing on construction, not on the mechanism being absent from the market.
+
+**Named suspect: the spread encoding.** A raw continuous DE-vs-neighbour spread
+is zero-inflated by the physics of market coupling — the two zones clear at
+exactly the same price whenever the interconnector is not binding, which for
+DE-NL is 51.2% of hours at 04-07 and 18-19 (this is the same property that
+gave those columns zero MAD and broke LEAR's scaler). The informative content
+of coupling is therefore mostly the DISCRETE question "is the border binding at
+all", and a single continuous column buries that question inside a large mass of
+structural near-zeros. A linear model asked to read a regime indicator out of a
+zero-inflated continuous variable is being asked the wrong question.
+
+**Remedy to try IF the prediction holds** — not implemented yet, deliberately:
+decompose the mechanism into the two physically distinct parts a single spread
+conflates.
+
+  (i)  BINDING INDICATOR — is the border congested. A discrete state.
+  (ii) SIGNED MAGNITUDE conditional on binding — direction is independently
+       meaningful, because DE-LU importing and DE-LU exporting are different
+       price regimes. One continuous signed column forces the model to learn
+       both regimes through a single parameter.
+
+**LEAKAGE TRAP attached to that remedy, to be enforced when it is built.**
+Target-day congestion state is NOT knowable before gate closure. The binding
+indicator must be built from lagged or scheduled quantities only — lagged
+binding frequency, or scheduled flow relative to NTC — and never from realized
+congestion on the delivery day. This one is easy to get wrong precisely because
+a congestion indicator FEELS structural rather than price-like, and structural
+quantities have so far been the legal ones (installed capacity is legal at lag
+0). It is not: congestion is an auction outcome. `leakage_guard.SOURCE_TIMING`
+must classify it accordingly, and the guard must cover the new columns.
+
+**Falsification condition.** If B4_coupling DOES improve `coupling_stress`, this
+prediction is simply wrong and the spread encoding is adequate as built; the
+entry stays as written rather than being edited to match.
+
+---
+
+## 2026-08-29 — Ablation results corrected: re-tuning confound, DM significance, B3 reclassified
+
+Three findings, each of which changes how the 2026-08-28 ablation must be read.
+The earlier bottom line ("full coverage lost to one block") is RETRACTED.
+
+### 1. Re-tuning confound: real in mechanism, but it does not explain the result
+
+Hyperparameters ARE re-selected per variant. `LEAR.recalibrate` runs
+`LassoLarsIC(criterion='aic')` inside every fit, per hour and per origin, with
+nothing cached from the baseline. The "tuned once on 247 columns, reused on
+806" hypothesis is false.
+
+But AIC's penalty is a constant 2 per parameter regardless of n, and its
+noise-variance estimate needs n > p and degrades as p approaches n. Measured at
+the first ablation origin:
+
+    variant   p    p/n    AIC alpha   AIC kept   BIC alpha   BIC kept
+    baseline  247  0.25   0.00067     44.8%      0.00462     17.9%
+    ALL       800  0.81   0.00051     39.9%      0.01059      7.8%
+
+Under AIC, alpha FALLS as p triples and retained coefficients nearly triple --
+backwards. Under BIC (penalty log n ~ 6.9) alpha RISES 2.3x and the kept
+fraction drops to 7.8%, which is the correct adaptive behaviour.
+
+So the confound is confirmed. It does NOT rescue ALL:
+
+    criterion   baseline   B1_ramp          ALL              B1 vs ALL
+    AIC         6.2645     5.7811 (-7.72%)  5.8794 (-6.15%)  p=0.385 n.s.
+    BIC         6.3734     6.0458 (-5.14%)  6.2886 (-1.33%)  p=0.156 n.s.
+
+Under properly-adapting regularization ALL does not decay gracefully toward
+B1 -- the gap WIDENS (+0.098 -> +0.243). BIC also degrades every variant in
+absolute terms (baseline 6.264 -> 6.373), so it over-shrinks here and is a
+robustness check rather than a better model. The conclusion that full coverage
+does not beat B1 holds under BOTH criteria and is not a harness artifact.
+
+Diagnostic lives in `src/models/_lear_bic_diagnostic.py`: underscore-prefixed,
+absent from the model registry, imported by nothing in the pipeline. CLAUDE.md's
+fixed model set is unchanged.
+
+### 2. Diebold-Mariano: most of the ablation is not significant
+
+80 days x 24 h. Pooled tests use the multivariate DM of the Lago framework
+(losses aggregated per DAY before differencing, because one auction sets all 24
+prices; treating hours as independent would inflate the sample ~24x). Per-regime
+tests use a HAC-corrected statistic, since a regime is a set of hours, not days.
+
+POOLED: B1_ramp is the ONLY variant significantly better than baseline
+(p<0.001). ALL is not (p=0.119). B2, B3, B4, B5, B6 are not significant in
+either direction.
+
+HEADLINE: B1 vs ALL p = 0.385 / 0.615 -- NOT SEPARABLE. The claim that "full
+coverage lost to one block" is unsupported and is retracted. The defensible
+statement is that full coverage did not BEAT B1, and that ALL is not itself
+significantly better than baseline.
+
+MULTIPLE COMPARISONS. The per-regime grid is 7 variants x 8 regimes = 56 tests;
+at alpha 0.05 that expects ~2.8 false positives. Holm-Bonferroni (matching
+run_combination_ladder.py) collapses 11 raw significances to 5:
+
+    B1_ramp  negative_price 0.012, high_res 0.017, low_residual 0.019,
+             coupling_stress 0.027
+    B5       spike 0.028
+    everything else: nothing survives
+
+Two consequences worth stating plainly:
+
+  - B4's off-target gains DO NOT survive correction: spike 0.046 -> 1.000,
+    high_hydro 0.073 -> 1.000. They were among the largest point effects in the
+    ablation and are not distinguishable from noise. The reading that "B4
+    carries real information and places it in the wrong regimes" is NOT
+    supported by the data. What does survive is B4 being significantly WORSE on
+    its own coupling_stress target (raw p=0.0002, ~0.011 Bonferroni-scaled).
+  - B1 significantly improves coupling_stress (Holm 0.027) WITHOUT targeting
+    it. The ramp block is doing the coupling regime's work.
+
+ANOMALY, recorded rather than explained away: B5's spike improvement survives
+Holm (0.028) although the block is an exact within-year rescaling of load
+(residual 3e-15). A near-duplicate of load shifting the LASSO's effective
+penalty is a plausible mechanism but has not been demonstrated.
+
+### 3. B3 reclassified: timescale mismatch, not misspecification
+
++0.007 on its target regime is nothing, not harm -- categorically unlike B4
+(+1.791) or B6 (+0.902). Under LASSO that is the signature of a coefficient
+correctly shrunk to zero. Measured over the 80-day test window:
+
+    driver                 CoV      ac(1)
+    EUA carbon cost        0.031    +0.774
+    load forecast h13      0.123    +0.558
+    gas/coal split h13     0.233    +0.346
+    RES forecast h13       0.490    +0.463
+    daily price (TARGET)   0.553    +0.547
+
+Carbon varies ~18x less than the target, takes only 35 distinct values in 80
+days (auctions do not run daily), and has ac(1) = 0.77 -- near-constant within
+the window.
+
+RECLASSIFIED: carbon is a LEVEL driver of the merit order across YEARS, not an
+HOURLY driver. A rising EUA price monotonically favours gas over coal and lifts
+the whole cost stack, but at day-ahead resolution over 80 days there is almost
+nothing for a coefficient to attach to. This is a genuine finding, and it
+carries a testable implication: the carbon block should become informative on a
+multi-year window where EUA moves 5-50 EUR/t. It is NOT evidence that carbon
+does not drive German prices.
+
+SCOPE: this covers the carbon component only. The gas/coal dispatch proxy in
+the same block does vary day to day (CoV 0.23) and its null needs a separate
+explanation.
+
+**Ledger: no pages banked** — code task. Deferral logged per the mandatory
+post-task reconciliation rule.
+
+---
+
+## 2026-08-29 — Pairwise ablation, coupling re-encodings, and two framing points
+
+### Pairwise vs B1: no block adds anything on top of what works
+
+The single-vs-ALL design could not separate "this feature is weak" from "this
+feature is drowned in a 6-block set". Eight pairwise variants, each B1 plus one
+block, measured against B1 rather than the baseline:
+
+    variant              cols     MAE     vs B1    p raw   p Holm
+    B1_ramp               274   5.7811        -        -        -
+    B1+coupling_split     346   5.7199   -0.061    0.229    1.000
+    B1+coupling_state     322   5.7732   -0.008    0.447    1.000
+    B1+B5                 299   5.7889   +0.008    0.553    1.000
+    B1+B4                 418   5.8195   +0.038    0.619    1.000
+    B1+B2                 419   5.8494   +0.068    0.632    1.000
+    B1+B3                 299   5.8660   +0.085    0.870    1.000
+    B1+headroom           323   5.8742   +0.093    0.876    1.000
+    B1+B6                 346   5.9030   +0.122    0.923    1.000
+
+Nothing is significant, raw or adjusted. The pairwise design rules out
+crowding-out as the explanation: these blocks are weak against B1 ALONE, not
+merely lost inside ALL.
+
+### (a) The coupling re-encoding result is TWO claims, and they must stay separate
+
+Collapsing them into one sentence overstates or understates depending on which
+way it is collapsed.
+
+CLAIM 1 — the misspecification diagnosis was CONFIRMED. The pre-registered
+prediction (commit 5c0eb1f, written before the number existed) was that B4's
+failure was an encoding problem, not an absent mechanism. Re-encoding recovered
+most of the damage on coupling_stress, in the predicted direction:
+
+    variant                     coupling_stress MAE   vs B1    damage recovered
+    B1 alone                            14.288            -            -
+    B1+B4 (raw pooled spread)           15.752       +10.2%            -
+    B1+coupling_split (CH separated)    14.893        +4.2%          59%
+    B1+coupling_state (state+signed)    14.605        +2.2%          78%
+
+The state/signed decomposition OUTPERFORMED the CH split, which is worth
+recording on its own: the dominant defect was the zero-inflated continuous
+encoding, not the pooling of an uncoupled border with coupled ones. Both are
+real; the encoding mattered more.
+
+CLAIM 2 — the mechanism still contributes NOTHING measurable on this window.
+All three coupling variants remain WORSE than B1 alone, and none is significant
+(p >= 0.978 for "better than B1"). Fixing the encoding recovered most of what
+the raw spread broke; it did not turn coupling into a useful feature here.
+
+Claim 1 is about the diagnosis being right. Claim 2 is about the feature being
+useful. They are independent, and only Claim 1 was pre-registered.
+
+### (b) Methodological point: the significance testing earned its place
+
+B1+coupling_split improved on B1 by -0.061 MAE (-1.1%) and was the best of the
+eight pairwise variants. Without a DM test it would have been reported as an
+improvement -- a plausible-looking 1% gain from a physically-motivated
+re-encoding, in exactly the direction a pre-registered hypothesis predicted.
+
+p = 0.229. It is indistinguishable from noise.
+
+This is the clearest case in the project of significance testing preventing a
+wrong claim rather than decorating a right one, and it is worth keeping on
+record for the thesis's evaluation chapter. The same applies at the per-regime
+level, where Holm correction over the 56-test family removed 6 of 11 raw
+significances, including both of B4's off-target "gains".
+
+### Harness defect fixed: comparison reference
+
+Every variant was compared to the baseline, including pairwise ones. A B1+X
+variant CONTAINS B1, so its aggregate gain was credited to the block under
+test, and the physics check flagged B1+headroom and B1+B3 as "improved
+aggregate but missed target" -- the signature of a correlate-chaser -- when the
+gain was B1's. No conclusion changed, because the vs-B1 numbers were computed
+by hand, but the harness would have misled the next run. VARIANT_REFERENCE now
+maps each variant to what it ADDS TO, used consistently in the per-regime
+table, the physics check's aggregate delta and the collinearity diagnosis;
+five tests pin it.
+
+### Branch pushed
+
+24 commits on origin/power-engineering-integration, remote SHA verified equal
+to local HEAD. main unchanged at 73ab326, v1.0-results and v1.1-ood intact.
+The work is no longer a single copy on one machine.
+
+**Ledger: no pages banked** — code task. Deferral logged per the mandatory
+post-task reconciliation rule.
+
+---
+
+## 2026-08-29 — Flag-logic defect: full scope, and what it does and does not invalidate
+
+Recorded separately from the fix commit because the SCOPE is wider than the two
+symptoms that happened to be noticed, and a later reader must not have to
+reconstruct which results survive.
+
+**The defect was structural, not a single wrong constant.** The ablation
+harness compared every variant to `baseline`. That is correct for a
+single-block variant and wrong for a pairwise one, because a `B1+X` variant
+CONTAINS B1: comparing it to the baseline credits B1's large aggregate gain to
+the block under test. The reference was inconsistent across THREE places that
+were supposed to agree:
+
+1. the per-regime comparison table (always vs baseline),
+2. the physics check's AGGREGATE delta, which read from the pooled table's
+   always-vs-baseline column,
+3. the collinearity diagnosis, which measured a variant's new columns against
+   the baseline's feature matrix.
+
+The worst consequence was inside (2): the physics check compared the TARGET
+REGIME delta against one reference while comparing the AGGREGATE delta against
+another. That mismatch is precisely what manufactures the flag it exists to
+raise — "improved aggregate MAE but missed its own target regime", the
+signature of a feature tracking a correlate rather than its mechanism.
+
+**Scope: EVERY physics-check flag produced before commit 823cc40 is suspect.**
+Not only the two that were noticed (B1+headroom, B1+B3). Any flag emitted by
+the pre-fix harness for a pairwise variant was computed from a mismatched pair
+of references and cannot be trusted without recomputation. The single-block
+variants (B1_ramp, B2..B6, ALL) were unaffected, since baseline was their
+correct reference — but a reader should not have to infer that, hence this
+entry.
+
+**What is NOT invalidated: the reported conclusions.** Every vs-B1 number in
+the 2026-08-29 pairwise analysis was computed DIRECTLY from the persisted
+prediction files -- MAE differences taken against B1's own predictions, and DM
+tests run with B1 as the reference model -- not read off the harness's flag
+logic. The flag output was inspected, found inconsistent with the direct
+computation, and that inconsistency is what exposed the defect. So the
+direction of causation matters here: the conclusions did not survive the bug by
+luck, they were derived by a path that never went through it.
+
+Concretely, these stand unchanged: no pairwise block beats B1 (all p >= 0.23
+raw, all 1.000 Holm); the coupling re-encodings recover 59% / 78% of B4's
+coupling_stress damage while remaining worse than B1 and non-significant; and
+B1 remains the only variant significantly better than baseline.
+
+**Fix.** `VARIANT_REFERENCE` maps each variant to what it ADDS TO, defaulting
+to baseline, and is now used in all three places. Five tests in
+`tests/test_ablation_reference.py` pin the selection, including that a missing
+reference falls back to baseline rather than to self-comparison — the latter
+would report a zero delta for every regime, which reads as "this block changes
+nothing" and is a wrong conclusion wearing the costume of a measurement.
+
+**Ledger: no pages banked** — code task. Deferral logged per the mandatory
+post-task reconciliation rule.
+
+---
+
+## 2026-08-29 — "Zero residual" is not "zero information": the B5 spike anomaly
+
+### The distinction, written down so it is not re-derived
+
+`reserve_margin_block` is forecast load divided by installed dispatchable
+capacity. Installed capacity is published yearly and is a STEP function, so
+within any single year the block equals
+
+    load x (1 / capacity_year)   =   load x a year-specific constant
+
+which is why its within-year residual against `exog_1` is 3e-15 — zero to
+machine precision. It was correct to say the block contains nothing beyond load
+and the calendar year. It was WRONG to treat that as equivalent to "contains no
+information", and this entry exists because those two statements look identical
+and are not.
+
+A year-varying rescaling of load is an INTERACTION. A linear model carrying one
+coefficient per load column cannot construct it: to reproduce
+`load x c_year` it would need the year indicator multiplied into every load
+column, which is not in the feature set. So a column that is exactly linear in
+load WITHIN each year can still carry something the model cannot otherwise
+express ACROSS years.
+
+That is the reconciliation. Without it the result reads as a paradox — a
+feature with a 3e-15 residual improving a regime — and a later reader would
+either distrust the residual measurement or distrust the ablation. Both are
+sound; the inference joining them was the error.
+
+### Control experiment: the penalty hypothesis is REJECTED
+
+Hypothesis tested: that adding 25 columns at that scale to a LASSO at
+p/n ~ 0.8 buys a spike improvement by itself, regardless of content. Two
+controls, each EXACTLY 25 columns, scale-matched to B5 to within 0.5%, carrying
+no target alignment. Spike regime, n = 96 hours:
+
+    variant              spike MAE    delta    p raw    p Holm
+    baseline               13.6768        -        -        -
+    B5_reserve_margin      13.0791   -0.598   0.0075   0.0226 **
+    CTRL_noise             13.4700   -0.207   0.2596   0.5192
+    CTRL_shifted_load      13.7785   +0.102   0.7507   0.7507
+
+Neither control reproduces the effect: Gaussian noise reaches 35% of the effect
+size and is not significant, and shifted real load moves the WRONG WAY. B5
+survives Holm at 0.023. The artifact hypothesis is rejected and B5's spike
+result is NOT retracted, in either its standalone (-0.598 here, -0.700 in the
+first run) or pairwise (-0.511) form.
+
+### TWO CLAIMS, and only the second is supported
+
+These must not be collapsed, in either direction.
+
+NOT SUPPORTED: that the scarcity mechanism works. B5 has shown nothing about
+scarcity. The scarcity conclusion is UNCHANGED and still stands: capacity-based
+proxies cannot recover short-term availability, because installed capacity is a
+yearly step while availability varies daily. That is why the ENTSO-E outage feed
+would add something these features cannot.
+
+SUPPORTED: that a YEAR-LEVEL RESCALING OF LOAD helps on spike hours, on n = 96
+spike hours in a single 80-day window. That is an observation warranting further
+work, not an established property of DE-LU price formation. Every restatement of
+it carries the n.
+
+### One-line implication for future work
+
+If a year-varying rescaling of load helps, that hints the LEAR calibration
+window may be under-adapting to inter-year level shifts. That is a statement
+about the MODEL, not about power systems, and it is recorded here as an
+observation only — not opened as a line of investigation.
+
+**Ledger: no pages banked** — code task. Deferral logged per the mandatory
+post-task reconciliation rule.
+
+---
+
+## 2026-08-29 — B5 spike anomaly: third control kills the year-interaction hypothesis
+
+The hypothesis proposed in the previous entry — that a year-varying rescaling
+of load is what helps, so the specific capacity constants are irrelevant — is
+WRONG. Recorded as a correction rather than edited away, because the reasoning
+was sound and the prediction still failed, which is worth seeing.
+
+CTRL_scrambled_year keeps B5's `load x year-constant` structure exactly and
+permutes ONLY which constant belongs to which year (derangement enforced; the
+identical SET of constants is retained). Spike regime, n = 96 hours:
+
+    variant                 spike MAE    delta    p raw    p Holm
+    baseline                  13.6768        -        -        -
+    B5_reserve_margin         13.0791   -0.598   0.0075   0.0302 **
+    CTRL_scrambled_year       13.8981   +0.221   0.7009   1.0000
+    CTRL_noise                13.4700   -0.207   0.2596   0.7788
+    CTRL_shifted_load         13.7785   +0.102   0.7507   1.0000
+
+The scrambled control is the WORST of the four — worse than pure noise. So the
+year-interaction structure alone is not the mechanism: the TRUE year->capacity
+assignment matters, and a wrong one is actively harmful.
+
+**State of the question.** Three controls now exclude three explanations:
+random columns (noise), realistically-shaped misaligned columns (shifted load),
+and the year-interaction structure (scrambled year). None reproduces the
+effect. B5's spike result is robust across all of them and remains significant
+under Holm. The MECHANISM IS UNEXPLAINED. That is a narrower open question than
+before, and it should be left open rather than filled with a fourth guess.
+
+**Correction to the previous entry's future-work line.** It noted that a
+year-varying rescaling helping would hint at LEAR under-adapting to inter-year
+level shifts. That implication rested on the year-interaction being the
+mechanism, which this control refutes, so the line is WITHDRAWN. There is
+currently no supported model-level implication.
+
+**Framing, unchanged and restated because it must travel with the number.**
+This is n = 96 spike hours in a single 80-day window: an observation warranting
+further work, not an established property of DE-LU price formation. And it is
+NOT a scarcity result — B5 has shown nothing about the scarcity mechanism. The
+scarcity conclusion stands as before: capacity-based proxies cannot recover
+short-term availability, because installed capacity is a yearly step while
+availability varies daily.
+
+**Ledger: no pages banked** — code task. Deferral logged per the mandatory
+post-task reconciliation rule.

@@ -22,3 +22,77 @@ exog_current_day: true
 
 # One-hot day-of-week dummies for target_day (Monday=0 .. Sunday=6).
 weekday_dummies: true
+
+# Physical (power-engineering) feature blocks — src/features/physical.py.
+#
+# ADDITIVE and OFF BY DEFAULT. Every flag below is false, so the default
+# build_features() path emits exactly the epftoolbox-comparable column set
+# that the frozen v1.0-results / v1.1-ood numbers were produced from. The
+# ablation harness (scripts/run_physical_ablation.py) turns them on one
+# block at a time in an in-memory copy of this config; it never rewrites
+# this file and never touches a saved result.
+#
+# Each key is a function name in src/features/physical.BLOCKS. A value of
+# false disables the block; true runs it with its defaults; a mapping passes
+# keyword arguments (e.g. {window: 365}). An unknown key raises rather than
+# being ignored — a silently-dropped block would still train and still
+# score, and would quietly not be the experiment anyone thought they ran.
+#
+# Blocks with no entry here are the declared-unavailable stubs
+# (marginal_fuel_carbon, clean_spreads, market_coupling, storage_hydro).
+# They require registered data feeds, which CLAUDE.md forbids; enabling one
+# raises FeatureDataUnavailable rather than fabricating a series.
+physical_blocks:
+  residual_load_block: false
+  residual_load_gradient_block: false
+  merit_order_block: false
+  scarcity_block: false
+
+# Snapshot-derived physical blocks — src/features/physical_exog.py.
+#
+# ADDITIVE and OFF BY DEFAULT, same contract as physical_blocks above: the
+# default build_features() path is unchanged, so the frozen v1.0-results /
+# v1.1-ood numbers still describe the pipeline that exists.
+#
+# These read the PINNED snapshot in data/raw/physical/ (committed, with a
+# provenance hash per series) and NEVER the network — a live source would
+# make results irreproducible, and silently so. Enforced by
+# tests/test_no_network_in_features.py.
+#
+# COVERAGE COST, stated deliberately: the Energy-Charts endpoints serve
+# nothing before 2015-01-01, while the benchmark window starts 2012-01-09.
+# Any block below is NaN for the first three years and those rows are
+# dropped, roughly halving available training history. carbon_block is the
+# exception — the EEX auction archive covers the whole window.
+#
+# Blocks needing an ENTSO-E token (true outage-adjusted reserve margin, NTC,
+# reservoir levels) are absent: they skip cleanly until a token exists and
+# are never backfilled with substitute values.
+exog_blocks:
+  merit_order_explicit_block: false   # observed dispatch shares, lagged
+  capacity_structure_block: false     # installed dispatchable capacity
+  carbon_block: false                 # EUA cost per MWh_el (no fuel leg)
+  fuel_switch_proxy_block: false      # gas-vs-coal dispatch split, lagged
+  coupling_block: false               # LAGGED neighbour prices + spreads
+  cross_border_flow_block: false      # lagged realized net flow
+  reserve_margin_block: false         # load / installed capacity (no outages)
+  storage_block: false                # lagged pumped-storage behaviour
+  # A SECOND, non-degenerate keyless scarcity proxy, kept separate from
+  # reserve_margin_block rather than folded into it. That one divides forecast
+  # load by installed capacity, which is constant within a year, making it an
+  # EXACT linear function of load -- within-year residual 3e-15, i.e. no
+  # information beyond exog_1 (see scripts/check_scarcity_proxy.py). This one
+  # uses realized dispatchable GENERATION, which varies daily and is absent
+  # from the benchmark set; its within-year residual keeps ~0.9 of its own SD.
+  # Having both means that if a daily-varying proxy ALSO fails, the case for
+  # the ENTSO-E outage feed rests on more than the one proxy guaranteed to be
+  # degenerate.
+  dispatchable_headroom_block: false  # idle dispatchable capacity, lagged
+  # Coupling re-encoded as STATE + signed magnitude, replacing the raw spread
+  # of coupling_block, which made its own target regime WORSE (coupling_stress
+  # MAE +10.8%) while carrying information the baseline lacks -- i.e. the
+  # encoding was the problem, not the mechanism. A coupled border clears at an
+  # identical price, so the spread is a point mass at zero (FR 33%, NL 38%,
+  # BE 31%) plus a continuous tail, and one coefficient cannot serve both.
+  # CH is exempt at 0.1%: Switzerland sits outside EU market coupling.
+  coupling_state_block: false         # binding count + signed magnitude, lagged

@@ -67,3 +67,17 @@ logs/runs/
 # Claude Code: personal/session-local state (shared config in .claude/ is committed)
 .claude/settings.local.json
 .claude/worktrees/
+
+# Pinned physical-data snapshot (Energy-Charts + EEX), ~9.7 MB.
+# Committed deliberately, following the !data/raw/live_ood_de.csv precedent
+# above: feature code reads ONLY these files and never the live API, so the
+# snapshot is an input to the results, not a cache. A result computed against
+# a live source is not reproducible, and each file's sha256 in
+# provenance.json is what makes drift fail loudly instead of silently.
+!data/raw/physical/
+
+# Per-variant ablation predictions (scripts/run_full_physical_ablation.py).
+# Regenerable intermediate data, cached only so an interrupted run resumes
+# instead of restarting. Deliberately NOT under data/processed, which the
+# frozen_results_guard hook protects.
+data/ablation_cache/
