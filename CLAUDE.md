@@ -8,9 +8,24 @@ separate journal article deliverable is English.
 
 ## Non-negotiable constraints
 - Data: `BenchmarkLoader` (epftoolbox, thesis results) and
-  `EnergyChartsLoader` (live, tool only) — both keyless, one shared schema
-  (`price`, `exog_*`, hourly DatetimeIndex). Never introduce a data source
-  that needs registration.
+  `EnergyChartsLoader` (Energy-Charts; promoted 2026-08-28 from tool-only to a
+  sanctioned thesis feature source) — both keyless, one shared schema
+  (`price`, `exog_*`, hourly DatetimeIndex).
+  Amended 2026-08-28: no registration-gated source may feed thesis numbers
+  without explicit written approval. ENTSO-E is pre-approved pending token
+  arrival; that approval does NOT generalise to any other gated source.
+  NEVER SCRAPED, and not to be revisited: Investing.com and Trading Economics
+  (terms of service, and unreproducible). NEVER PURCHASED: raw commercial fuel
+  futures (ICE / Montel / GME). This is why clean spark and dark spreads are
+  unbuildable — gas (TTF) and coal (API2) are Montel-licensed, and Ember
+  republishes only series DERIVED from them, which makes Ember a citation and
+  not a data source.
+  Reproducibility rule: external data is fetched ONCE into an immutable
+  snapshot with a sha256 provenance record, committed, and read only from
+  there. A live API answers differently tomorrow and does so silently. See
+  `data/raw/physical/provenance.json` and `data/raw/provenance_benchmark.json`.
+  Feature code must never touch the network — enforced by
+  `tests/test_no_network_in_features.py`.
 - Models: exactly naive, SARIMAX, LEAR-LASSO, LightGBM, LSTM, + weighted
   ensemble. Do not add models (RF/XGBoost/SVR/GRU were deliberately cut).
 - Targets: hourly (24-price D+1 vector) and daily (baseload average, both
