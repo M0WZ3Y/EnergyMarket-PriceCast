@@ -825,6 +825,111 @@ def coupling_split_block(
     return out
 
 
+# ==========================================================================
+# CONTROL BLOCKS — diagnostics for the B5 spike anomaly, not features
+# ==========================================================================
+#
+# B5's spike improvement appeared twice independently (standalone Holm 0.028;
+# B1+B5 raw 0.036) while the block's within-year residual against exog_1 is
+# 3e-15 -- an exact linear function of load. A column set carrying zero
+# independent information should not improve any regime, so either the
+# correlation analysis missed something or the gain is an artifact of adding
+# 25 columns at that scale to a LASSO at p/n ~ 0.8.
+#
+# These two blocks make that testable. Each emits EXACTLY 25 columns matched
+# to B5's shape and scale while carrying no usable alignment with the target.
+# If they reproduce the spike gain, it is a penalty/degrees-of-freedom
+# artifact and B5's spike result must be retracted. If they do not, the
+# anomaly is real.
+#
+# Neither is a thesis feature. Both are named `control_` and default off.
+
+#: Fixed offset for the shifted-load control. 199 days: prime, so it never
+#: aligns with the weekly cycle, and large enough that the target-day
+#: relationship is destroyed. STRICTLY PAST, so the control stays inside the
+#: information set -- a control that leaked would answer a different question
+#: than the one being asked.
+CONTROL_SHIFT_DAYS = 199
+
+#: Seed for the noise control. Fixed so the experiment is reproducible; the
+#: whole point is a control that can be re-run and get the same answer.
+CONTROL_SEED = 42
+
+
+def control_noise_block(wide: pd.DataFrame) -> pd.DataFrame:
+    """CONTROL: 25 Gaussian columns matched to B5's per-column mean and sd.
+
+    Carries no information whatsoever -- not about the target, not about
+    anything. Matched in COUNT and SCALE to reserve_margin_block so that any
+    effect it produces can only come from the act of adding that many columns
+    at that magnitude, never from their content.
+    """
+    if not snapshot.has("ec_installed_power"):
+        return _empty(wide.index)
+    ref = reserve_margin_block(wide)
+    if ref.empty:
+        return _empty(wide.index)
+
+    rng = np.random.default_rng(CONTROL_SEED)
+    out = pd.DataFrame(index=wide.index)
+    for c in ref.columns:
+        col = ref[c]
+        mu = float(col.mean(skipna=True))
+        sd = float(col.std(skipna=True))
+        vals = rng.normal(mu, sd if sd > 0 else 1.0, size=len(wide))
+        name = c.replace("resmargin_nooutage", "ctrlnoise")
+        s = pd.Series(vals, index=wide.index)
+        # Mirror the reference column's missingness so the two variants drop
+        # the same rows; otherwise the control would be scored on a different
+        # day set and the comparison would be rigged.
+        out[name] = s.where(col.notna())
+
+    lg.declare_block(
+        out.columns, source="calendar", lag_days=0,
+        note="SYNTHETIC CONTROL: Gaussian noise, no information content",
+    )
+    return out
+
+
+def control_shifted_load_block(wide: pd.DataFrame) -> pd.DataFrame:
+    """CONTROL: real load columns shifted 199 days into the past.
+
+    A stronger control than pure noise. It preserves load's marginal
+    distribution AND its autocorrelation structure exactly -- it IS load --
+    while destroying alignment with the target day. So it isolates the effect
+    of adding realistically-shaped columns, as opposed to Gaussian ones, which
+    a LASSO may treat differently.
+
+    The shift is backwards, so every value is strictly past and the control
+    stays inside the information set. A control that leaked would be answering
+    a different question than the one asked.
+    """
+    load_cols = [f"exog_1_{h}" for h in HOURS]
+    if not all(c in wide.columns for c in load_cols):
+        return _empty(wide.index)
+    if not snapshot.has("ec_installed_power"):
+        return _empty(wide.index)
+    ref = reserve_margin_block(wide)
+    if ref.empty:
+        return _empty(wide.index)
+
+    shifted = wide[load_cols].shift(CONTROL_SHIFT_DAYS)
+    out = pd.DataFrame(index=wide.index)
+    for h in HOURS:
+        out[f"ctrlshift_D0_{h}"] = shifted[f"exog_1_{h}"]
+    out["ctrlshift_peak_D0"] = shifted.max(axis=1)
+
+    # Same missingness as the reference, for the same reason as above.
+    mask = ref.notna().all(axis=1)
+    out = out.where(mask, other=np.nan)
+
+    lg.declare_block(
+        out.columns, source="exog_1", lag_days=CONTROL_SHIFT_DAYS,
+        note=f"CONTROL: load shifted {CONTROL_SHIFT_DAYS}d back, alignment destroyed",
+    )
+    return out
+
+
 #: Blocks that need the hourly benchmark index as well as the daily-wide
 #: frame (they align an external hourly series onto it).
 NEEDS_HOURLY_INDEX = {
@@ -850,6 +955,8 @@ EXOG_BLOCKS = {
     "dispatchable_headroom_block": dispatchable_headroom_block,
     "coupling_state_block": coupling_state_block,
     "coupling_split_block": coupling_split_block,
+    "control_noise_block": control_noise_block,
+    "control_shifted_load_block": control_shifted_load_block,
 }
 
 

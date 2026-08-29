@@ -95,6 +95,17 @@ VARIANTS: dict[str, tuple[dict, dict]] = {
     "B5_reserve_margin": ({}, {"reserve_margin_block": True}),
     # Block 6 — storage / hydro.
     "B6_storage": ({}, {"storage_block": True}),
+    # CONTROLS for the B5 spike anomaly. Same column COUNT and SCALE as B5,
+    # no usable alignment with the target. If these reproduce B5's spike gain
+    # it is a LASSO penalty / degrees-of-freedom artifact, not a feature
+    # effect, and B5's spike result must be retracted.
+    "CTRL_noise": ({}, {"control_noise_block": True}),
+    "CTRL_shifted_load": ({}, {"control_shifted_load_block": True}),
+    "B1+CTRL_noise": (
+        {"residual_load_gradient_block": True},
+        {"control_noise_block": True},
+    ),
+
     # Everything buildable at once.
     "ALL": (
         {
@@ -216,7 +227,46 @@ TARGET_REGIME = {
     "B1+B4": ("coupling_stress",),
     "B1+B5": ("spike",),
     "B1+B6": ("high_hydro",),
+    "CTRL_noise": ("spike",),
+    "CTRL_shifted_load": ("spike",),
+    "B1+CTRL_noise": ("spike",),
 }
+
+#: Which variant each variant is measured AGAINST.
+#:
+#: Not always the baseline, and getting this wrong produced a real misreading.
+#: Every pairwise variant CONTAINS B1, so comparing it to the baseline
+#: attributes B1's large aggregate gain to the block being tested. The physics
+#: check then flagged B1+headroom and B1+B3 as "improved aggregate MAE but
+#: missed its target regime" -- the signature of a feature tracking a
+#: correlate -- when in truth the aggregate gain was B1's and the added block
+#: was simply worse than B1 alone on its own target.
+#:
+#: A variant must be compared to what it ADDS TO, so the delta isolates the
+#: block under test. Anything absent from this map falls back to "baseline",
+#: which is correct for the single-block variants.
+VARIANT_REFERENCE = {
+    "B1+coupling_state": "B1_ramp",
+    "B1+coupling_split": "B1_ramp",
+    "B1+headroom": "B1_ramp",
+    "B1+CTRL_noise": "B1_ramp",
+    "B1+B2": "B1_ramp",
+    "B1+B3": "B1_ramp",
+    "B1+B4": "B1_ramp",
+    "B1+B5": "B1_ramp",
+    "B1+B6": "B1_ramp",
+}
+
+
+def reference_for(variant: str, available) -> str:
+    """The variant this one should be measured against.
+
+    Falls back to the baseline when the declared reference was not run --
+    a missing reference must not silently become a self-comparison.
+    """
+    ref = VARIANT_REFERENCE.get(variant, "baseline")
+    return ref if ref in available else "baseline"
+
 
 #: Blocks running on keyless PROXIES rather than the real feed, with what the
 #: real feed would add. Muted or negative deltas here are an expected and
@@ -548,12 +598,22 @@ def main(argv: list[str] | None = None) -> int:
     print("(a) PER-BLOCK x PER-REGIME  -  MAE delta vs baseline (negative = better)")
     print("-" * 78)
     seg_tables = {}
+    ref_used = {}
     for name, frame in results.items():
         if name == "baseline":
             continue
+        ref = reference_for(name, results)
+        ref_used[name] = ref
         seg_tables[name] = regimes.compare_segmented(
-            results["baseline"], frame, context
+            results[ref], frame, context
         )
+    non_baseline_refs = {k: v for k, v in ref_used.items() if v != "baseline"}
+    if non_baseline_refs:
+        print("  reference per variant (a variant is measured against what it")
+        print("  ADDS TO, so the delta isolates the block under test):")
+        for k, v in sorted(non_baseline_refs.items()):
+            print(f"    {k:<22} vs {v}")
+        print()
     base_seg = regimes.segmented_metrics(results["baseline"], context)
     segs = list(base_seg.index)
 
@@ -589,7 +649,12 @@ def main(argv: list[str] | None = None) -> int:
         measured = [(t, d) for t, d in hits if d is not None]
         improved = bool(measured) and all(d < 0 for _, d in measured)
         any_improved = any(d < 0 for _, d in measured)
-        agg = float(pooled.loc[name, "mae_delta"])
+        # Aggregate delta against the SAME reference as the regime deltas.
+        # pooled["mae_delta"] is always vs baseline, so using it here would
+        # compare the target regime to B1 and the aggregate to baseline --
+        # which is exactly how the spurious flags arose.
+        ref = ref_used.get(name, "baseline")
+        agg = float(pooled.loc[name, "mae"] - pooled.loc[ref, "mae"])
         physics[name] = dict(targets=hits, improved=improved,
                              any_improved=any_improved, aggregate=agg)
         verdict = "YES" if improved else ("PARTIAL" if any_improved else "NO")
@@ -634,7 +699,7 @@ def main(argv: list[str] | None = None) -> int:
         # lively across six years and be frozen across eighty days.
         y_daily = built["baseline"][1].loc[origins].mean(axis=1)
         d = col.diagnose_block(
-            built[name][0], Xb,
+            built[name][0], built[ref_used.get(name, "baseline")][0],
             improved_target_regime=ph["improved"],
             aggregate_gain=ph["aggregate"],
             target=y_daily,
