@@ -3164,3 +3164,118 @@ must classify it accordingly, and the guard must cover the new columns.
 **Falsification condition.** If B4_coupling DOES improve `coupling_stress`, this
 prediction is simply wrong and the spread encoding is adequate as built; the
 entry stays as written rather than being edited to match.
+
+---
+
+## 2026-08-29 — Ablation results corrected: re-tuning confound, DM significance, B3 reclassified
+
+Three findings, each of which changes how the 2026-08-28 ablation must be read.
+The earlier bottom line ("full coverage lost to one block") is RETRACTED.
+
+### 1. Re-tuning confound: real in mechanism, but it does not explain the result
+
+Hyperparameters ARE re-selected per variant. `LEAR.recalibrate` runs
+`LassoLarsIC(criterion='aic')` inside every fit, per hour and per origin, with
+nothing cached from the baseline. The "tuned once on 247 columns, reused on
+806" hypothesis is false.
+
+But AIC's penalty is a constant 2 per parameter regardless of n, and its
+noise-variance estimate needs n > p and degrades as p approaches n. Measured at
+the first ablation origin:
+
+    variant   p    p/n    AIC alpha   AIC kept   BIC alpha   BIC kept
+    baseline  247  0.25   0.00067     44.8%      0.00462     17.9%
+    ALL       800  0.81   0.00051     39.9%      0.01059      7.8%
+
+Under AIC, alpha FALLS as p triples and retained coefficients nearly triple --
+backwards. Under BIC (penalty log n ~ 6.9) alpha RISES 2.3x and the kept
+fraction drops to 7.8%, which is the correct adaptive behaviour.
+
+So the confound is confirmed. It does NOT rescue ALL:
+
+    criterion   baseline   B1_ramp          ALL              B1 vs ALL
+    AIC         6.2645     5.7811 (-7.72%)  5.8794 (-6.15%)  p=0.385 n.s.
+    BIC         6.3734     6.0458 (-5.14%)  6.2886 (-1.33%)  p=0.156 n.s.
+
+Under properly-adapting regularization ALL does not decay gracefully toward
+B1 -- the gap WIDENS (+0.098 -> +0.243). BIC also degrades every variant in
+absolute terms (baseline 6.264 -> 6.373), so it over-shrinks here and is a
+robustness check rather than a better model. The conclusion that full coverage
+does not beat B1 holds under BOTH criteria and is not a harness artifact.
+
+Diagnostic lives in `src/models/_lear_bic_diagnostic.py`: underscore-prefixed,
+absent from the model registry, imported by nothing in the pipeline. CLAUDE.md's
+fixed model set is unchanged.
+
+### 2. Diebold-Mariano: most of the ablation is not significant
+
+80 days x 24 h. Pooled tests use the multivariate DM of the Lago framework
+(losses aggregated per DAY before differencing, because one auction sets all 24
+prices; treating hours as independent would inflate the sample ~24x). Per-regime
+tests use a HAC-corrected statistic, since a regime is a set of hours, not days.
+
+POOLED: B1_ramp is the ONLY variant significantly better than baseline
+(p<0.001). ALL is not (p=0.119). B2, B3, B4, B5, B6 are not significant in
+either direction.
+
+HEADLINE: B1 vs ALL p = 0.385 / 0.615 -- NOT SEPARABLE. The claim that "full
+coverage lost to one block" is unsupported and is retracted. The defensible
+statement is that full coverage did not BEAT B1, and that ALL is not itself
+significantly better than baseline.
+
+MULTIPLE COMPARISONS. The per-regime grid is 7 variants x 8 regimes = 56 tests;
+at alpha 0.05 that expects ~2.8 false positives. Holm-Bonferroni (matching
+run_combination_ladder.py) collapses 11 raw significances to 5:
+
+    B1_ramp  negative_price 0.012, high_res 0.017, low_residual 0.019,
+             coupling_stress 0.027
+    B5       spike 0.028
+    everything else: nothing survives
+
+Two consequences worth stating plainly:
+
+  - B4's off-target gains DO NOT survive correction: spike 0.046 -> 1.000,
+    high_hydro 0.073 -> 1.000. They were among the largest point effects in the
+    ablation and are not distinguishable from noise. The reading that "B4
+    carries real information and places it in the wrong regimes" is NOT
+    supported by the data. What does survive is B4 being significantly WORSE on
+    its own coupling_stress target (raw p=0.0002, ~0.011 Bonferroni-scaled).
+  - B1 significantly improves coupling_stress (Holm 0.027) WITHOUT targeting
+    it. The ramp block is doing the coupling regime's work.
+
+ANOMALY, recorded rather than explained away: B5's spike improvement survives
+Holm (0.028) although the block is an exact within-year rescaling of load
+(residual 3e-15). A near-duplicate of load shifting the LASSO's effective
+penalty is a plausible mechanism but has not been demonstrated.
+
+### 3. B3 reclassified: timescale mismatch, not misspecification
+
++0.007 on its target regime is nothing, not harm -- categorically unlike B4
+(+1.791) or B6 (+0.902). Under LASSO that is the signature of a coefficient
+correctly shrunk to zero. Measured over the 80-day test window:
+
+    driver                 CoV      ac(1)
+    EUA carbon cost        0.031    +0.774
+    load forecast h13      0.123    +0.558
+    gas/coal split h13     0.233    +0.346
+    RES forecast h13       0.490    +0.463
+    daily price (TARGET)   0.553    +0.547
+
+Carbon varies ~18x less than the target, takes only 35 distinct values in 80
+days (auctions do not run daily), and has ac(1) = 0.77 -- near-constant within
+the window.
+
+RECLASSIFIED: carbon is a LEVEL driver of the merit order across YEARS, not an
+HOURLY driver. A rising EUA price monotonically favours gas over coal and lifts
+the whole cost stack, but at day-ahead resolution over 80 days there is almost
+nothing for a coefficient to attach to. This is a genuine finding, and it
+carries a testable implication: the carbon block should become informative on a
+multi-year window where EUA moves 5-50 EUR/t. It is NOT evidence that carbon
+does not drive German prices.
+
+SCOPE: this covers the carbon component only. The gas/coal dispatch proxy in
+the same block does vary day to day (CoV 0.23) and its null needs a separate
+explanation.
+
+**Ledger: no pages banked** — code task. Deferral logged per the mandatory
+post-task reconciliation rule.
