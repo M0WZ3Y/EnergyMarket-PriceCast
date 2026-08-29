@@ -20,3 +20,10 @@
 # disables the conversion so the committed bytes are the fetched bytes.
 data/raw/physical/*.csv -text
 data/raw/physical/*.json -text
+
+# Benchmark input: keep bytes EXACTLY as fetched, for the same reason as the
+# physical snapshot. provenance_benchmark.json records a sha256 of these bytes;
+# LF->CRLF normalisation on a Windows checkout would rewrite them and break the
+# verification in a fresh clone.
+data/raw/DE.csv -text
+data/raw/provenance_benchmark.json -text

@@ -3550,3 +3550,53 @@ availability varies daily.
 
 **Ledger: no pages banked** — code task. Deferral logged per the mandatory
 post-task reconciliation rule.
+
+---
+
+## 2026-08-29 — Benchmark input pinned: closing the DE.csv reproducibility gap
+
+**The gap.** `v1.0-results` and `v1.1-ood` ship only `data/raw/.gitkeep`. The
+benchmark input `DE.csv` was never versioned, so reproducing the reported
+thesis numbers required re-downloading it from the epftoolbox server. If that
+source moved or revised its data — and electricity market data does get revised
+— the frozen results would become unreproducible, silently. This is exactly the
+failure the snapshot rule was written to prevent; it had been applied to the
+physical data in `data/raw/physical/` and not to the primary benchmark input.
+
+**Verified before pinning, two ways.** Neither check was assumed:
+
+1. The default feature matrix built from the on-disk file reproduces shape
+   (2177, 247) and hash `6c8f0c5d66e5895b69d0c15d3c061c5c` — the value recorded
+   on merged main, i.e. the matrix the frozen results were built on.
+2. A FRESH download from the epftoolbox server was byte-identical to the cached
+   copy (sha256 `8d14bb68...`). So upstream had not drifted as of 2026-08-29,
+   and the file being pinned is the file the results came from rather than a
+   later revision that happens to still parse.
+
+**What was committed.** The file itself, not merely its hash: 2,424,875 bytes
+(2.31 MB), smaller than the physical snapshot already tracked (9.7 MB), so the
+impractical-size fallback did not apply. Alongside it,
+`data/raw/provenance_benchmark.json` records source, URL, licence, fetch and
+verification timestamps, date range 2012-01-09 .. 2017-12-31, 52,416 rows,
+columns, size, sha256, and the feature-matrix check above so a future reader can
+confirm not just the bytes but that those bytes still build the right matrix.
+`.gitattributes` pins the file `-text`, because LF->CRLF normalisation on a
+Windows checkout would rewrite the bytes and break the hash in a fresh clone.
+
+**BINDING TO THE FROZEN TAGS — the part that must be findable without git
+history.** This snapshot is the input `v1.0-results` and `v1.1-ood` were
+produced from. THE TAGS THEMSELVES SHIP NO BENCHMARK DATA. A checkout of either
+tag cannot reproduce the reported numbers on its own; whoever reproduces from a
+tag must bring `data/raw/DE.csv` from main (or any commit at or after this one)
+with them. The same caveat applies to `v1.1-ood` despite it shipping
+`live_ood_de.csv`: that file covers the live OOD window only, and the benchmark
+reference still requires DE.csv. This is stated in the provenance record's own
+`notes` and `binds_to_tags` fields, and pinned by
+`tests/test_benchmark_provenance.py` so it cannot be quietly dropped.
+
+**Frozen tags untouched.** No re-tagging, no amend, no force-push. This closes
+the gap going forward; it does not rewrite history. `v1.0-results` remains
+`1b998f4`, `v1.1-ood` remains `6031f01`.
+
+**Ledger: no pages banked** — code task. Deferral logged per the mandatory
+post-task reconciliation rule.

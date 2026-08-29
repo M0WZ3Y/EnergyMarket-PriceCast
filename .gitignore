@@ -81,3 +81,15 @@ logs/runs/
 # instead of restarting. Deliberately NOT under data/processed, which the
 # frozen_results_guard hook protects.
 data/ablation_cache/
+
+# The benchmark input the FROZEN results were produced from.
+#
+# Committed deliberately, following the data/raw/physical/ precedent. The tags
+# v1.0-results and v1.1-ood ship no benchmark data at all, so reproducing them
+# depended on re-downloading from the epftoolbox server -- and if that source
+# ever moves or revises its data, the frozen thesis numbers become
+# unreproducible. That is exactly the failure the snapshot rule was written to
+# prevent; it was applied to the physical data and not, until now, to the
+# primary benchmark input.
+!data/raw/DE.csv
+!data/raw/provenance_benchmark.json
