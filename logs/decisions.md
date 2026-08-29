@@ -3502,3 +3502,51 @@ observation only — not opened as a line of investigation.
 
 **Ledger: no pages banked** — code task. Deferral logged per the mandatory
 post-task reconciliation rule.
+
+---
+
+## 2026-08-29 — B5 spike anomaly: third control kills the year-interaction hypothesis
+
+The hypothesis proposed in the previous entry — that a year-varying rescaling
+of load is what helps, so the specific capacity constants are irrelevant — is
+WRONG. Recorded as a correction rather than edited away, because the reasoning
+was sound and the prediction still failed, which is worth seeing.
+
+CTRL_scrambled_year keeps B5's `load x year-constant` structure exactly and
+permutes ONLY which constant belongs to which year (derangement enforced; the
+identical SET of constants is retained). Spike regime, n = 96 hours:
+
+    variant                 spike MAE    delta    p raw    p Holm
+    baseline                  13.6768        -        -        -
+    B5_reserve_margin         13.0791   -0.598   0.0075   0.0302 **
+    CTRL_scrambled_year       13.8981   +0.221   0.7009   1.0000
+    CTRL_noise                13.4700   -0.207   0.2596   0.7788
+    CTRL_shifted_load         13.7785   +0.102   0.7507   1.0000
+
+The scrambled control is the WORST of the four — worse than pure noise. So the
+year-interaction structure alone is not the mechanism: the TRUE year->capacity
+assignment matters, and a wrong one is actively harmful.
+
+**State of the question.** Three controls now exclude three explanations:
+random columns (noise), realistically-shaped misaligned columns (shifted load),
+and the year-interaction structure (scrambled year). None reproduces the
+effect. B5's spike result is robust across all of them and remains significant
+under Holm. The MECHANISM IS UNEXPLAINED. That is a narrower open question than
+before, and it should be left open rather than filled with a fourth guess.
+
+**Correction to the previous entry's future-work line.** It noted that a
+year-varying rescaling helping would hint at LEAR under-adapting to inter-year
+level shifts. That implication rested on the year-interaction being the
+mechanism, which this control refutes, so the line is WITHDRAWN. There is
+currently no supported model-level implication.
+
+**Framing, unchanged and restated because it must travel with the number.**
+This is n = 96 spike hours in a single 80-day window: an observation warranting
+further work, not an established property of DE-LU price formation. And it is
+NOT a scarcity result — B5 has shown nothing about the scarcity mechanism. The
+scarcity conclusion stands as before: capacity-based proxies cannot recover
+short-term availability, because installed capacity is a yearly step while
+availability varies daily.
+
+**Ledger: no pages banked** — code task. Deferral logged per the mandatory
+post-task reconciliation rule.
