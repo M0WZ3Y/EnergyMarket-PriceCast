@@ -635,6 +635,7 @@ def coupling_state_block(
     zones: tuple[str, ...] = ("FR", "NL", "BE", "CH"),
     lag: int = 1,
     freq_window: int = 7,
+    include_freq: bool = False,
 ) -> pd.DataFrame:
     """Market coupling decomposed into BINDING STATE and SIGNED MAGNITUDE.
 
@@ -663,8 +664,23 @@ def coupling_state_block(
                                serve two opposite states, which is the same
                                mistake one level down.
       coupbindfreq_D-{lag}_h.. share of the previous `freq_window` days in
-                               which that hour had any border congested --
-                               the persistent, slow-moving part of congestion.
+                               which that hour had any border congested.
+                               OFF BY DEFAULT -- measured and rejected, see
+                               below.
+
+    WHY THE FREQUENCY FEATURE IS OFF. It was intended as the persistent,
+    slow-moving part of congestion. Measured, a 7-day window destroys the
+    signal it was meant to summarise:
+
+        feature        CoV     ac(1)   distinct values
+        coupnbind      0.33-0.52   0.20-0.42   5
+        coupbindfreq   0.034       0.94-0.96   6
+
+    and it correlates only +0.10 with the same-day binding count it is
+    supposed to track. A near-constant column that is uncorrelated with the
+    state it summarises cannot inform the forecast and can only spend degrees
+    of freedom, which at p/n ~ 0.8 is not free. Enable it with
+    include_freq=True and a much shorter window if the idea is revisited.
 
     LEAKAGE, and this one is a trap. Target-day congestion is NOT knowable at
     the forecast origin: it is an outcome of the very auction being forecast,
@@ -714,7 +730,7 @@ def coupling_state_block(
     # border, computed on ALREADY-LAGGED values so the window can never reach
     # the target day.
     nbind_cols = [c for c in wide_ext.columns if c.startswith("coupnbind_h")]
-    if nbind_cols:
+    if include_freq and nbind_cols:
         any_bind = (wide_ext[nbind_cols] > 0).astype(float).shift(lag)
         freq = any_bind.rolling(window=freq_window, min_periods=freq_window).mean()
         freq.columns = [f"coupbindfreq_D-{lag}_{c.split('_')[-1]}" for c in nbind_cols]
@@ -731,6 +747,84 @@ def coupling_state_block(
     return out
 
 
+#: Borders that clear inside EU market coupling with DE-LU. CH is NOT one:
+#: Switzerland sits outside the coupled day-ahead market, so DE-CH prices
+#: essentially never clear identically (0.1% exactly equal, against 31-38% for
+#: FR/NL/BE). Pooling it with the coupled borders averages two different
+#: mechanisms into one number.
+COUPLED_ZONES = ("FR", "NL", "BE")
+UNCOUPLED_ZONES = ("CH",)
+
+
+def coupling_split_block(
+    wide: pd.DataFrame,
+    hourly_index: pd.DatetimeIndex,
+    lag: int = 1,
+) -> pd.DataFrame:
+    """Coupling with the UNCOUPLED border separated from the coupled ones.
+
+    The uniform encoding was wrong from the start, and the project's own data
+    says so: FR/NL/BE spreads are exactly zero 31-38% of the time because a
+    coupled border clears both zones at one price, while DE-CH is exactly zero
+    0.1% of the time because Switzerland is outside EU market coupling. Those
+    are two different physical mechanisms, and `coupling_block` pooled them.
+
+    Consequences of the pooling, both of which this block avoids:
+      - The binding-state question ("is this border congested") is meaningful
+        for FR/NL/BE and almost vacuous for CH, which is essentially always
+        "congested" in the sense of having a non-zero spread.
+      - A mean spread taken across all four borders mixes a zero-inflated
+        variable with a continuous one, so the coupled borders' point mass is
+        diluted by CH's always-on variation.
+
+    Emitted per target hour:
+      coupbind_D-{lag}_h..     borders congested among the COUPLED set only
+      coupspr_D-{lag}_h..      mean signed spread over congested coupled borders
+      chspr_D-{lag}_h..        DE-CH signed spread, as its own feature
+    """
+    if not (snapshot.has("ec_price_neighbours") and snapshot.has("ec_price_de")):
+        return _empty(wide.index)
+
+    nb = snapshot.load_series("ec_price_neighbours")
+    de = snapshot.load_series("ec_price_de")
+    if "price_de" not in de.columns:
+        return _empty(wide.index)
+    de_s = de["price_de"].reindex(nb.index)
+
+    coupled = [z for z in COUPLED_ZONES if f"price_{z}" in nb.columns]
+    if not coupled:
+        return _empty(wide.index)
+
+    sp = pd.DataFrame({z: nb[f"price_{z}"] - de_s for z in coupled}, index=nb.index)
+    binding = sp.abs() > BINDING_EUR
+
+    state = pd.DataFrame(index=nb.index)
+    state["coupbind"] = binding.sum(axis=1).astype(float)
+    state["coupspr"] = sp.where(binding).mean(axis=1).fillna(0.0)
+    for z in UNCOUPLED_ZONES:
+        if f"price_{z}" in nb.columns:
+            state["chspr"] = nb[f"price_{z}"] - de_s
+
+    wide_ext = _to_daily_wide(state, hourly_index)
+    if wide_ext.empty:
+        return _empty(wide.index)
+
+    parts = []
+    for base in state.columns:
+        cols = [c for c in wide_ext.columns if c.startswith(f"{base}_h")]
+        if cols:
+            parts.append(_lagged_block(wide_ext, cols, lag, base))
+    if not parts:
+        return _empty(wide.index)
+
+    out = pd.concat(parts, axis=1).reindex(wide.index)
+    lg.declare_block(
+        out.columns, source="ec_price_neighbours", lag_days=lag,
+        note="coupled borders and the uncoupled CH border kept separate",
+    )
+    return out
+
+
 #: Blocks that need the hourly benchmark index as well as the daily-wide
 #: frame (they align an external hourly series onto it).
 NEEDS_HOURLY_INDEX = {
@@ -741,6 +835,7 @@ NEEDS_HOURLY_INDEX = {
     "storage_block",
     "dispatchable_headroom_block",
     "coupling_state_block",
+    "coupling_split_block",
 }
 
 EXOG_BLOCKS = {
@@ -754,6 +849,7 @@ EXOG_BLOCKS = {
     "storage_block": storage_block,
     "dispatchable_headroom_block": dispatchable_headroom_block,
     "coupling_state_block": coupling_state_block,
+    "coupling_split_block": coupling_split_block,
 }
 
 
