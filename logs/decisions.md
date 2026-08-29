@@ -3428,3 +3428,77 @@ nothing" and is a wrong conclusion wearing the costume of a measurement.
 
 **Ledger: no pages banked** — code task. Deferral logged per the mandatory
 post-task reconciliation rule.
+
+---
+
+## 2026-08-29 — "Zero residual" is not "zero information": the B5 spike anomaly
+
+### The distinction, written down so it is not re-derived
+
+`reserve_margin_block` is forecast load divided by installed dispatchable
+capacity. Installed capacity is published yearly and is a STEP function, so
+within any single year the block equals
+
+    load x (1 / capacity_year)   =   load x a year-specific constant
+
+which is why its within-year residual against `exog_1` is 3e-15 — zero to
+machine precision. It was correct to say the block contains nothing beyond load
+and the calendar year. It was WRONG to treat that as equivalent to "contains no
+information", and this entry exists because those two statements look identical
+and are not.
+
+A year-varying rescaling of load is an INTERACTION. A linear model carrying one
+coefficient per load column cannot construct it: to reproduce
+`load x c_year` it would need the year indicator multiplied into every load
+column, which is not in the feature set. So a column that is exactly linear in
+load WITHIN each year can still carry something the model cannot otherwise
+express ACROSS years.
+
+That is the reconciliation. Without it the result reads as a paradox — a
+feature with a 3e-15 residual improving a regime — and a later reader would
+either distrust the residual measurement or distrust the ablation. Both are
+sound; the inference joining them was the error.
+
+### Control experiment: the penalty hypothesis is REJECTED
+
+Hypothesis tested: that adding 25 columns at that scale to a LASSO at
+p/n ~ 0.8 buys a spike improvement by itself, regardless of content. Two
+controls, each EXACTLY 25 columns, scale-matched to B5 to within 0.5%, carrying
+no target alignment. Spike regime, n = 96 hours:
+
+    variant              spike MAE    delta    p raw    p Holm
+    baseline               13.6768        -        -        -
+    B5_reserve_margin      13.0791   -0.598   0.0075   0.0226 **
+    CTRL_noise             13.4700   -0.207   0.2596   0.5192
+    CTRL_shifted_load      13.7785   +0.102   0.7507   0.7507
+
+Neither control reproduces the effect: Gaussian noise reaches 35% of the effect
+size and is not significant, and shifted real load moves the WRONG WAY. B5
+survives Holm at 0.023. The artifact hypothesis is rejected and B5's spike
+result is NOT retracted, in either its standalone (-0.598 here, -0.700 in the
+first run) or pairwise (-0.511) form.
+
+### TWO CLAIMS, and only the second is supported
+
+These must not be collapsed, in either direction.
+
+NOT SUPPORTED: that the scarcity mechanism works. B5 has shown nothing about
+scarcity. The scarcity conclusion is UNCHANGED and still stands: capacity-based
+proxies cannot recover short-term availability, because installed capacity is a
+yearly step while availability varies daily. That is why the ENTSO-E outage feed
+would add something these features cannot.
+
+SUPPORTED: that a YEAR-LEVEL RESCALING OF LOAD helps on spike hours, on n = 96
+spike hours in a single 80-day window. That is an observation warranting further
+work, not an established property of DE-LU price formation. Every restatement of
+it carries the n.
+
+### One-line implication for future work
+
+If a year-varying rescaling of load helps, that hints the LEAR calibration
+window may be under-adapting to inter-year level shifts. That is a statement
+about the MODEL, not about power systems, and it is recorded here as an
+observation only — not opened as a line of investigation.
+
+**Ledger: no pages banked** — code task. Deferral logged per the mandatory
+post-task reconciliation rule.
