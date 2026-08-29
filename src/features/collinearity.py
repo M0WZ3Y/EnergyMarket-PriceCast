@@ -200,12 +200,24 @@ REDUNDANT_R = 0.90
 #: Median |r| below which a block is judged independent of the baseline.
 INDEPENDENT_R = 0.50
 
+#: Coefficient of variation, relative to the TARGET's own CoV, below which a
+#: block's columns are treated as too static to inform a forecast on this
+#: window. A driver that barely moves while the target swings cannot have a
+#: coefficient fitted to it, however correctly it is built -- that is a
+#: mismatch of timescale, not a defect of construction, and conflating the two
+#: would file a correct feature as broken. Measured example: EUA carbon has
+#: CoV 0.031 against a target CoV of 0.553 over 80 days (ratio 0.056), because
+#: a compliance market clears on a multi-week horizon.
+STATIC_COV_RATIO = 0.25
+
 
 def diagnose_block(
     X_variant: pd.DataFrame,
     X_baseline: pd.DataFrame,
     improved_target_regime: bool,
     aggregate_gain: float,
+    target: pd.Series | None = None,
+    window_index=None,
 ) -> dict:
     """Classify why a block underperformed: REDUNDANT / MISSPECIFIED / WEAK.
 
@@ -220,6 +232,13 @@ def diagnose_block(
       REDUNDANT     new columns are highly correlated with existing ones. The
                     mechanism is already represented; adding it again buys
                     nothing and costs degrees of freedom.
+      TIMESCALE_MISMATCH
+                    new columns are independent of the baseline but barely
+                    MOVE inside the evaluation window, relative to how much
+                    the target moves. Correctly built, simply too static to
+                    inform a forecast at this resolution over this horizon.
+                    Distinct from misspecification and much more optimistic:
+                    the same feature may be informative on a longer window.
       MISSPECIFIED  new columns are INDEPENDENT of the baseline (so they do
                     carry new information) yet fail to help the regime they
                     physically target. Independent-but-useless points at the
@@ -258,8 +277,27 @@ def diagnose_block(
     frac_redundant = float((best >= REDUNDANT_R).mean())
     median_r = float(best.median())
 
+    # Relative variability of the new columns inside the scored window,
+    # against the target's own. Computed before the verdict so a static block
+    # is never filed as misspecified.
+    cov_ratio = float("nan")
+    if target is not None:
+        rows = joint.index if window_index is None else joint.index.intersection(window_index)
+        sub = V.loc[V.index.intersection(rows)]
+        tgt = target.loc[target.index.intersection(rows)]
+        if len(sub) > 10 and len(tgt) > 10 and tgt.std() > 0 and abs(tgt.mean()) > 0:
+            m = sub.mean().abs()
+            covs = (sub.std() / m.where(m > 0)).replace([np.inf, -np.inf], np.nan)
+            tgt_cov = tgt.std() / abs(tgt.mean())
+            if covs.notna().any() and tgt_cov > 0:
+                cov_ratio = float(covs.median() / tgt_cov)
+
+    static = (not np.isnan(cov_ratio)) and cov_ratio < STATIC_COV_RATIO
+
     if frac_redundant >= 0.5:
         verdict = "REDUNDANT"
+    elif static and not improved_target_regime:
+        verdict = "TIMESCALE_MISMATCH"
     elif median_r < INDEPENDENT_R and not improved_target_regime:
         verdict = "MISSPECIFIED"
     elif not improved_target_regime:
@@ -279,6 +317,7 @@ def diagnose_block(
         "most_redundant": top,
         "improved_target_regime": improved_target_regime,
         "aggregate_mae_delta": aggregate_gain,
+        "cov_ratio_vs_target": cov_ratio,
     }
 
 
@@ -291,6 +330,8 @@ def format_diagnosis(name: str, d: dict) -> str:
         f"{d['n_new']:>4} new cols, median max|r| vs baseline "
         f"{d['median_max_r_vs_baseline']:.3f}, "
         f"{100 * d['frac_cols_r_ge_0.90']:.0f}% at |r|>=0.90"
+        + (f", CoV ratio vs target {d['cov_ratio_vs_target']:.3f}"
+           if not np.isnan(d.get("cov_ratio_vs_target", float("nan"))) else "")
     ]
     for col, against, r in d.get("most_redundant", [])[:3]:
         lines.append(f"       {r:.4f}  {col:<32} ~ {against}")
