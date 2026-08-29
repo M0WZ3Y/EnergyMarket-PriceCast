@@ -56,6 +56,7 @@ from src.features import leakage_guard as lg  # noqa: E402
 from src.features.audit import audit_features, prioritize_gaps  # noqa: E402
 from src.features.pipeline import build_features, load_feature_config  # noqa: E402
 from src.models import LEARLassoModel, load_models_config  # noqa: E402
+from src.runtime import keep_awake  # noqa: E402
 
 #: Where per-variant predictions are cached.
 #:
@@ -444,81 +445,104 @@ def main(argv: list[str] | None = None) -> int:
     print(f"prediction cache  {cache_dir}")
     print()
 
+    # Advisory keep-awake around the fitting loop only. It cannot save an
+    # unattended run -- its own docstring records that Modern Standby (S0)
+    # suspends on lid close and under battery policy regardless, and that two
+    # walk-forward runs were killed mid-flight while this call reported
+    # success. It is wired in because suppressing the plain idle timer is
+    # still worth having, and because the WARNING it logs every time makes the
+    # limitation visible in this run's output instead of assumed away.
+    #
+    # The actual mitigation is elsewhere and already in place: per-variant
+    # prediction caching, so a suspend costs one variant rather than the run.
     unscalable: dict[str, list[str]] = {}
     results: dict[str, pd.DataFrame] = {}
-    for name, (X, Y, _) in built.items():
-        Xa, Ya = X.loc[common], Y.loc[common]
-        Xa, dropped = col.drop_unscalable_over_windows(Xa, origins, calibration)
-        if dropped:
-            unscalable[name] = dropped
 
-        # The cache key includes the feature-set fingerprint, so a variant
-        # whose columns changed since it was cached is refit rather than
-        # silently reused -- a stale prediction file would otherwise be
-        # scored as if it came from the current feature set.
-        fingerprint = hashlib.md5(
-            ("|".join(Xa.columns) + f"|{len(Xa)}").encode()
-        ).hexdigest()[:12]
-        cache_file = cache_dir / f"{name}__{fingerprint}.csv"
-
-        if cache_file.exists() and not args.no_cache:
-            results[name] = pd.read_csv(cache_file, parse_dates=["origin"])
-            print(f"[cached] {name:<20} X={Xa.shape}  "
-                  f"{len(results[name]) // 24} origins from {cache_file.name}")
-            continue
-
-        print(f"[run] {name:<20} X={Xa.shape} ...", end=" ", flush=True)
-        t0 = time.time()
-        frame = run_model(
-            name, _Model(models_cfg["lear_lasso"]), Xa, Ya,
-            eval_cfg=eval_cfg, first_origin=origins.min(),
-        )
-        results[name] = frame
-        # Write immediately -- the whole point is that this survives a kill.
-        frame.to_csv(cache_file, index=False, lineterminator="\n")
-        print(f"{len(frame) // 24} origins in {time.time() - t0:.0f}s "
-              f"-> {cache_file.name}")
-
-    # --- pooled ------------------------------------------------------------
+    awake_cm = keep_awake()
+    awake = awake_cm.__enter__()
+    print(f"keep-awake        requested={awake.requested} "
+          f"guaranteed={awake.guaranteed} — {awake.detail}")
+    if not awake.requested:
+        print("                  NOT held awake. Keep the machine on AC and the")
+        print("                  lid open; finished variants are cached either way.")
     print()
-    if unscalable:
-        print("-" * 78)
-        print("COLUMNS DROPPED FOR LEAR (zero MAD — unscalable by its "
-              "median/MAD scaler)")
-        print("-" * 78)
-        for n, cols in unscalable.items():
-            print(f"  {n:<20} {len(cols)} dropped: {cols}")
-        print("  Checked over EVERY training window the run uses, not just the")
-        print("  full series: LEAR rescales per window, so a column can be fine")
-        print("  globally and degenerate inside one window.")
-        print("  These are physically meaningful and would be usable by a tree")
-        print("  or neural model; a spread is zero-inflated because coupled")
-        print("  markets clear at the SAME price whenever the border is not")
-        print("  binding, so over half its values equal its median.")
-        print()
-    print("=" * 78)
-    print("POOLED METRICS")
-    print("=" * 78)
-    pooled = pd.DataFrame(
-        {n: regimes.segmented_metrics(f).loc["all"] for n, f in results.items()}
-    ).T
-    base = pooled.loc["baseline", "mae"]
-    pooled["mae_delta"] = pooled["mae"] - base
-    pooled["mae_pct"] = 100.0 * pooled["mae_delta"] / base
-    pooled["n_cols"] = [built[n][0].shape[1] for n in pooled.index]
-    print(pooled[["n_cols", "n", "mae", "rmse", "mae_delta", "mae_pct"]].to_string())
 
-    # --- per regime --------------------------------------------------------
-    print()
-    print("=" * 78)
-    print("REGIME-SEGMENTED METRICS")
-    print("=" * 78)
-    for name, reason in regimes.UNAVAILABLE_SEGMENTS.items():
-        print(f"segment '{name}' UNAVAILABLE: {reason}")
-    print()
-    print("baseline by segment:")
-    print(regimes.segmented_metrics(results["baseline"], context).to_string())
-    print()
+    try:
+      for name, (X, Y, _) in built.items():
+          Xa, Ya = X.loc[common], Y.loc[common]
+          Xa, dropped = col.drop_unscalable_over_windows(Xa, origins, calibration)
+          if dropped:
+              unscalable[name] = dropped
+
+          # The cache key includes the feature-set fingerprint, so a variant
+          # whose columns changed since it was cached is refit rather than
+          # silently reused -- a stale prediction file would otherwise be
+          # scored as if it came from the current feature set.
+          fingerprint = hashlib.md5(
+              ("|".join(Xa.columns) + f"|{len(Xa)}").encode()
+          ).hexdigest()[:12]
+          cache_file = cache_dir / f"{name}__{fingerprint}.csv"
+
+          if cache_file.exists() and not args.no_cache:
+              results[name] = pd.read_csv(cache_file, parse_dates=["origin"])
+              print(f"[cached] {name:<20} X={Xa.shape}  "
+                    f"{len(results[name]) // 24} origins from {cache_file.name}")
+              continue
+
+          print(f"[run] {name:<20} X={Xa.shape} ...", end=" ", flush=True)
+          t0 = time.time()
+          frame = run_model(
+              name, _Model(models_cfg["lear_lasso"]), Xa, Ya,
+              eval_cfg=eval_cfg, first_origin=origins.min(),
+          )
+          results[name] = frame
+          # Write immediately -- the whole point is that this survives a kill.
+          frame.to_csv(cache_file, index=False, lineterminator="\n")
+          print(f"{len(frame) // 24} origins in {time.time() - t0:.0f}s "
+                f"-> {cache_file.name}")
+
+      # --- pooled ------------------------------------------------------------
+      print()
+      if unscalable:
+          print("-" * 78)
+          print("COLUMNS DROPPED FOR LEAR (zero MAD — unscalable by its "
+                "median/MAD scaler)")
+          print("-" * 78)
+          for n, cols in unscalable.items():
+              print(f"  {n:<20} {len(cols)} dropped: {cols}")
+          print("  Checked over EVERY training window the run uses, not just the")
+          print("  full series: LEAR rescales per window, so a column can be fine")
+          print("  globally and degenerate inside one window.")
+          print("  These are physically meaningful and would be usable by a tree")
+          print("  or neural model; a spread is zero-inflated because coupled")
+          print("  markets clear at the SAME price whenever the border is not")
+          print("  binding, so over half its values equal its median.")
+          print()
+      print("=" * 78)
+      print("POOLED METRICS")
+      print("=" * 78)
+      pooled = pd.DataFrame(
+          {n: regimes.segmented_metrics(f).loc["all"] for n, f in results.items()}
+      ).T
+      base = pooled.loc["baseline", "mae"]
+      pooled["mae_delta"] = pooled["mae"] - base
+      pooled["mae_pct"] = 100.0 * pooled["mae_delta"] / base
+      pooled["n_cols"] = [built[n][0].shape[1] for n in pooled.index]
+      print(pooled[["n_cols", "n", "mae", "rmse", "mae_delta", "mae_pct"]].to_string())
+
+      # --- per regime --------------------------------------------------------
+      print()
+      print("=" * 78)
+      print("REGIME-SEGMENTED METRICS")
+      print("=" * 78)
+      for name, reason in regimes.UNAVAILABLE_SEGMENTS.items():
+          print(f"segment '{name}' UNAVAILABLE: {reason}")
+      print()
+      print("baseline by segment:")
+      print(regimes.segmented_metrics(results["baseline"], context).to_string())
+      print()
+    finally:
+        awake_cm.__exit__(None, None, None)
 
     # ---------------------------------------------------------------- (a)
     print("(a) PER-BLOCK x PER-REGIME  -  MAE delta vs baseline (negative = better)")
