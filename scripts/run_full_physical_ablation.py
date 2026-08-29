@@ -78,6 +78,15 @@ VARIANTS: dict[str, tuple[dict, dict]] = {
     # Block 3 — carbon (reduced) + fuel-switch proxy.
     "B3_carbon_switch": ({}, {"carbon_block": True,
                               "fuel_switch_proxy_block": True}),
+    # B3 split into its two components. As shipped it bundles ONE carbon
+    # column with 24 dispatch-proxy columns, so a block-level diagnosis is
+    # dominated by the proxy and reports MISSPECIFIED for both. Measured
+    # separately: carbon has a CoV ratio of 0.056 against the target and is
+    # TIMESCALE_MISMATCHED (a compliance market clears on a multi-week
+    # horizon, so it is near-constant across 80 days), while the proxy varies
+    # (0.430) and fails for a different reason. Two verdicts, not one.
+    "B3a_carbon_only": ({}, {"carbon_block": True}),
+    "B3b_switch_only": ({}, {"fuel_switch_proxy_block": True}),
     # Block 4 — market coupling.
     "B4_coupling": ({}, {"coupling_block": True,
                          "cross_border_flow_block": True}),
@@ -186,6 +195,8 @@ TARGET_REGIME = {
     "B2_merit_explicit": ("gas_marginal",),
     # Block 3: carbon shifts the coal/gas switching point -> gas-marginal.
     "B3_carbon_switch": ("gas_marginal",),
+    "B3a_carbon_only": ("gas_marginal",),
+    "B3b_switch_only": ("gas_marginal",),
     # Block 4: coupling -> hours where DE and its neighbours diverge.
     "B4_coupling": ("coupling_stress",),
     # Block 5: scarcity -> the price tail. NOTE this is a PROXY target: the
@@ -593,10 +604,17 @@ def main(argv: list[str] | None = None) -> int:
     Xb = built["baseline"][0]
     for name in seg_tables:
         ph = physics[name]
+        # Pass the target restricted to the SCORED origins so the
+        # timescale check measures variability over the window actually
+        # evaluated, not over all available history -- a driver can look
+        # lively across six years and be frozen across eighty days.
+        y_daily = built["baseline"][1].loc[origins].mean(axis=1)
         d = col.diagnose_block(
             built[name][0], Xb,
             improved_target_regime=ph["improved"],
             aggregate_gain=ph["aggregate"],
+            target=y_daily,
+            window_index=origins,
         )
         print(col.format_diagnosis(name, d))
         if name in PROXY_BLOCKS:
