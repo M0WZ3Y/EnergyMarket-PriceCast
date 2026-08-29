@@ -198,6 +198,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--origins", type=int, default=100)
     ap.add_argument("--calibration", type=int, default=728)
     ap.add_argument("--only", nargs="*", default=None)
+    ap.add_argument("--criterion", choices=["aic", "bic"], default="aic",
+                    help="LASSO selection criterion. 'aic' reproduces epftoolbox's "
+                         "LEAR exactly. 'bic' is a HARNESS DIAGNOSTIC (see "
+                         "src/models/_lear_bic_diagnostic.py): AIC under-penalises "
+                         "at p/n~0.8, so a wide variant keeps too many coefficients "
+                         "and its degradation is partly an artifact of the criterion.")
     ap.add_argument("--no-cache", action="store_true",
                     help="refit every variant even if a cached prediction exists")
     ap.add_argument("--collinearity-only", action="store_true",
@@ -331,6 +337,12 @@ def main(argv: list[str] | None = None) -> int:
     eval_cfg = {"walk_forward": {"calibration_window_days": calibration,
                                  "step_days": 1}}
     models_cfg = load_models_config()
+    if args.criterion == "bic":
+        from src.models._lear_bic_diagnostic import LEARLassoBICModel as _Model
+        print("MODEL           LEAR-LASSO with BIC selection (HARNESS DIAGNOSTIC,")
+        print("                not a thesis model; see _lear_bic_diagnostic.py)")
+    else:
+        _Model = LEARLassoModel
     # Segmentation context = physical state (residual load, ramp, RES
     # share) PLUS the mechanism-specific state (gas share, coupling
     # spread, pumped-storage activity) that the physics check needs.
@@ -365,7 +377,7 @@ def main(argv: list[str] | None = None) -> int:
     # all of them, and a re-run resumes rather than restarts.
     #
     # This writes to a NEW directory and touches no frozen artifact.
-    cache_dir = CACHE_DIR / f"o{args.origins}_c{calibration}"
+    cache_dir = CACHE_DIR / f"o{args.origins}_c{calibration}_{args.criterion}"
     cache_dir.mkdir(parents=True, exist_ok=True)
     print(f"prediction cache  {cache_dir}")
     print()
@@ -396,7 +408,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"[run] {name:<20} X={Xa.shape} ...", end=" ", flush=True)
         t0 = time.time()
         frame = run_model(
-            name, LEARLassoModel(models_cfg["lear_lasso"]), Xa, Ya,
+            name, _Model(models_cfg["lear_lasso"]), Xa, Ya,
             eval_cfg=eval_cfg, first_origin=origins.min(),
         )
         results[name] = frame
