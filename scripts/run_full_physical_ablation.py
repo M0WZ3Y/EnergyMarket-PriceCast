@@ -107,6 +107,49 @@ VARIANTS: dict[str, tuple[dict, dict]] = {
             "storage_block": True,
         },
     ),
+    # ------------------------------------------------------------------
+    # PAIRWISE variants, measured against B1 rather than against ALL.
+    #
+    # The single-vs-ALL design cannot separate "this feature is weak" from
+    # "this feature is drowned in a 6-block set": in ALL every block competes
+    # for the same degrees of freedom at p/n ~ 0.8, so a modest real effect
+    # disappears. B1 is the only block demonstrated significant (DM p<0.001),
+    # so pairing against it asks the question that matters -- does this block
+    # add anything ON TOP of what already works.
+    # ------------------------------------------------------------------
+    "B1+coupling_state": (
+        {"residual_load_gradient_block": True},
+        {"coupling_state_block": True},
+    ),
+    "B1+coupling_split": (
+        {"residual_load_gradient_block": True},
+        {"coupling_split_block": True},
+    ),
+    "B1+headroom": (
+        {"residual_load_gradient_block": True},
+        {"dispatchable_headroom_block": True},
+    ),
+    "B1+B2": (
+        {"residual_load_gradient_block": True},
+        {"merit_order_explicit_block": {"lags": (1,)}, "capacity_structure_block": True},
+    ),
+    "B1+B3": (
+        {"residual_load_gradient_block": True},
+        {"carbon_block": True, "fuel_switch_proxy_block": True},
+    ),
+    "B1+B4": (
+        {"residual_load_gradient_block": True},
+        {"coupling_block": {"zones": ("FR", "NL"), "lags": (1,)},
+         "cross_border_flow_block": True},
+    ),
+    "B1+B5": (
+        {"residual_load_gradient_block": True},
+        {"reserve_margin_block": True},
+    ),
+    "B1+B6": (
+        {"residual_load_gradient_block": True},
+        {"storage_block": True},
+    ),
     # Every block at full width. Retained deliberately so the p > n limit is
     # measured and reported rather than assumed: with the common day pool
     # capped at ~1079 days by the 2015 Energy-Charts floor, this variant has
@@ -153,6 +196,14 @@ TARGET_REGIME = {
     # high pumped-storage-activity hours.
     "B6_storage": ("low_residual", "high_hydro"),
     "ALL": ("steep_ramp", "gas_marginal", "coupling_stress", "spike"),
+    "B1+coupling_state": ("coupling_stress",),
+    "B1+coupling_split": ("coupling_stress",),
+    "B1+headroom": ("spike",),
+    "B1+B2": ("gas_marginal",),
+    "B1+B3": ("gas_marginal",),
+    "B1+B4": ("coupling_stress",),
+    "B1+B5": ("spike",),
+    "B1+B6": ("high_hydro",),
 }
 
 #: Blocks running on keyless PROXIES rather than the real feed, with what the
