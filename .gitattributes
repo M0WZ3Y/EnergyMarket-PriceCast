@@ -27,3 +27,10 @@ data/raw/physical/*.json -text
 # verification in a fresh clone.
 data/raw/DE.csv -text
 data/raw/provenance_benchmark.json -text
+
+# Pinned dashboard inputs: keep bytes EXACTLY as copied out of the frozen
+# ablation cache. scripts/build_dashboard_data.py verifies a sha256 per file
+# and aborts on a mismatch, so LF->CRLF normalisation on a Windows checkout
+# would break every hash in a fresh clone -- the same failure mode the
+# snapshot pinning above exists to prevent.
+reports/dashboard/inputs/*.csv -text
