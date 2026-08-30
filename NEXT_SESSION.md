@@ -1,20 +1,34 @@
 # Next session — paste this in
 
 Written 2026-08-04, updated 2026-08-05 after the debug sweep, the SHAP run,
-the PriceCast MVP and the page-quota setup. Copy everything inside the block.
+the PriceCast MVP and the page-quota setup. **Updated 2026-08-30: the
+technical phase is closed.** Copy everything inside the block.
 
 ```
-Resume the MSc thesis EPF project. THE CODE IS ESSENTIALLY DONE. WRITING IS
-THE ONLY THING ON THE CRITICAL PATH. Every number the thesis needs exists and
-is frozen behind two pushed tags:
+Resume the MSc thesis EPF project. THE CODE IS DONE AND THE TECHNICAL PHASE
+IS CLOSED (2026-08-30 checkup: 481 tests green, no frozen artifact touched,
+no debt markers). WRITING IS THE ONLY THING ON THE CRITICAL PATH -- treat any
+new code request as scope creep unless it is a documented defect. Every number
+the thesis needs exists and is frozen behind three pushed tags:
 
-  v1.0-results  benchmark-era results (hourly, daily, ensembles, DM)
-  v1.1-ood      OOD addendum (frozen models on live 2026 data)
+  v1.0-results            benchmark-era results (hourly, daily, ensembles, DM)
+  v1.1-ood                OOD addendum (frozen models on live 2026 data)
+  v1.2-physical-features  power-engineering feature ablation + controls
 
 Working tree clean. Do NOT rerun or modify model results. A PreToolUse hook
 blocks Edit/Write under reports/figures, reports/tables, models and
-data/processed while those tags exist. Suite: 342 tests (335 offline, 7
-network).
+data/processed while those tags exist. Suite: 481 tests (474 offline, 7
+network), 0 skipped -- run it as
+`./.venv/Scripts/python.exe -m pytest`, never a bare `python` (the Windows
+Store interpreter lacks lightgbm and fails collection on 16 modules).
+
+TWO THINGS BLOCK THE WRITING AND ONLY THE AUTHOR CAN CLEAR THEM:
+  1. RQ1, RQ2, RQ3 verbatim from the approved proposal. They appear NOWHERE in
+     this repo -- only as references to their own absence. Gates sections 1-3
+     and 4-7 (~5pp). Everything else can proceed without them.
+  2. configs/schedule.yaml `words_per_page` is still the placeholder 250. Paste
+     one section into the Amirkabir docx, divide, set the real value; until
+     then every page_quota.py estimate is noise.
 
 MANDATORY RECONCILIATION AFTER EVERY TECHNICAL TASK -- read this first.
 

@@ -42,9 +42,23 @@ Design rules this script obeys (enforced in code, not by good intentions):
                     is fixed by aligning to scripts/run_ablation_dm.py, never by
                     tuning the tolerance.
 
+A REBUILD IS NOT BYTE-IDENTICAL, AND THAT IS NOT DRIFT. `meta.generated_at`
+is a wall-clock stamp and `meta.git_commit` is HEAD, so re-running this dirties
+the working tree even when every statistic is unchanged. Before concluding
+anything has moved, diff the JSON: if those two fields are the only difference,
+the results are identical and the rebuild can simply be reverted. For the same
+reason the committed artifact records the commit it was generated *at*, which
+is the parent of the commit that contains it -- unavoidable, since the file
+cannot know its own hash. `tests/test_dashboard_generator.py` compares a fresh
+build against the committed JSON with exactly those two fields excluded, so
+real drift still fails the suite.
+
 Usage:
     python scripts/build_dashboard_data.py            # build from pinned inputs
     python scripts/build_dashboard_data.py --check    # validate only, write nothing
+
+    ./.venv/Scripts/python.exe -m pytest tests/test_dashboard_generator.py
+                                                      # the gates, as a test
 """
 from __future__ import annotations
 
