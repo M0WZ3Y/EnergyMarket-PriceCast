@@ -157,6 +157,24 @@ thing. Honour the mandatory post-task reconciliation rule
 in NEXT_SESSION.md: when a technical task finishes, either bank pages or
 write a dated deferral line in logs/decisions.md — never neither.
 
+## Publishing (standing rule, 2026-08-30)
+**Thesis writing and documentation are committed locally and NEVER pushed.**
+This covers `thesis/` — chapters, drafts, the LaTeX tree, `WRITING_HANDOFF.md`,
+`APPROVALS.md` — and project documentation. Finish those tasks at `git commit`;
+do not push, and do not offer to.
+
+The repo is **public**. Thesis prose and the writing handoff carry unpublished
+results, the candid framing of the project's weaknesses, and pre-defense
+material that has no reason to be world-readable before submission.
+
+Not a blanket ban: code and results may still be pushed when the user asks.
+When unsure, ask before pushing rather than assuming.
+
+Also not pushed, for a different reason: `Thesis References/files/` (126 MB of
+publisher PDFs, licensed to the author through the university — not ours to
+redistribute, and git keeps blobs forever). The `.bib` is tracked; the PDFs are
+gitignored.
+
 ## Conventions
 - Config-driven: market/zone/splits come from configs/*.yaml, not code.
 - Model wrappers implement fit/predict/save/load on a common interface.
