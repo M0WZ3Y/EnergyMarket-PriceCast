@@ -1,0 +1,465 @@
+{
+  "meta": {
+    "generated_at": "2026-08-30T07:42:11.998456+00:00",
+    "generator": "scripts/build_dashboard_data.py",
+    "git_commit": "0fa0abc5deebdc78c50269aedaec2f5a105e3039",
+    "repo_tags": [
+      "v1.0-results",
+      "v1.1-ood",
+      "v1.2-physical-features"
+    ],
+    "window": {
+      "start": "2017-10-13",
+      "end": "2017-12-31",
+      "n_days": 80,
+      "n_hours": 1920
+    },
+    "vehicle": "LEAR-LASSO (LassoLarsIC، criterion=aic)",
+    "is_preview": false,
+    "hac_bandwidth": 3,
+    "generations": {
+      "pooled": "A",
+      "pairwise": "A",
+      "b5_controls": "C"
+    },
+    "inputs": {
+      "ALL__7d6b7e928c61.csv": "a339d8095503e0ca5bc10cbf99318252d81c95f38137ca75ea28d4474775ef8d",
+      "B1+B2__40e9d841caeb.csv": "14b55c5b95f0e13f7f149bdbc66e9378fb1c2a49b3957fa68bf4df29fdb4beb6",
+      "B1+B3__107db6153516.csv": "688643442f410d4bab37f20b3f9ffe5824a2d0afbb1cbe426cdd5d3d2e2079e6",
+      "B1+B4__d308c35d5a76.csv": "e3925ce3b38bf46e601d65fa96261758ce444d587c7d07a2b7fbbe42bb35196a",
+      "B1+B5__e1c6aa572ae1.csv": "c536369ea9e7edb474b1ed7f396c04b2b8eff955320093e23f6449cf335f9da2",
+      "B1+B6__8f250b86a4ef.csv": "129a062caf375f29c4fe61387b6079f349f33b5082b38a625d24284863967631",
+      "B1+coupling_split__a2556792e786.csv": "717834a0185b50119dadabea13320db8b1264d4037ffbcb4593200208ba461cd",
+      "B1+coupling_state__7817d8c45cf2.csv": "f93b8a6983316fa866a8d604a1860f9b0364a4122661835d55b4c8d89ff572fd",
+      "B1+headroom__93d48eefcc54.csv": "9cd0e836e10dcd29e840158a900f070c294dd2ea2d03f1704b05b0bf973afebb",
+      "B1_ramp__c5e646a1922e.csv": "355a264733bfed9840c0be03c76297f7112aae46321c09b7474396e22af317d4",
+      "B2_merit_explicit__95baadcab6a5.csv": "2deaa4e9a078be1966bd2ec33079b1c4bf3f3d44cac955c8f99248227a9b503b",
+      "B3_carbon_switch__5049c2c411a8.csv": "c568182907ce1ee7d78e9737a3cf8cff3833fdbfe71ac5bd38e5edcd43c98bb5",
+      "B4_coupling__7a426b3f71ef.csv": "fab88ffe832d2d300f966a423611451ecf06638d0ed9f4f4dd7a4737eb6fa840",
+      "B5_reserve_margin__850e188fccf6.csv": "57e3201d790cc5f0f20d11edab2ad37f6ca4c19def5aa82a3a6f3b3ed92bc20c",
+      "B5_reserve_margin__f75982ed9ed6.csv": "86f211c1503eaa85beaa12addf90eca59e445ad26a9df3b74306e65afbdc6679",
+      "B6_storage__7b960f39f311.csv": "c5290f1095eff9aefec563c64551911dabf606b14852aa7e01aa893317fb3273",
+      "CTRL_noise__dedeba7136e3.csv": "4d6d0c9a7d94f7723b70f09a6ea83b13379579d2c81dd9aa0414337b493da9b7",
+      "CTRL_scrambled_year__a6ac9b5e1273.csv": "14143f8c7d504fa37734eeebedf476d06257d8880065a3f8479f6df46daf7c08",
+      "CTRL_shifted_load__a48401320e96.csv": "a8f8a7af3fd0df7a49ff1c7e4000a22c1bcf1920ec61ba6884e7afbcef091b1e",
+      "baseline__27b3ac2f6ccb.csv": "2e91b4a08a5674b82dffc29a171e8f279bcc7abbfd71ece5cb937211688ef3d7",
+      "baseline__479cc81ed49b.csv": "0e0ede8545e7957e3cf4eaf5b7f01f0fc9067f30768d9ffb300efd1e3864585f"
+    },
+    "gates": [
+      {
+        "label": "baseline pooled MAE (gen A)",
+        "got": 6.264492635692763,
+        "published": 6.2645,
+        "ok": true
+      },
+      {
+        "label": "baseline pooled MAE (gen C)",
+        "got": 6.2747193344115395,
+        "published": 6.2747,
+        "ok": true
+      },
+      {
+        "label": "baseline spike MAE (gen A)",
+        "got": 13.641237556921633,
+        "published": 13.6412,
+        "ok": true
+      },
+      {
+        "label": "baseline spike MAE (gen C)",
+        "got": 13.676823410946247,
+        "published": 13.6768,
+        "ok": true
+      },
+      {
+        "label": "p(B1 better than baseline)",
+        "got": 4.961817471516028e-05,
+        "published": 5e-05,
+        "ok": true
+      },
+      {
+        "label": "p(B1 better than ALL)",
+        "got": 0.38544635925653914,
+        "published": 0.3854,
+        "ok": true
+      },
+      {
+        "label": "p(ALL better than B1)",
+        "got": 0.6145536407434609,
+        "published": 0.6146,
+        "ok": true
+      },
+      {
+        "label": "p(B1+coupling_split better than B1)",
+        "got": 0.22887468774302133,
+        "published": 0.2289,
+        "ok": true
+      },
+      {
+        "label": "B5 spike p raw",
+        "got": 0.00754499318152746,
+        "published": 0.0075,
+        "ok": true
+      },
+      {
+        "label": "B5 spike p Holm",
+        "got": 0.03017997272610984,
+        "published": 0.03,
+        "ok": true
+      }
+    ]
+  },
+  "headline_fa": "هیچ بلوکِ داده‌ٔ بیرونی، B1 را بهبود نداد — نه به‌تنهایی، نه در ترکیب، نه با AIC و نه با BIC.",
+  "hypotheses": [
+    {
+      "id": "H1",
+      "text_fa": "مدل‌های آماری/خطی (SARIMAX، LEAR)"
+    },
+    {
+      "id": "H2",
+      "text_fa": "شبکه‌های عصبی بازگشتی (LSTM، GRU)"
+    },
+    {
+      "id": "H3",
+      "text_fa": "ترکیب وزن‌دار مدل‌ها (ensemble)"
+    },
+    {
+      "id": "H4",
+      "text_fa": "خط‌لولهٔ ویژگی‌های فیزیکی"
+    }
+  ],
+  "pooled": {
+    "vs_baseline": {
+      "reference": "baseline",
+      "reference_mae": 6.2645,
+      "holm_family_size": 7,
+      "rows": [
+        {
+          "variant": "baseline",
+          "name_fa": "مبنا",
+          "reference": null,
+          "mae": 6.2645,
+          "delta": null,
+          "pct": null,
+          "p_raw": null,
+          "p_holm": null,
+          "verdict": "REFERENCE"
+        },
+        {
+          "variant": "B1_ramp",
+          "name_fa": "B1 — بار پسماند + گرادیان",
+          "reference": "baseline",
+          "mae": 5.7811,
+          "delta": -0.4833,
+          "pct": -7.72,
+          "p_raw": 4.961817471516028e-05,
+          "p_holm": 0.00034732722300612195,
+          "verdict": "EFFECTIVE"
+        },
+        {
+          "variant": "B2_merit",
+          "name_fa": "B2 — ترتیب شایستگی",
+          "reference": "baseline",
+          "mae": 6.3116,
+          "delta": 0.0471,
+          "pct": 0.75,
+          "p_raw": 0.6058326919958226,
+          "p_holm": 1.0,
+          "verdict": "REDUNDANT"
+        },
+        {
+          "variant": "B3_carbon",
+          "name_fa": "B3 — کربن + جابه‌جایی سوخت",
+          "reference": "baseline",
+          "mae": 6.2827,
+          "delta": 0.0182,
+          "pct": 0.29,
+          "p_raw": 0.6019815797511365,
+          "p_holm": 1.0,
+          "verdict": "TIMESCALE_MISMATCH"
+        },
+        {
+          "variant": "B4_coupling",
+          "name_fa": "B4 — جفت‌شدگی بازار",
+          "reference": "baseline",
+          "mae": 6.3085,
+          "delta": 0.044,
+          "pct": 0.7,
+          "p_raw": 0.597563318417561,
+          "p_holm": 1.0,
+          "verdict": "MISSPECIFIED"
+        },
+        {
+          "variant": "B5_reserve",
+          "name_fa": "B5 — کمیابی / حاشیهٔ ذخیره",
+          "reference": "baseline",
+          "mae": 6.2418,
+          "delta": -0.0227,
+          "pct": -0.36,
+          "p_raw": 0.3266332864186864,
+          "p_holm": 1.0,
+          "verdict": "DEGENERATE"
+        },
+        {
+          "variant": "B6_storage",
+          "name_fa": "B6 — ذخیره‌سازی / آبی",
+          "reference": "baseline",
+          "mae": 6.3498,
+          "delta": 0.0853,
+          "pct": 1.36,
+          "p_raw": 0.8322413423371495,
+          "p_holm": 1.0,
+          "verdict": "MISSPECIFIED"
+        },
+        {
+          "variant": "ALL",
+          "name_fa": "همهٔ بلوک‌ها",
+          "reference": "baseline",
+          "mae": 5.8794,
+          "delta": -0.3851,
+          "pct": -6.15,
+          "p_raw": 0.11940912564069017,
+          "p_holm": 0.716454753844141,
+          "verdict": "NS"
+        }
+      ],
+      "reference_label_fa": "نسبت به مبنا"
+    },
+    "vs_B1": {
+      "reference": "B1_ramp",
+      "reference_mae": 5.7811,
+      "holm_family_size": 8,
+      "rows": [
+        {
+          "variant": "B1_ramp",
+          "name_fa": "B1 (مرجع)",
+          "reference": null,
+          "mae": 5.7811,
+          "delta": null,
+          "pct": null,
+          "p_raw": null,
+          "p_holm": null,
+          "verdict": "REFERENCE"
+        },
+        {
+          "variant": "B1+coupling_split",
+          "name_fa": "B1 + تفکیک جفت‌شدگی",
+          "reference": "B1_ramp",
+          "mae": 5.7199,
+          "delta": -0.0613,
+          "pct": -1.06,
+          "p_raw": 0.22887468774302133,
+          "p_holm": 1.0,
+          "verdict": "NS"
+        },
+        {
+          "variant": "B1+B2",
+          "name_fa": "B1 + ترتیب شایستگی",
+          "reference": "B1_ramp",
+          "mae": 5.8494,
+          "delta": 0.0682,
+          "pct": 1.18,
+          "p_raw": 0.6320097507709168,
+          "p_holm": 1.0,
+          "verdict": "NS"
+        },
+        {
+          "variant": "B1+B3",
+          "name_fa": "B1 + کربن",
+          "reference": "B1_ramp",
+          "mae": 5.866,
+          "delta": 0.0848,
+          "pct": 1.47,
+          "p_raw": 0.8699084276493081,
+          "p_holm": 1.0,
+          "verdict": "NS"
+        },
+        {
+          "variant": "B1+B4",
+          "name_fa": "B1 + جفت‌شدگی",
+          "reference": "B1_ramp",
+          "mae": 5.8195,
+          "delta": 0.0384,
+          "pct": 0.66,
+          "p_raw": 0.6187335403144075,
+          "p_holm": 1.0,
+          "verdict": "NS"
+        },
+        {
+          "variant": "B1+B5",
+          "name_fa": "B1 + کمیابی",
+          "reference": "B1_ramp",
+          "mae": 5.7889,
+          "delta": 0.0077,
+          "pct": 0.13,
+          "p_raw": 0.5525581754792129,
+          "p_holm": 1.0,
+          "verdict": "NS"
+        },
+        {
+          "variant": "B1+B6",
+          "name_fa": "B1 + ذخیره‌سازی",
+          "reference": "B1_ramp",
+          "mae": 5.903,
+          "delta": 0.1218,
+          "pct": 2.11,
+          "p_raw": 0.9234391810915983,
+          "p_holm": 1.0,
+          "verdict": "NS"
+        }
+      ],
+      "reference_label_fa": "نسبت به B1"
+    },
+    "headline_test": {
+      "label_fa": "آزمون تفکیک‌پذیریِ «B1 در برابر همهٔ بلوک‌ها»",
+      "p_b1_better": 0.3854,
+      "p_all_better": 0.6146,
+      "statement_fa": "دو مدل از هم تفکیک‌پذیر نیستند؛ افزودن بلوک‌های بیرونی سودی نمی‌رساند."
+    }
+  },
+  "blocks": [
+    {
+      "id": "B1",
+      "name_fa": "بار پسماند + گرادیان",
+      "verdict": "EFFECTIVE",
+      "verdict_status": "measured",
+      "summary_fa": "تنها بلوکِ موفق. بهبود ۷٫۷٪ نسبت به مبنا، معنادار.",
+      "evidence_fa": "کاهش MAE از ۶٫۲۶ به ۵٫۷۸ (Δ=−۰٫۴۸)؛ مقدار p خام ۵×۱۰⁻⁵."
+    },
+    {
+      "id": "B2",
+      "name_fa": "ترتیب شایستگی (merit order)",
+      "verdict": "REDUNDANT",
+      "verdict_status": "interpretive",
+      "summary_fa": "افزونه نسبت به exog_2؛ اطلاعات تازه‌ای اضافه نمی‌کند.",
+      "evidence_fa": "آنچه exog_2 پیش‌تر در خود دارد را صریح می‌کند؛ افزودنِ آن به B1 بهبودی نمی‌دهد (B1+B2 = ۵٫۸۴۹۴، p خام ۰٫۶۳۲، هولم ۱٫۰۰۰)."
+    },
+    {
+      "id": "B3",
+      "name_fa": "کربن + جابه‌جایی سوخت",
+      "verdict": "TIMESCALE_MISMATCH",
+      "verdict_status": "measured",
+      "summary_fa": "سیگنالِ کربن در مقیاسِ روزانه تقریباً ثابت است؛ قدرت تفکیک ندارد.",
+      "evidence_fa": "سیگنالِ کربن در مقیاسِ روزانه تقریباً ثابت است؛ ضریبِ تغییراتِ EUA کربن ۰٫۰۳۱ و نسبتِ آن به ضریبِ تغییراتِ هدف (۰٫۵۵۳) برابرِ ۰٫۰۵۶ است — همین نسبت، کمیتی است که آستانهٔ تشخیص روی آن می‌سنجد."
+    },
+    {
+      "id": "B4",
+      "name_fa": "جفت‌شدگی بازار (market coupling)",
+      "verdict": "MISSPECIFIED",
+      "verdict_status": "measured",
+      "summary_fa": "بدتصریح‌شده؛ روی رژیمِ هدفِ خودش بدتر عمل می‌کند.",
+      "evidence_fa": "افزایشِ خطا در رژیمِ تنشِ جفت‌شدگی نسبت به مبنا (مسئلهٔ کدگذاری). افزونگی از پیش رد شده بود: میانهٔ بیشینهٔ |r| = ۰٫۵۹۹ و هیچ ستونی با |r| ≥ ۰٫۹۰."
+    },
+    {
+      "id": "B5",
+      "name_fa": "کمیابی / حاشیهٔ ذخیره (پروکسیِ ظرفیت)",
+      "verdict": "DEGENERATE",
+      "verdict_status": "measured",
+      "summary_fa": "تباهیده؛ تابعِ خطیِ دقیقی از بار است و متغیرِ مستقلی نمی‌سازد.",
+      "evidence_fa": "هم‌خطیِ کامل با سریِ بار (باقیماندهٔ درون‌سالی نسبت به exog_1 برابر ۳×۱۰⁻¹⁵). استثنا: ناهنجاریِ رژیمِ جهش (بخشِ کنترل‌ها)."
+    },
+    {
+      "id": "B6",
+      "name_fa": "ذخیره‌سازی / آبی (hydro)",
+      "verdict": "MISSPECIFIED",
+      "verdict_status": "interpretive",
+      "summary_fa": "بدتصریح‌شده؛ نگاشتِ ویژگی به رژیمِ هدف نادرست است.",
+      "evidence_fa": "روی رژیمِ هدفِ خودش بهبودی ندارد؛ Δ=+۰٫۹۰۲ (زیان، نه سود) — سنجیده و ثبت‌شده."
+    }
+  ],
+  "regimes": {
+    "available": [
+      {
+        "id": "spike",
+        "name_fa": "جهش قیمت",
+        "n": 96,
+        "baseline_mae": 13.6412,
+        "definition_fa": "۵٪ بالاییِ قیمتِ واقعی",
+        "caveat_fa": "جانشینِ دُمِ قیمت است، نه کمیابیِ اندازه‌گیری‌شده."
+      },
+      {
+        "id": "negative_price",
+        "name_fa": "قیمت منفی",
+        "n": 73,
+        "baseline_mae": 29.9049,
+        "definition_fa": "قیمتِ واقعیِ کمتر از صفر",
+        "caveat_fa": "مستقیم از y_true؛ بدون نیاز به داده‌ٔ برون‌زا."
+      }
+    ],
+    "deferred": [
+      {
+        "id": "steep_ramp",
+        "name_fa": "شیبِ تندِ تغییر",
+        "reason_fa": "نیازمندِ exog_1/exog_2 — گامِ بعدی"
+      },
+      {
+        "id": "high_res",
+        "name_fa": "نفوذِ بالای تجدیدپذیر",
+        "reason_fa": "نیازمندِ داده‌ٔ برون‌زا — گامِ بعدی"
+      },
+      {
+        "id": "low_residual",
+        "name_fa": "بارِ پسماندِ پایین",
+        "reason_fa": "نیازمندِ داده‌ٔ برون‌زا — گامِ بعدی"
+      },
+      {
+        "id": "coupling_stress",
+        "name_fa": "تنشِ جفت‌شدگی",
+        "reason_fa": "نیازمندِ ec_*.csv — گامِ بعدی"
+      },
+      {
+        "id": "high_hydro",
+        "name_fa": "تولیدِ آبیِ بالا",
+        "reason_fa": "نیازمندِ ec_*.csv — گامِ بعدی"
+      }
+    ]
+  },
+  "b5_controls": {
+    "segment_fa": "رژیمِ جهشِ قیمت",
+    "n": 96,
+    "baseline_mae": 13.6768,
+    "anomaly_fa": "بهبودِ B5 در رژیمِ جهش واقعی و معنادار است (هولم = ۰٫۰۳۰)، اما مکانیزمِ آن ناشناخته است.",
+    "caveat_fa": "n = ۹۶ ساعتِ جهش، یک پنجرهٔ ۸۰ روزه — هرگز به‌عنوان نتیجهٔ «کمیابی» بازتفسیر نشود.",
+    "rows": [
+      {
+        "variant": "B5",
+        "name_fa": "کمیابی / حاشیهٔ ذخیره",
+        "mae": 13.0791,
+        "delta": -0.5977,
+        "p_raw": 0.00754499318152746,
+        "p_holm": 0.03017997272610984,
+        "role_fa": "اثرِ مشاهده‌شده",
+        "ruled_out_fa": "—"
+      },
+      {
+        "variant": "CTRL_noise",
+        "name_fa": "کنترل: ستون‌های نوفه",
+        "mae": 13.47,
+        "delta": -0.2069,
+        "p_raw": 0.2595879509079859,
+        "p_holm": 0.7787638527239578,
+        "role_fa": "کنترل",
+        "ruled_out_fa": "رد می‌کند: اثر صرفاً از افزودنِ ستون‌های تصادفی نیست."
+      },
+      {
+        "variant": "CTRL_shifted_load",
+        "name_fa": "کنترل: بارِ جابه‌جاشده",
+        "mae": 13.7785,
+        "delta": 0.1016,
+        "p_raw": 0.7507171427379127,
+        "p_holm": 1.0,
+        "role_fa": "کنترل",
+        "ruled_out_fa": "رد می‌کند: اثر از هم‌ترازیِ ساده‌ٔ بار نیست."
+      },
+      {
+        "variant": "CTRL_scrambled_year",
+        "name_fa": "کنترل: سالِ درهم‌ریخته",
+        "mae": 13.8981,
+        "delta": 0.2213,
+        "p_raw": 0.7008877401188764,
+        "p_holm": 1.0,
+        "role_fa": "کنترل",
+        "ruled_out_fa": "رد می‌کند: اثر از ساختارِ برهم‌کنشِ سال نیست."
+      }
+    ]
+  }
+}
