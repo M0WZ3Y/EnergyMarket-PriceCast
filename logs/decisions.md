@@ -3600,3 +3600,52 @@ the gap going forward; it does not rewrite history. `v1.0-results` remains
 
 **Ledger: no pages banked** — code task. Deferral logged per the mandatory
 post-task reconciliation rule.
+
+---
+
+## 2026-08-30 — MVP dashboard shipped; technical phase closed
+
+**What landed.** `scripts/build_dashboard_data.py` plus
+`reports/dashboard/` on branch `mvp-dashboard` (commit `2320d21`): an offline,
+self-contained Persian/RTL dashboard over the physical-feature ablation. It is
+a CONSUMER, structurally: it imports no `src.*` module, rebinds `socket.socket`
+to a raising stub at import time, and reads only byte-pinned copies of the
+frozen ablation cache under `reports/dashboard/inputs/`, each verified by
+sha256 before use. It cannot re-run, re-fit or re-freeze anything.
+
+**Block verdicts are tiered, deliberately.** B1/B3/B4/B5 are `measured` —
+each traceable to a computed statistic. B2 and B6 are `interpretive`: their
+verdicts (REDUNDANT, MISSPECIFIED) live in this log's narrative, not in a
+summary table, and no measured quantity establishes them. The dashboard marks
+those two with a تفسیری chip so a reader cannot mistake a reading for a
+result. The earlier draft cited a value `0.956` for B2 that exists in no
+source file; it was removed rather than rationalised. The B3 anchors resolved
+to two files — CoV `0.031` and `0.553` here, the literal `ratio 0.056` in
+`src/features/collinearity.py` — and the generator now verifies each
+(file, literal) pair as a substring before it will emit.
+
+**Full checkup, same day.** 481 tests pass (474 offline + 7 network, 0
+skipped). `git diff --numstat v1.0-results HEAD -- reports/` shows 310
+insertions and zero deletions or modifications: no frozen artifact has been
+touched since the freeze, as required. No TODO/FIXME/HACK markers anywhere in
+`src/`, `scripts/`, `app/` or `tests/`. `compileall` clean.
+
+**Gap found and closed.** The generator's ten reproduction gates ran only when
+a human invoked the script — `pytest` would have stayed green through a drift
+in the one artifact most likely to be opened by an examiner. `tests/
+test_dashboard_generator.py` now runs those gates in-suite, recomputes every
+pinned hash independently, and diffs a fresh build against the committed JSON.
+Verified red-green: corrupting the JSON fails exactly that test; corrupting a
+pinned CSV aborts the build. It shells out rather than importing, because the
+import-time socket rebind would poison every later test in the process.
+
+**Deliberately NOT done.** No linter or type-checker was added. The codebase
+is frozen and the suite is the gate; introducing ruff or mypy now would produce
+a large diff across frozen files for no reproducibility gain.
+
+**Ledger: no pages banked** — code task, and the last one. Deferral logged per
+the mandatory post-task reconciliation rule. The two P0 items that gate the
+writing (RQ1–RQ3 verbatim, and the uncalibrated `words_per_page: 250` in
+`configs/schedule.yaml`) remain open and are the author's to supply; they were
+verified still absent today. From this entry forward the critical path is
+prose, and the week-9 partial review is 2026-08-31 with 0 of ~60 pages banked.

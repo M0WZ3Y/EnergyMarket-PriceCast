@@ -1,16 +1,26 @@
 # What's left — prioritized checklist
 
-Generated 2026-08-05 (week 5 of 12). The single actionable list; `NEXT_SESSION.md`
-is the context handoff and `thesis/page-quota.md` is the pace tracker.
+Generated 2026-08-05, refreshed **2026-08-30** (week 8 of 12). The single
+actionable list; `NEXT_SESSION.md` is the context handoff and
+`thesis/page-quota.md` is the pace tracker.
 
-**The whole picture in one line:** all code is done and frozen, 0 of 100 pages
-are written, and two supervisor dates do not move.
+**The whole picture in one line:** all code is done, frozen and now fully
+green (481 tests), 0 of 100 pages are written, and two supervisor dates do
+not move.
 
-| | Date | Days from 2026-08-05 | Needs |
+| | Date | Days from 2026-08-30 | Needs |
 |---|---|---|---|
-| Week-9 partial review | **2026-08-31** | 26 | ~60pp |
-| Week-10 full-draft review | **2026-09-07** | 33 | 100pp |
-| Schedule end | 2026-09-27 | 53 | revisions, article, defense |
+| Week-9 partial review | **2026-08-31** | **1** | ~60pp |
+| Week-10 full-draft review | **2026-09-07** | 8 | 100pp |
+| Schedule end | 2026-09-27 | 28 | revisions, article, defense |
+
+> ⛔ **Read that table again.** The partial review is *tomorrow* and the ledger
+> holds **0 banked pages** against a ~60pp expectation. The 2026-08-05 plan
+> targeted 66pp by Aug 28; the intervening three weeks went into code
+> (power-engineering features, the ablation study and its controls, the
+> benchmark pin, the MVP dashboard) — all of it real and all of it now closed,
+> but none of it pages. Nothing in this file can fix that; only writing can.
+> The technical side is done, so from here the only P1 is prose.
 
 ---
 
@@ -159,4 +169,24 @@ number and figure they need is frozen.
 - [x] Writing handoff, numbers verified against the frozen tables
 - [x] Everything pushed to GitHub; both freeze tags on the remote
 
-Suite: **282 tests** (275 offline + 7 network). Working tree clean.
+### Added since the 2026-08-05 generation
+
+- [x] **Power-engineering physical features** + `v1.2-physical-features` tag.
+      Six-block ablation with significance testing; merged to `main` 2026-08-29.
+- [x] **Ablation controls.** B5's spike gain survived three refutation attempts
+      (penalty artefact, year interaction, scrambled-year control) — see
+      `logs/decisions.md` 2026-08-27..29.
+- [x] **Benchmark reproducibility gap closed** (2026-08-29). `data/raw/DE.csv`
+      pinned with a sha256 provenance record and `-text` in `.gitattributes`;
+      the tags themselves ship no benchmark data, which is now stated in the
+      provenance and pinned by `tests/test_benchmark_provenance.py`.
+- [x] **MVP results dashboard** (2026-08-30, branch `mvp-dashboard`). Offline,
+      self-contained, Persian/RTL; consumer-only over byte-pinned copies of the
+      frozen ablation cache. Pinned by `tests/test_dashboard_generator.py`.
+- [x] **Full technical checkup** (2026-08-30). 481 tests green, no frozen
+      artifact modified since `v1.0-results`, no debt markers in the tree.
+
+Suite: **481 tests** (474 offline + 7 network), 0 skipped. Working tree clean.
+Run it with the project interpreter — `./.venv/Scripts/python.exe -m pytest`.
+A bare `python` resolves to the Windows Store build, which lacks `lightgbm`
+and fails collection on 16 modules.
