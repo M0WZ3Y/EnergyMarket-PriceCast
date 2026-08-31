@@ -172,10 +172,10 @@ numbering is `thesis/outline.md`.
 
 | Ch | Title | pp | Who writes it | Status |
 |---|---|---|---|---|
-| 1 | مقدمه | 7 | **Claude chat** | Not started; 1-3 blocked (§11) |
+| 1 | مقدمه | 7 | **Claude chat** | Not started; 1-3 uses the RQs in §7 |
 | 2 | مروری بر پیشینه پژوهش | 17 | **Claude chat** | Not started |
 | 3 | روش تحقیق | 37 | **Claude Code** | ~15pp drafted (3-5, 3-6, 3-7-1, 3-7-2) — see §10 |
-| 4 | نتایج و تحلیل | 29 | **Claude Code** | Not started; 4-7 blocked (§11) |
+| 4 | نتایج و تحلیل | 29 | **Claude Code** | Not started; 4-7 answers §7 under §16A |
 | 5 | جمع‌بندی، بحث و پیشنهادات | 10 | **Claude Code** | Not started |
 
 **Chapter 1 (7pp)** — 1-1 انگیزه و اهمیت [2] · 1-2 بیان مسئله [1] ·
@@ -337,8 +337,12 @@ HAC-corrected, one-sided. p is for "row model is better than column model".
   the best deep model are statistically indistinguishable. This is a headline
   finding, not a disappointment.
 - LightGBM vs LEAR-LASSO: p = 0.734 → no difference.
-- **LSTM vs LightGBM: p = 0.0405** → LSTM better at the 5% level.
-- All models beat naive at p ≈ 0.
+- **LSTM vs LightGBM: raw p = 0.0405, but Holm-corrected p = 0.1215 over
+  the 21-test matrix — do NOT call this significant.** Write it as a lower
+  point estimate that does not survive correction for multiplicity. See
+  §16A/A1.
+- All models beat naive at p ≈ 0 (survives correction).
+- Both ensembles beat every member at Holm p ≤ 3.4e-05 (survives).
 - Both ensembles beat every individual member (p < 1e-5).
 - **Regime-aware vs static ensemble: p = 0.0226** → significant at 5%.
 
@@ -498,14 +502,234 @@ formal assumptions (4) and (5) in §9.
 
 ## 7. The four research questions
 
-**RQ1, RQ2, RQ3 are NOT in the repository** and must be supplied verbatim from
-the approved proposal before sections **1-3** and **4-7** can be written. This
-is a hard blocker (§11).
+**Status (2026-08-31): RQ1–RQ3 below are PROVISIONAL — reconstructed backwards
+from the work that was actually done, not copied from the approved proposal.**
+The proposal was never committed to this repo. Before section **1-3** or **4-7**
+is drafted, the author must open the approved proposal and either confirm these
+or replace them with the verbatim text. A research question the committee can
+line up against the proposal has to match it word for word; a plausible
+paraphrase that drifts is worse than a blank. RQ4 is not provisional — it is
+inferable from the code and is what the direct/aggregated split was built for.
 
-**RQ4 is inferable from the code and is answered in §6.2:** whether the daily
-baseload is better forecast directly or by aggregating hourly forecasts.
-Answer: aggregation wins for LEAR-LASSO, LightGBM and LSTM; SARIMAX is the
-exception.
+### What makes an RQ defensible here
+
+You will be held to every word of these in the defense. Each one below is
+therefore written to five rules — apply the same rules to any rewording you
+bring back from the proposal:
+
+1. **Bounded.** Name the models, the market, the period and the horizon inside
+   the question. "Do deep models outperform statistical ones?" is a claim about
+   the whole field and cannot be answered by five models on one market over two
+   years. "Do these five, here, over this window?" can.
+2. **Pre-committed.** The metric and the significance test are named in the
+   question, not chosen after seeing the numbers. Ours were fixed in
+   `configs/evaluation.yaml` before the test window was scored.
+3. **A null is an answer.** Each question is phrased so "no difference" or "only
+   under condition X" resolves it. A question that can only be resolved by a win
+   forces you to defend a win you do not have — this is the single most common
+   way an RQ becomes indefensible.
+4. **Conditions are asked for, not discovered.** RQ2 asks *under which market
+   conditions*, so the calm-day null is part of the answer rather than a caveat
+   bolted on afterwards.
+5. **Answerable from frozen files.** Every answer below traces to a file under
+   `reports/tables/`, produced at `v1.0-results` and never regenerated.
+
+Each RQ carries an explicit **Claim / Not a claim** pair. Write the "not a
+claim" line into the thesis too — pre-empting the over-reading is far stronger
+than being caught in it.
+
+---
+
+### RQ1 — comparative accuracy of the five model families
+
+> در پیش‌بینی روز-پیشِ قیمت برق بازار \lr{EPEX-DE}، پنج مدل منتخب — ساده،
+> \lr{SARIMAX}، \lr{LEAR-LASSO}، \lr{LightGBM} و \lr{LSTM} — تحت یک پروتکل
+> اعتبارسنجی پیش‌رونده یکسان، بر پایه معیارهای \lr{MAE}، \lr{RMSE}، \lr{sMAPE}
+> و \lr{rMAE}، چه عملکردی نسبت به یکدیگر دارند، و کدام تفاوت‌ها بر اساس آزمون
+> دیبولد-ماریانو با تصحیح \lr{HAC} از نظر آماری معنادار است؟
+
+*Under a single walk-forward protocol on the EPEX-DE benchmark, how do the five
+selected models — naive, SARIMAX, LEAR-LASSO, LightGBM and LSTM — compare on
+MAE, RMSE, sMAPE and rMAE, and which of the differences are statistically
+significant under a HAC-corrected Diebold-Mariano test?*
+
+**Answered in 4-2, 4-3, 4-5-1** (§6.1, §6.3) — `results_canonical.csv`,
+`dm_tests.csv`. 728 origins, 2016-01-04 → 2017-12-31.
+
+- **Claim:** on this market and window, LSTM (3.87), LEAR-LASSO (3.90) and
+  LightGBM (3.97) are mutually indistinguishable once multiplicity is
+  accounted for — LSTM vs LEAR-LASSO p = 0.404 outright, and the nominal
+  LSTM-over-LightGBM edge (p = 0.0405) does not survive Holm correction
+  (0.1215, §16A/A1). All four trained models beat naive at p ≈ 0, and both
+  ensembles beat every member — both survive correction.
+- **Not a claim:** that deep learning is or is not superior to statistical
+  methods in general. One architecture per family, one market, one window, one
+  tuning budget (50 Optuna trials each).
+
+**Why this survives questioning.** The comparison is *fair by construction* —
+identical feature matrix, identical splits, identical tuning budget, one metric
+module — and the tie is reported as a finding rather than treated as a failure
+to separate the models. The equal-budget design is the answer to "did you just
+under-tune the LSTM?", and it is worth stating before you are asked.
+
+### RQ2 — ensembling and regime-aware weighting
+
+> آیا ترکیب وزن‌دار مدل‌های پایه دقت را نسبت به بهترین تک‌مدل بهبود می‌دهد، و
+> آیا مشروط‌کردن وزن‌ها به رژیم بازار — که با آستانه‌ای صرفاً بر پایه داده
+> اعتبارسنجی به دو حالت آرام و پرتنش تفکیک می‌شود — بهبود بیشتری نسبت به
+> وزن‌دهی ایستا ایجاد می‌کند؟ این بهبود، در صورت وجود، تحت کدام شرایط بازار
+> پدید می‌آید؟
+
+*Does a weighted ensemble of the base models improve accuracy over the best
+single model, and does conditioning the weights on market regime — calm vs
+stressed, split by a threshold set from validation data alone — improve further
+over static weighting? Under which market conditions does any such gain arise?*
+
+**Answered in 3-8, 4-2, 4-5-1** (§6.2, §6.4) — `dm_tests.csv`,
+`dm_regime_split.csv`, `dm_bootstrap_sensitivity.csv`.
+
+- **Claim:** both ensembles beat every member (p < 1e-5). Regime-aware beats
+  static at p = 0.0226 pooled, p = 0.0063 on the 77 stressed days, and is null
+  on the 651 calm days (p = 0.847). **The gain is entirely stress-conditional.**
+- **Not a claim:** that regime-aware weighting improves average accuracy
+  generally. Pooled significance is borderline — block bootstrap gives 0.0129 →
+  0.0571 across 3–10-day blocks, crossing 0.05 at the longest. Report the range.
+
+**Why this survives questioning.** The second sentence — *under which market
+conditions* — is what makes the calm-day null part of the answer instead of an
+embarrassment. The method was designed to act only under stress; it does exactly
+that, and the question was posed to detect it either way.
+
+Two disclosures belong in 3-8, and volunteering them is what keeps this
+defensible:
+
+- k = 1.5 was chosen by a **validation-only** rule (largest k in {3.0, 2.5, 2.0,
+  1.5} leaving ≥ 20 days in both regimes). The test window was never consulted.
+  This is the answer to "did you tune the threshold on the test set?".
+- Ensemble weights were fitted on the members' **tuning** window. Say it.
+
+### RQ3 — interpretability
+
+> بر پایه مقادیر \lr{SHAP} محاسبه‌شده برای مدل \lr{LightGBM}، کدام خانواده‌های
+> ویژگی بیشترین سهم را در پیش‌بینی دارند، و آیا این سهم میان روزهای آرام و
+> پرتنش، و میان افق ساعتی و روزانه، تغییر می‌کند؟
+
+*Based on SHAP values computed for the LightGBM model, which feature families
+contribute most to the forecasts, and does that contribution differ between calm
+and stressed days, and between the hourly and daily horizons?*
+
+**Answered in 4-6** (§6.7) — `shap_importance.csv`, figures 10–15.
+
+- **Claim:** for the gradient-boosted model, `exog_2_D0` (same-day renewables
+  forecast) is the largest single contributor and is regime-stable;
+  `price_D-1` rises **+76.5%** under stress (3.4833 → 6.1471) while `exog_1_D0`
+  (load) falls slightly; `dow` is near-irrelevant once lags are present.
+- **Not a claim:** that these are "the" drivers of German electricity prices, or
+  that LEAR-LASSO and the LSTM use the same information. SHAP is model-specific.
+  It is an attribution of one model's output, not a causal statement about the
+  market.
+
+**Why this survives questioning — and the one thing you must disclose.** The
+question names LightGBM explicitly because `shap_analysis.py` uses
+`TreeExplainer` and covers only the tree arms. Equally important: the explained
+model is **refit on the trailing 1092 days ending 2017-12-31**, because the
+frozen walk-forward models saw those days and explaining them would be in-sample.
+So the SHAP model is a faithful *twin* of the reported model, not the identical
+object. State this in 4-6 in one sentence. An examiner who finds it themselves
+reads it as a gap; volunteered, it reads as care — and the module refuses to fit
+on a shorter window precisely so the twin cannot silently drift.
+
+### RQ4 — direct vs aggregated daily baseload  *(not provisional)*
+
+> برای پیش‌بینی میانگین بار پایه روزانه، کدام مسیر دقت بالاتری دارد: مدل‌سازی
+> مستقیمِ هدف روزانه، یا میانگین‌گیری از ۲۴ پیش‌بینی ساعتی؟ و آیا این نتیجه
+> برای هر پنج مدل یکسان است؟
+
+*For forecasting the daily baseload average, which route is more accurate:
+modelling the daily target directly, or averaging 24 hourly forecasts? And does
+the answer hold for all five models?*
+
+**Answered in 4-4** (§6.2) — `results_canonical.csv`, both arms.
+
+- **Claim:** aggregation wins for LEAR-LASSO (2.84 vs 2.90), LightGBM (2.99 vs
+  3.30) and LSTM (2.78 vs 3.18); SARIMAX is the exception (3.20 direct vs 3.27
+  aggregated). Naive is identical either way.
+- **Not a claim:** a universal rule about temporal aggregation in forecasting.
+  Four models, one market, one window.
+
+**Why this survives questioning.** The second sentence — *does it hold for all
+five* — is deliberate: it makes the SARIMAX exception a reported result rather
+than an inconvenience to average away. Both arms use the same feature matrix,
+the same origins and the same five models (`run_daily_direct.py`, and the tuning
+budget was matched in `tune_daily.py` for exactly this reason), so the
+difference is attributable to the route and not to unequal effort. That equal-
+effort design *is* the defense — without it the comparison would be confounded,
+and the code comments say so.
+
+### The one judgment call in this reconstruction
+
+**The out-of-distribution failure (§6.8) is not covered by any RQ above.** That
+is deliberate: the OOD stress test was added by the 2026-07-11 gameplan, after
+the proposal, so it is unlikely to appear as a proposal RQ. It is written up in
+**5-2** as a limitation and as the closing of formal assumptions (4) and (5).
+
+If the author prefers it to be a research question — it is arguably the
+project's most substantive finding — the clean move is to **append it as RQ5**
+rather than displace RQ3, because RQ1–RQ4 each already own a section and
+renumbering would break 4-7's structure:
+
+> آیا مدل‌های تثبیت‌شده بر دوره بنچمارک (\lr{2016}–\lr{2017})، بدون هرگونه
+> بازآموزی، عملکرد نسبی خود را بر \lr{173} روز داده زنده \lr{DE-LU} در سال
+> \lr{2026} حفظ می‌کنند؟ و اگر نه، آیا افت عملکرد ناشی از انحراف سطح قیمت است
+> یا از فروپاشی ساختار آموخته‌شده؟
+
+*Do models frozen on the benchmark period (2016–2017), without any retraining,
+retain their relative performance on 173 days of live DE-LU data from 2026? And
+if not, is the degradation a shift in price level or a collapse of the learned
+structure?*
+
+**Answered in 5-2** (§6.8) — `ood_stress.csv`, `ood_recalibration.csv`.
+
+- **Claim:** no. Every trained model falls below naive (rMAE > 1) and the
+  ranking inverts — LightGBM and LSTM, near the best on the benchmark, are the
+  worst here. A 7-day rolling bias correction recovers most of it (LSTM 1.535 →
+  1.014; regime-aware ensemble 1.176 → 0.895) while *hurting* naive and
+  LEAR-LASSO, the two least-biased models. The failure is therefore dominated by
+  a **level shift**, not a loss of learned structure.
+- **Not a claim:** a general law about model decay, or a quantified shelf life.
+  One market, one 173-day window, one freeze date, no retraining.
+
+**Why the second sentence matters.** Without it the answer is just "the models
+broke", which invites "so what was the point?". With it, the finding is a
+*diagnosis* — the models still rank hours correctly and are merely biased — and
+it closes formal assumptions (4) *model generalization* and (5) *stable market
+conditions* from your own proposal with evidence instead of a disclaimer. That
+is the most defensible negative result in the thesis; do not soften it.
+
+---
+
+### Wording the answers in 4-7 so they stay defensible
+
+Section 4-7 is where an over-claim would do the most damage, because it is the
+one place all four answers are stated in a row. Rules:
+
+- **Answer the question that was asked**, in the same scope it was asked in. If
+  the RQ names five models on EPEX-DE, the answer says so too.
+- **State nulls as findings**, in their own sentence — the LSTM/LEAR tie and the
+  calm-day null are results, not missing wins.
+- **Quote HAC-corrected p-values only**, and give the bootstrap range wherever
+  the pooled regime result is mentioned. Never quote uncorrected `epftoolbox`
+  p-values or claim 1% significance.
+- **Never write that the thesis beats the state of the art.** It ties two of
+  Lago et al.'s five variants and loses to their best DNN ensemble (p = 0.0127).
+- **Every numeral inside `\lr{}`** (§1.1), read from the frozen file (§1.2).
+
+**These are adopted as the working set — 1-3 and 4-7 are drafted from them
+now.** The only outstanding item is a wording reconciliation against the
+approved proposal, which happens at review of those two units: if the
+proposal words a question differently, the proposal wins and the answer
+text is unaffected, because every answer is scoped to the frozen evidence
+rather than to the phrasing. Rule on RQ5 at the same review.
 
 ---
 
@@ -518,7 +742,10 @@ exception.
    strategic choice made at the week-5 checkpoint ("Plan B").
 2. **The regime-aware gain is borderline when pooled.** Significant at
    p = 0.0226 under HAC, but the block bootstrap reaches p = 0.0571 at
-   10-day blocks. It is solid on the stressed subset and null on calm days.
+   10-day blocks, and it would not survive Holm correction had it been
+   drawn from the 21-test exploratory family (0.0903) — it is defended as a
+   pre-specified confirmatory test, logged 2026-07-11 (§16A/A1). It is solid
+   on the stressed subset (p = 0.0063) and null on calm days.
 3. **The models fail out of distribution**, losing to naive on 2026 data.
 4. **The best statistical model and the best deep model tie** (p = 0.404) —
    which is itself a finding about how much deep learning buys here.
@@ -543,7 +770,7 @@ moves available in this thesis.
 
 ### Chapter 1 — مقدمه (7pp, Claude chat)
 Motivation: price volatility, renewables penetration, the economic value of
-day-ahead accuracy. State the problem, then the four RQs (**blocked — needs
+day-ahead accuracy. State the problem, then the four RQs (§7; reconcile wording with
 RQ1–3 verbatim**). Innovations to claim in 1-4: named benchmark tied to
 published literature (Lago protocol), hourly *and* daily targets with the
 direct-vs-aggregated comparison, regime-aware ensembling, OOD stress test,
@@ -584,7 +811,7 @@ already exported.
 
 ### Chapter 4 — نتایج (29pp, Claude Code)
 Every number is frozen and in §6. 4-6 is the largest single section at 8pp and
-has the richest material. 4-7 is **blocked on RQ1–3**. Keep the supplementary
+has the richest material. 4-7 answers the §7 RQs. Keep the supplementary
 seed-ensemble numbers (§6.6) visibly separate from the frozen headline numbers.
 
 ### Chapter 5 — جمع‌بندی (10pp, Claude Code)
@@ -594,11 +821,14 @@ captured.
 
 ---
 
-## 11. Open blockers — only the author can clear these
+## 11. Open items — for the author, none of them blocking
 
-1. **RQ1, RQ2, RQ3 verbatim from the approved proposal.** They appear nowhere
-   in the repository. Gates sections 1-3 and 4-7 (~5pp). Everything else can
-   proceed without them.
+1. **RQ1–RQ3 — reconcile wording with the approved proposal.** They appear
+   nowhere in the repository, so §7 adopts a working set reconstructed from
+   the work actually done, each bounded to the frozen evidence. **This does
+   not block drafting.** At review of 1-3 and 4-7, check the phrasing against
+   the proposal — if it differs, the proposal wins and only the question text
+   changes, never the answers. Rule on RQ5 at the same review.
 2. **`words_per_page` in `configs/schedule.yaml` is still the placeholder
    `250`.** *(Note: moving to LaTeX largely retires this — the compiled PDF
    gives a true page count. Update the schedule config or the page-counting
@@ -865,7 +1095,7 @@ Every prompt below assumes this whole file has already been pasted or read.
 > Constraints: do not fabricate facts, statistics or citations. Every number
 > must come from §4–§6 of the handoff; if a number you need is not there, say
 > so instead of estimating it. Section 1-3 (the research questions) is
-> **blocked** — leave a placeholder, do not invent RQ1–RQ3.
+> the RQs in §7, quoted as written there — never a fresh invention.
 > Budget: 1-1 [2pp], 1-2 [1pp], 1-4 [1pp], 1-5 [1pp], 1-6 [1pp].
 
 ### 16.2 Chapter 2 — Literature review
@@ -1054,6 +1284,169 @@ plausible-looking reference.
   research."
 
 </details>
+
+---
+
+## 16A. The examiner pass - loose ends, and how each one closes
+
+Run 2026-08-31 against the frozen tables, adversarially: the goal was to break
+the answers, not to confirm them. Nine attacks were tried. **Seven close
+cleanly, one forces a change in wording, one is a disclosed limitation.**
+Every item below belongs in the thesis text - an examiner who finds one of
+these unaided reads it as a hole; pre-empted, each reads as control of the
+method.
+
+### A1. Multiplicity - THE ONE THAT CHANGES THE WRITING
+
+**Attack:** section 4-5-1 reports a 7x7 DM matrix. That is **21 pairwise
+tests**. At uncorrected alpha = 0.05 you expect about one spurious winner, so any
+result near 0.05 is unsafe.
+
+**Result of applying Holm-Bonferroni across all 21** (computed from the frozen
+p-values in `dm_tests.csv`; no model was rerun):
+
+| Comparison | raw p | Holm p | verdict |
+|---|---|---|---|
+| all 6 comparisons vs naive | 0 | 0 | survives |
+| ensembles vs each member (8 tests) | <= 4.8e-06 | <= 3.4e-05 | survives |
+| SARIMAX vs LSTM / LEAR / LightGBM | <= 1.0e-04 | <= 5.1e-04 | survives |
+| **Ensemble regime-aware vs static** | **0.0226** | **0.0903** | **fails** |
+| **LSTM vs LightGBM** | **0.0405** | **0.1215** | **fails** |
+| LEAR-LASSO vs LightGBM | 0.2665 | 0.5329 | fails (already null) |
+| LEAR-LASSO vs LSTM | 0.4036 | 0.5329 | fails (already null) |
+
+**17 of 21 survive.** Everything structural - every model beats naive, both
+ensembles beat every member - is untouched. But two claims that are currently
+written as significant do not survive a correction over that family.
+
+**How this closes, and it does close.** Declare **two families explicitly** in
+3-5, before any p-value is quoted:
+
+1. **Confirmatory, one pre-specified hypothesis:** regime-aware vs static
+   weighting. Logged in `logs/decisions.md` on **2026-07-11**, when the
+   regime-aware ensemble did not yet exist and no ensemble had been scored on
+   the test window (`v1.0-results` is dated 2026-08-04). It cannot have been
+   selected by looking at outcomes. A single pre-specified hypothesis is tested
+   at alpha = 0.05 without correction - this is standard, not a loophole, and the
+   dated log entry is what makes it checkable.
+2. **Exploratory, the 21-cell matrix:** report raw **and** Holm-corrected
+   p-values in the table. Both columns. Reporting only the raw ones is wrong;
+   hiding them looks evasive.
+
+**What must change in the writing:**
+
+- **LSTM vs LightGBM (p = 0.0405) may no longer be called significant.** It sits
+  in the exploratory family and does not survive (Holm 0.1215). Write it as
+  *"LSTM shows a lower point estimate; the difference does not survive
+  correction for multiplicity."* This **strengthens** RQ1 rather than weakening
+  it: the honest reading becomes LEAR-LASSO, LightGBM and LSTM are mutually
+  indistinguishable, and only the ensembles separate from them.
+- **Regime-aware vs static stays at p = 0.0226**, defended as the pre-specified
+  confirmatory test - but the sentence must carry all three numbers together:
+  pooled 0.0226, stressed-subset 0.0063, bootstrap range 0.0129-0.0571, and the
+  note that it would not survive correction had it been drawn from the
+  exploratory family. State that yourself.
+
+This precedent already exists in the project: the combination-ladder arm
+declared a family of six and applied Holm-Bonferroni to it
+(`logs/decisions.md` 2026-08-20). 4-5-1 is simply held to the same standard.
+
+### A2. "Your naive model scores rMAE 0.849 - it beats the benchmark it defines?"
+
+**Attack:** an rMAE below 1 for the naive model looks self-contradictory and, if
+unexplained, makes every other rMAE look unreliable.
+
+**Closes.** They are two different naives, and both are standard:
+
+- **Our naive model** (`src/models/naive.py`) is the Lago "similar day" rule:
+  Monday takes D-3, weekends take D-7, midweek takes D-1.
+- **The rMAE denominator** is epftoolbox's own naive, built internally by
+  `naive_forecast` from the real series.
+
+So 0.849 means the similar-day rule beats the toolbox's normalizing naive by
+about 15%, which is exactly what it should do. **One sentence in 3-5 naming both
+naives kills this question.** Leave it unwritten and it looks like an error.
+
+### A3. "You banned MAPE for negative prices, then reported sMAPE. Why is that consistent?"
+
+**Attack:** sMAPE is also a percentage error, and prices go negative.
+
+**Closes, with the project's own evidence.** MAPE divides by `p_real`, which is
+sign-dependent and undefined at zero, so a single near-zero hour makes it
+explode without bound. sMAPE divides by `(|p_real| + |p_pred|)/2` - absolute
+values, so it stays finite unless both are near zero simultaneously.
+
+The empirical proof is already in `lago_comparison.csv`: **on identical
+forecasts**, Lago et al.'s paper reports MAPE of 77-137% against sMAPE of
+14-17% - roughly a factor of ten, and the paper itself flags MAPE as unreliable
+on this market. Cite that.
+
+Then add the decisive sentence: **no conclusion in this thesis rests on sMAPE.**
+Every DM test is computed on absolute loss (`loss_differential`, norm=1), and
+every headline is MAE or rMAE. sMAPE is reported for comparability with the
+published table, nothing more.
+
+### A4. "Is your comparison against Lago et al. really like-for-like?"
+
+**Closes hard, and this is a strength worth showing.**
+`scripts/run_lago_comparison.py` calls `verify_alignment()` *before* a single
+p-value is computed: it asserts the full DatetimeIndex is identical to theirs
+element-by-element, reports the first mismatching position if not, and then
+cross-checks their `Real price` column against our `y_true` to a maximum
+absolute difference. Same 728 origins, 2016-01-04 to 2017-12-31, same rMAE
+denominator, our metric code on both sides.
+
+Say in 4-5-2 that alignment is asserted in code rather than assumed. That is a
+stronger answer than most published comparisons can give.
+
+### A5. "The paper-vs-shipped discrepancy is convenient for you"
+
+**Closes, and it is stronger than section 6.5 currently states.** The pattern is
+perfectly systematic, not scattered:
+
+- **All 5 DNN variants reproduce the paper exactly** (DNN 1-4 and DNN Ensemble).
+- **All 5 LEAR variants disagree** (LEAR 56, 84, 1092, 1456, Ensemble), and in
+  every case the shipped forecasts score **better** than the printed table.
+
+A bug on our side would not spare five DNN rows and hit five LEAR rows. The DNN
+rows are the positive control that proves our loader and metrics are correct;
+the LEAR rows are the finding. And we adopted the reading that makes **their**
+models look better - the conservative choice, against our own interest. Write
+that sentence explicitly; it is what converts the observation from convenient to
+credible.
+
+### A6. "Did you tune the regime threshold on the test set?"
+
+**Closes.** k = 1.5 came from a validation-only rule: the largest k in
+{3.0, 2.5, 2.0, 1.5} leaving >= 20 days in both regimes. k = 2.0 left 10 validation
+days, k = 1.5 left 37. The test window was never consulted, and the earlier
+3-sigma 84.04 value was superseded on 2026-08-04 for the same validation-only
+reason. The regime label also uses the **previous** day's realized prices,
+enforced in code, so the label cannot leak.
+
+### A7. "Your SHAP model is not the model you report results for"
+
+**Disclosed, not defended away.** Correct, and deliberately so. The frozen
+walk-forward models saw the days being explained, so explaining them would be
+in-sample. `shap_analysis.py` refits on the trailing 1092 days ending
+2017-12-31 and **refuses** to fit on a shorter window. It is a faithful twin,
+not the same object. One sentence in 4-6. Also state that SHAP covers the
+**LightGBM arms only** - no claim is made about what LEAR-LASSO or the LSTM use.
+
+### A8. "The ensemble weights saw their members' tuning data"
+
+**Disclosed.** Weights were fitted on the members' tuning window. State it in
+3-8. The mitigation is that the *comparison* it feeds - regime-aware vs static -
+gives both arms the identical advantage, so the contrast between them is
+unaffected.
+
+### A9. "One market, one window, one freeze date"
+
+**Disclosed limitation, and the honest boundary of everything above.** EPEX-DE
+only (France was scoped and not run), 728 origins, a single 173-day OOD window,
+one architecture per model family, 50 Optuna trials each. Every claim in
+chapter 4 is scoped to that. The "Not a claim" lines in section 7 exist to hold
+this boundary sentence by sentence.
 
 ---
 

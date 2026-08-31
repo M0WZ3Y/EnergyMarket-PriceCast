@@ -26,9 +26,16 @@ not move.
 
 ## P0 — Blocking. Do before writing the sections they gate.
 
-- [ ] **Supply RQ1, RQ2, RQ3 verbatim** from the approved proposal. Not in the
-      repo; only RQ4 is inferable from the code. Gates sections **1-3** and
-      **4-7** (5pp total). Nothing else is blocked by it.
+- [ ] **Reconcile RQ1–RQ3 wording with the approved proposal.** No longer
+      blocking: a defensible working set is adopted in
+      `thesis/WRITING_HANDOFF.md` §7, each bounded to the frozen evidence
+      with an explicit "not a claim" line. Sections **1-3** and **4-7** can
+      be drafted now; check the wording against the proposal at review and
+      rule then on whether the OOD result becomes RQ5.
+- [ ] **Apply the §16A examiner-pass findings when drafting.** One is
+      mandatory: LSTM vs LightGBM (raw p = 0.0405) must NOT be called
+      significant — Holm-corrected 0.1215 over the 21-test family. Declare
+      the confirmatory/exploratory family split in 3-5.
 - [ ] **Calibrate `words_per_page`** in `configs/schedule.yaml` (currently a
       placeholder 250). Put one section into the Amirkabir docx, divide its
       word count by the pages it actually occupied, set the real value.
@@ -70,7 +77,8 @@ number and figure they need is frozen.
       is a **tie** (p=0.404).
 - [ ] 4-6 تفسیرپذیری SHAP — 8pp · largest section. Figures 10–15 exported.
       Lead finding: `price_D-1` +77% under stress.
-- [ ] 4-7 پاسخ به سؤالات پژوهش — 4pp · **blocked on P0 (RQ1–3)**
+- [ ] 4-7 پاسخ به سؤالات پژوهش — 4pp · answers in HANDOFF §6;
+      follow the §16A wording rules (nulls as findings, Holm where required)
 
 **→ 66pp by Aug 28, clearing the 60pp partial review on Aug 31 with slack.**
 
@@ -86,7 +94,7 @@ number and figure they need is frozen.
 
 - [ ] 1-1 انگیزه و اهمیت — 2pp
 - [ ] 1-2 بیان مسئله — 1pp
-- [ ] 1-3 سؤالات پژوهش — 1pp · **blocked on P0**
+- [ ] 1-3 سؤالات پژوهش — 1pp · RQs adopted, HANDOFF §7
 - [ ] 1-4 نوآوری‌ها — 1pp
 - [ ] 1-5 ساختار پایان‌نامه — 1pp
 - [ ] 1-6 محدوده و مفروضات — 1pp

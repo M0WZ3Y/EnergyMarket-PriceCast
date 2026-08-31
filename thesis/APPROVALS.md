@@ -28,7 +28,7 @@ the compiled PDF — never from a word-count estimate.
 |---|---|---|---|---|---|
 | 1-1 | انگیزه و اهمیت موضوع | 2 | — | | |
 | 1-2 | بیان مسئله | 1 | — | | |
-| 1-3 | سؤالات پژوهش | 1 | **BLOCKED** | | needs RQ1–RQ3 verbatim |
+| 1-3 | سؤالات پژوهش | 1 | — | | RQs adopted, HANDOFF §7 — reconcile wording with the proposal at review |
 | 1-4 | نوآوری‌ها و دستاوردها | 1 | — | | |
 | 1-5 | ساختار پایان‌نامه | 1 | — | | |
 | 1-6 | محدوده و مفروضات | 1 | — | | |
@@ -80,7 +80,7 @@ route off a zero ledger and should be approved before any new drafting.
 | 4-5-1 | DM — مدل‌های ما | ~1.5 | — | | HAC only |
 | 4-5-2 | DM — در برابر Lago | ~1.5 | — | | seed ensemble = SUPPLEMENTARY |
 | 4-6 | تفسیرپذیری SHAP | 8 | — | | largest section; figures 10–15 |
-| 4-7 | پاسخ به سؤالات پژوهش | 4 | **BLOCKED** | | needs RQ1–RQ3 |
+| 4-7 | پاسخ به سؤالات پژوهش | 4 | — | | answers in HANDOFF §6; apply the §16A wording rules |
 
 ## Chapter 5 — جمع‌بندی (10pp) · Claude Code
 
