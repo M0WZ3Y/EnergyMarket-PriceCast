@@ -3649,3 +3649,64 @@ writing (RQ1–RQ3 verbatim, and the uncalibrated `words_per_page: 250` in
 `configs/schedule.yaml`) remain open and are the author's to supply; they were
 verified still absent today. From this entry forward the critical path is
 prose, and the week-9 partial review is 2026-08-31 with 0 of ~60 pages banked.
+
+### 2026-08-31 — Research questions adopted; adversarial examiner pass on the answers
+
+**RQ1–RQ3 were never in the repo** (only RQ4 was inferable from the code), and
+they had been sitting as a P0 blocker on sections 1-3 and 4-7. Blocking 5pp of
+writing on a document that lives outside the repo was the wrong trade with the
+partial review due. **Decision: adopt a working set of RQs**, reconstructed
+backwards from the work actually done and written into
+`thesis/WRITING_HANDOFF.md` §7, each bounded to the frozen evidence with an
+explicit "not a claim" line. Wording is reconciled against the approved proposal
+at review of 1-3 and 4-7; if the proposal differs, the proposal wins and only
+the question text changes — the answers are scoped to frozen files, not to
+phrasing. Nothing is blocked any more.
+
+A fifth question is offered but not adopted: whether frozen models generalise
+out of distribution. It postdates the proposal (2026-07-11 gameplan), so it is
+unlikely to be a proposal RQ; author rules on it at the same review.
+
+**Then the answers were attacked adversarially rather than documented.** Nine
+lines of attack, recorded in full as §16A of the handoff. Seven close cleanly
+(the two-naives explanation for rMAE 0.849; sMAPE vs MAPE, with the paper's own
+77–137% MAPE against 14–17% sMAPE as evidence; `verify_alignment()` asserting
+index equality against Lago et al. before any p-value; the systematic 5/5 DNN
+match vs 5/5 LEAR mismatch; the validation-only k rule; the SHAP twin-model
+refit; the ensemble weight disclosure). One is a disclosed scope limit.
+
+**One is a real finding that changes the writing — multiplicity.**
+
+Section 4-5-1 reports a 7x7 DM matrix, which is **21 pairwise tests** with no
+correction. Holm-Bonferroni applied across all 21 (computed from the frozen
+p-values in `dm_tests.csv`; **no model was rerun, no frozen table modified**):
+
+- **17 of 21 survive.** Every model-beats-naive result and all eight
+  ensemble-beats-member results are untouched (Holm p ≤ 3.4e-05).
+- **LSTM vs LightGBM: raw 0.0405 → Holm 0.1215. Fails.**
+- **Regime-aware vs static: raw 0.0226 → Holm 0.0903. Fails.**
+
+Resolution — declare **two families** in section 3-5 before any p-value is
+quoted, rather than correcting everything or nothing:
+
+1. *Confirmatory*, one pre-specified hypothesis: regime-aware vs static. Logged
+   here on **2026-07-11**, when the regime-aware ensemble did not yet exist and
+   no ensemble had been scored on test (`v1.0-results` is 2026-08-04), so it
+   cannot have been selected on outcomes. Tested at α = 0.05 uncorrected, with
+   the pooled/stressed/bootstrap numbers always quoted together and the Holm
+   value disclosed anyway.
+2. *Exploratory*, the 21-cell matrix: report raw **and** Holm-corrected
+   p-values, both columns.
+
+**Binding consequence: LSTM vs LightGBM may no longer be called significant
+anywhere.** It becomes "a lower point estimate that does not survive correction
+for multiplicity". This strengthens RQ1 — the honest reading is that
+LEAR-LASSO, LightGBM and LSTM are mutually indistinguishable and only the
+ensembles separate from them, which is a cleaner finding than a marginal win.
+
+Precedent: the combination-ladder arm already declared a family of six and
+applied Holm-Bonferroni (2026-08-20). 4-5-1 is held to the same standard.
+
+**Reconciliation (per NEXT_SESSION.md):** no pages banked — this was
+methodology and governance, not prose. Deferral logged here. Next task is
+drafting, starting from 3-2 or the conversion of the four existing drafts.
