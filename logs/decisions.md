@@ -3710,3 +3710,21 @@ applied Holm-Bonferroni (2026-08-20). 4-5-1 is held to the same standard.
 **Reconciliation (per NEXT_SESSION.md):** no pages banked — this was
 methodology and governance, not prose. Deferral logged here. Next task is
 drafting, starting from 3-2 or the conversion of the four existing drafts.
+
+### 2026-08-31 — Documentation pushed once, by explicit author decision
+
+The 2026-08-30 standing rule says thesis writing and documentation are
+committed locally and never pushed. Commits `757b579` and `535f9da` are
+entirely documentation, so the rule and the instruction to push pointed
+opposite ways. Flagged before acting; the author reaffirmed, and both were
+pushed to `origin/mvp-dashboard`.
+
+Context that made it defensible: all four affected documents were **already
+public** on origin, so the push updated existing public files rather than
+exposing new ones, and no Farsi chapter prose exists yet — the material the
+rule was written to protect was not involved. The genuinely new content is
+handoff §16A, the written inventory of the method's soft spots.
+
+**The rule is NOT retracted.** It remains flag-and-ask, not refuse: future
+sessions should raise the conflict once and then follow the author's decision.
+It applies with full force once chapter prose exists.
