@@ -3775,3 +3775,90 @@ author decision that needs a logged answer before any code is written.
 
 **Reconciliation (per NEXT_SESSION.md):** no pages banked — this was
 credential configuration, not prose. Deferral logged here.
+
+---
+
+### 2026-09-02 — §10.3 FEATURE-SUPPORT DIAGNOSTIC: the OOD failure is substantially TRAIN/SERVE SKEW, not market drift
+
+The last open item of the operational arm (`docs/HANDOFF_new_model_design.md`
+§10.3, step 4 of §11, open since 2026-08-20) finally ran. It is read-only: it
+compares distributions of already-frozen data and refits nothing. **No frozen
+artifact was touched and no tag was reopened.**
+
+**Windows compared.** Benchmark TRAIN 2012-01-09 .. 2016-01-03 (n = 34,944,
+the Lago `years_test=2` split) against LIVE 2025-12-31 .. 2026-06-30
+(n = 4,343, `data/raw/live_ood_de.csv`).
+
+**Result — the live exogenous features are almost entirely outside the
+training support.**
+
+    series   train mean    live mean   ratio   out-of-support   overlap
+    price       36.1976      98.6706   2.726            1.98%    0.1409
+    exog_1   21,499.90    54,883.70    2.553           99.86%    0.0002
+    exog_2    9,388.92    25,491.13    2.715           20.91%    0.4906
+
+`exog_1` — the day-ahead load forecast, the single most important exogenous
+driver — has an overlap coefficient of **0.0002** with its own training
+distribution. The two distributions are effectively disjoint. 99.86% of served
+values sit above the training maximum.
+
+**It is a SCALE artefact, and that is the important part.** A single scalar
+rescaling collapses the mismatch completely:
+
+    series   transform                out-of-support   overlap
+    exog_1   raw (as served)                  99.86%    0.0002
+    exog_1   mean-ratio rescaled               0.00%    0.8681
+    exog_1   z-score matched                   0.00%    0.8958
+    exog_2   raw (as served)                  20.91%    0.4906
+    exog_2   mean-ratio rescaled               0.00%    0.8702
+
+A constant multiplier restoring overlap to 0.87 is the signature of a units or
+geographic-definition mismatch, not of a market that changed. The measured
+factor is 2.553, and Amprion's share of German load is ≈39% (1/2.553 = 0.392).
+That is exactly the §10.3 table's prediction: the models were TRAINED on
+**Amprion zonal** forecasts and are SERVED **German national aggregates**.
+German load did not grow 2.5x since 2012; the definition changed underneath
+the serving path.
+
+**This reinterprets the v1.1-ood result.** The OOD failure was diagnosed on
+2026-08-07 as a drifting price level shift. That diagnosis is not wrong, but it
+is incomplete, and the larger term appears to be a serving-path defect. The
+observed error ordering is the tell, and it was already in the frozen numbers:
+LightGBM 1.828 (trees cannot extrapolate) worse than LSTM 1.520, worse than
+SARIMAX 1.145, worse than LEAR-LASSO 1.087 (linear, extrapolates). Covariate
+shift outside training support predicts exactly that ordering; a pure price
+level shift does not.
+
+### TWO CLAIMS, and only the first is supported
+
+Recorded in the form the 2026-08-29 B5 entry established, because these look
+alike and are not.
+
+SUPPORTED: that the live exogenous features lie outside the training support,
+that the discrepancy is a near-exact constant factor, and that the factor
+matches the Amprion-vs-national definition change. This is a measurement over
+frozen data and it is decisive.
+
+NOT SUPPORTED: that rescaling FIXES the forecasts. Nothing here refits or
+re-evaluates any model. Feature support being recovered is not the same as
+error being recovered, and the second claim requires a run that does not yet
+exist. Do not write the stronger sentence.
+
+**Consequence for the thesis, at no cost to the freeze.** The limitations
+chapter and section 4-7 currently attribute the OOD failure to market
+non-stationarity, which flatters the result: it makes an unforced data-plumbing
+error read as a property of the market. The honest and considerably more
+defensible statement is that the OOD evaluation confounds two mechanisms, that
+this diagnostic separates them, and that the dominant one is correctable. An
+examiner who finds a 0.0002 overlap unaided will ask why it was not measured;
+an examiner shown it measured, bounded and separated into supported and
+unsupported claims sees a candidate who audited their own negative result.
+
+**Open decision, NOT taken here.** Re-running the OOD evaluation with
+scale-corrected features would reopen `v1.1-ood`, which PROJECT_SPEC.md forbids after
+the tag. It is now a well-motivated proposal rather than a speculative one, but
+it stays an author decision and needs its own entry before any code runs.
+
+**Reconciliation (per NEXT_SESSION.md):** no pages banked — read-only
+diagnostic. Deferral logged here. The finding is prose-ready and belongs in
+3-2 (assumptions 4 and 5), 4-7 and the limitations chapter.
