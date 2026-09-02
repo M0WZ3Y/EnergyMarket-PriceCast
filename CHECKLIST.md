@@ -26,6 +26,27 @@ not move.
 
 ## P0 — Blocking. Do before writing the sections they gate.
 
+- [ ] **Add the SHAP source paper to the bibliography.** `references.bib` has
+      **no entry for SHAP at all** (searched 2026-09-02), although SHAP is a
+      named deliverable and section 4-6 rests entirely on it. Section
+      `2-6-xai.tex` carries a `[NEEDS CITATION]` marker in its place. Add via
+      Zotero, not by hand — the `.bib` and the export are already out of sync.
+      Also add at least one source on feature-attribution limits under
+      correlated features, since chapter 4 discusses exactly that.
+
+- [ ] **Add dataset-shift literature to the bibliography.** Zero entries on
+      covariate shift, dataset shift, concept drift or domain adaptation.
+      After the §10.3 finding, chapter 5's central mechanism claim has no
+      support in chapter 2 — the discussion makes a claim the literature
+      review never armed, which is the first thing an examiner reading the
+      two together will find. Three to five canonical anchors close it.
+      Marked `[NEEDS CITATION]` in `2-9-gap.tex`.
+
+- [ ] **Empty or replace the back-matter glossary.** `dicen2fa.tex` /
+      `dicfa2en.tex` still ship the template's own tutorial vocabulary
+      ("Quotient graph", "Reducible", "Vector space" — Finsler geometry) and
+      it renders in the compiled PDF.
+
 - [ ] **Reconcile RQ1–RQ3 wording with the approved proposal.** No longer
       blocking: a defensible working set is adopted in
       `thesis/WRITING_HANDOFF.md` §7, each bounded to the frozen evidence
