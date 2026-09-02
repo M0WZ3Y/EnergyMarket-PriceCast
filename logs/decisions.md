@@ -3728,3 +3728,50 @@ handoff §16A, the written inventory of the method's soft spots.
 **The rule is NOT retracted.** It remains flag-and-ask, not refuse: future
 sessions should raise the conflict once and then follow the author's decision.
 It applies with full force once chapter prose exists.
+
+### 2026-09-02 — ENTSO-E token arrived; configured, unverified, and NOT yet used
+
+The Transparency Platform RESTful token was granted and handed over by the
+author. This closes the "pending token arrival" clause in the 2026-08-28
+amendment, which pre-approved ENTSO-E and only ENTSO-E as a registration-gated
+source.
+
+**Where the token lives.** A Windows *user* environment variable
+`ENTSOE_API_TOKEN`, set outside the repository tree. Not a `.env` file, not a
+config, not a committed line — `EntsoeClient`'s own docstring promises the
+token is "never written to disk, logged, or committed", and this repo is
+public. `EntsoeClient()` now reports `configured: True`.
+
+One incident worth recording: the token leaked into
+a local shell-approval cache, because the terminal tooling auto-records the
+literal command text of an approved shell call as a permission rule. That file
+is gitignored so it could never have been pushed, but the entry
+was removed. **Any future secret handled through a shell command lands in that
+file** — check it, do not assume.
+
+**Validity is NOT verified.** The Platform is in scheduled maintenance and
+returns HTTP 503 with an HTML notice ("Service Temporarily Unavailable") to
+every query, including a plain A44 day-ahead canary. A 503 maintenance page is
+not a 401, so nothing suggests the token is bad — but nothing confirms it
+works either, and it must not be described as verified until a 200 comes back.
+Re-run the A44 canary before relying on it.
+
+**Nothing has been built with it, deliberately.** The three Tier-B series it
+unblocks — generation outages (`A80`, the true scarcity signal), forecast NTC
+(`A61`), hydro reservoir levels (`A72`) — are exactly the ones
+`price_formation.py` records as `blocked_by` a token, and their absence is why
+`regimes.UNAVAILABLE_SEGMENTS` has no `outage_scarcity` or `reservoir_hydro`
+segment. But `v1.0-results` and `v1.1-ood` are frozen, PROJECT_SPEC.md forbids
+rerunning or modifying model results after the tag, the technical phase closed
+at `b53dcfb`, and CHECKLIST.md lists no ENTSO-E work at any priority. Building
+these features would reopen the frozen results to add a driver the thesis has
+already argued around in writing.
+
+The token's value is therefore most likely **prose, not numbers**: the
+"blocked by a token" framing in sections 3-x and the limitations chapter is now
+factually stale, and the honest statement is that the data became reachable
+after the results were frozen. Whether it feeds anything computational is an
+author decision that needs a logged answer before any code is written.
+
+**Reconciliation (per NEXT_SESSION.md):** no pages banked — this was
+credential configuration, not prose. Deferral logged here.
