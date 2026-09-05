@@ -1,10 +1,36 @@
 % 1-3-questions.tex
 %  Budget: 1pp.
-%  NOTE: RQs adopted in thesis/WRITING_HANDOFF.md section 7 -- quote them
-%  from there verbatim. Reconcile wording against the approved proposal at
-%  review; if it differs, the proposal wins. Every numeral in \lr{}.
-%  Rules: every numeral in \lr{}; cite only from references.bib;
-%  one unit at a time -- see thesis/WRITING_HANDOFF.md and APPROVALS.md.
+%  RQ text = WRITING_HANDOFF.md 7 "working set" (RQ1-3 PROVISIONAL, RQ4 firm).
+%  Only mechanical 1.1 fixes applied to the handoff text: em-dashes wrapped in
+%  \lr{}, and RQ4 bare ۲۴ -> \lr{24}. Question wording otherwise verbatim.
+%  Wording reconciliation vs approved proposal happens at review of 1-3 / 4-7.
+%  RQ5 (OOD) is optional -- author to rule on at this review (see closing note).
+%  No citations: 1-3 poses the questions; methods are cited in Ch3/Ch4.
 
 \section{سؤالات پژوهش}
 
+مسئله و ابعادی که در بخش پیشین برشمرده شد، این پژوهش را حول چهار پرسش اصلی سامان
+می‌دهند. این پرسش‌ها چنان صورت‌بندی شده‌اند که هر یک با شواهد تجربیِ به‌دست‌آمده
+در فصل چهارم، و در همان دامنه‌ای که طرح شده‌اند، پاسخ داده شوند:
+
+\begin{enumerate}
+\item در پیش‌بینی روز-پیشِ قیمت برق بازار \lr{EPEX-DE}، پنج مدل منتخب \lr{—}
+ساده، \lr{SARIMAX}، \lr{LEAR-LASSO}، \lr{LightGBM} و \lr{LSTM} \lr{—} تحت یک
+پروتکل اعتبارسنجی پیش‌رونده یکسان، بر پایه معیارهای \lr{MAE}، \lr{RMSE}،
+\lr{sMAPE} و \lr{rMAE}، چه عملکردی نسبت به یکدیگر دارند، و کدام تفاوت‌ها بر اساس
+آزمون دیبولد-ماریانو با تصحیح \lr{HAC} از نظر آماری معنادار است؟
+
+\item آیا ترکیب وزن‌دار مدل‌های پایه دقت را نسبت به بهترین تک‌مدل بهبود می‌دهد، و
+آیا مشروط‌کردن وزن‌ها به رژیم بازار \lr{—} که با آستانه‌ای صرفاً بر پایه داده
+اعتبارسنجی به دو حالت آرام و پرتنش تفکیک می‌شود \lr{—} بهبود بیشتری نسبت به
+وزن‌دهی ایستا ایجاد می‌کند؟ این بهبود، در صورت وجود، تحت کدام شرایط بازار پدید
+می‌آید؟
+
+\item بر پایه مقادیر \lr{SHAP} محاسبه‌شده برای مدل \lr{LightGBM}، کدام
+خانواده‌های ویژگی بیشترین سهم را در پیش‌بینی دارند، و آیا این سهم میان روزهای آرام
+و پرتنش، و میان افق ساعتی و روزانه، تغییر می‌کند؟
+
+\item برای پیش‌بینی میانگین بار پایه روزانه، کدام مسیر دقت بالاتری دارد:
+مدل‌سازی مستقیمِ هدف روزانه، یا میانگین‌گیری از \lr{24} پیش‌بینی ساعتی؟ و آیا این
+نتیجه برای هر پنج مدل یکسان است؟
+\end{enumerate}

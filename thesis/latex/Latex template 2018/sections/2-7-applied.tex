@@ -1,7 +1,39 @@
-% 2-7-applied.tex
-%  Budget: 2pp.
-%  Rules: every numeral in \lr{}; cite only from references.bib;
-%  one unit at a time -- see thesis/WRITING_HANDOFF.md and APPROVALS.md.
-
+% 2-7-applied.tex  | Budget 2pp
+% SOURCE MAP (market-specific, recurrences): Spain nogales/conejo ; USA arya/
+%  zhang_deep_2020 ; Nord Pool alkawaz ; Greece+Hungary haluzan ; Australia
+%  jiang_multivariable_2023/ghimire ; Turkey ugurlu ; India shah ; UK balancing
+%  lucas_price_2020 ; Iran pay-as-bid heidarpanah ; simulated scenarios nitsch.
+%  GERMAN CLUSTER (directly comparable to this thesis): poggi ; zhang_forecasting_2018
+%  ; mubarak (DE+UK) ; ghelasi ; ziel . Positioning callback to 2-9.
 \section{مطالعات کاربردی و بازارهای خاص}
 
+پیش‌بینیِ قیمتِ برق ذاتاً وابسته به بازار است؛ ساختارِ حراج، سبدِ تولید و میزانِ
+نفوذِ تجدیدپذیرها از بازاری به بازارِ دیگر تفاوت دارد و همین امر، مطالعاتِ
+کاربردیِ متمرکز بر بازارهای خاص را ضروری می‌سازد. دامنه‌ی این مطالعات گسترده است:
+از بازارهای اسپانیا \cite{nogales_forecasting_2002, conejo_day-ahead_2005} و
+ایالاتِ متحده \cite{arya_machine_2021, zhang_deep_2020} تا بازارِ نورد پول
+\cite{alkawaz_day-ahead_2022}، یونان و مجارستان \cite{haluzan_performance_2020}،
+استرالیا \cite{jiang_multivariable_2023, ghimire_two-step_2024}، ترکیه
+\cite{ugurlu_electricity_2018}، هند \cite{shah_short-term_2021} و بازارِ تعادلیِ
+بریتانیا \cite{lucas_price_2020}. حتی بازارهایی با ساختارِ متفاوت، مانندِ سازوکارِ
+پرداخت‌به‌قیمتِ پیشنهادیِ ایران، نیز موضوعِ پژوهش بوده‌اند
+\cite{heidarpanah_daily_2023}. افزون بر بازارهای واقعی، برخی مطالعات به سناریوهای
+شبیه‌سازی‌شده‌ی بازارهای آینده و انتقال‌پذیریِ روش‌ها میانِ آن‌ها پرداخته‌اند
+\cite{nitsch_applying_2024}.
+
+در میانِ این بازارها، بازارِ برقِ آلمان جایگاهی ویژه در این پژوهش دارد، زیرا داده
+و پروتکلِ بنچمارکِ مورداستفاده به همین بازار تعلق دارد و از این‌رو، مطالعاتِ
+متمرکز بر آن تنها مرجع‌هایی‌اند که نتایجِ این پایان‌نامه مستقیماً با آن‌ها
+قابلِ‌مقایسه است. این بازار به‌طورِ گسترده مطالعه شده است: از تجزیه‌ی قیمتِ
+لحظه‌ای به مؤلفه‌های فصلی و تصادفی \cite{poggi_electricity_2023}، تا مدل‌های
+عمیقِ غنی‌شده با پیش‌بینیِ تولیدِ بادی و خورشیدی \cite{zhang_forecasting_2018}، و
+مدل‌های کانولوشنی-بازگشتی بر بازارهای آلمان و بریتانیا
+\cite{mubarak_day-ahead_2024}. افقِ زمانیِ این مطالعات نیز از روز-پیش فراتر رفته و
+پیش‌بینیِ میان‌مدت و بلندمدت را در بر می‌گیرد
+\cite{ghelasi_day-ahead_2025, ziel_probabilistic_2018}.
+
+جمع‌بندیِ این بخش دو نکته را برجسته می‌کند. نخست، به‌رغمِ اشتراک در روش‌ها، رفتارِ
+مدل‌ها و مجموعه‌ی متغیرهای مؤثر از بازاری به بازارِ دیگر تفاوتِ معنادار دارد؛ دوم،
+انبوهِ مطالعاتِ متمرکز بر بازارِ آلمان، آن را به بستری بالغ و در عینِ حال
+چالش‌برانگیز برای سنجشِ روش‌های تازه بدل کرده است. پژوهشِ حاضر بر همین بستر و در
+چارچوبِ یک پروتکلِ عمومیِ مقایسه‌پذیر بنا شده است.

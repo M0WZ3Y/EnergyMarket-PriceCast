@@ -1,7 +1,31 @@
-% 2-6-xai.tex
-%  Budget: 2pp.
-%  Rules: every numeral in \lr{}; cite only from references.bib;
-%  one unit at a time -- see thesis/WRITING_HANDOFF.md and APPROVALS.md.
-
+% 2-6-xai.tex  | Budget 2pp -- CURRENTLY THIN / PARTIALLY BLOCKED
+% SOURCE MAP: interpretability named as open challenge ->oconnor_review_2025 ;
+%  interpretability-by-design (coefficient bounds) ->ghelasi_day-ahead_2025 ;
+%  dedicated XAI+DL for electricity prices ->trebbien_explainable_2023 (TITLE ONLY).
+% !!! trebbien_explainable_2023 has NO abstract in references.bib. Only a
+%     title-level mention is grounded. To reach a full 2pp and detail the actual
+%     XAI methods (SHAP / feature attribution) this section should cover, PASTE a
+%     passage from trebbien_2023. lucas_price_2020 is NOT clearly XAI from its
+%     abstract, so it is NOT cited here (moved to 2-7, UK balancing market).
 \section{تفسیرپذیری و هوش مصنوعی توضیح‌پذیر}
 
+با پیچیده‌تر و دقیق‌ترشدنِ مدل‌های یادگیری ماشین و یادگیری عمیق، پرسشی تازه اهمیت
+یافته است: چرا مدل یک پیش‌بینیِ خاص را ارائه می‌دهد؟ مرورهای اخیر، تفسیرپذیریِ
+مدل‌ها را در کنارِ کیفیتِ داده و تعمیم‌پذیری، از جمله چالش‌های همچنان گشوده‌ی این
+حوزه برمی‌شمارند \cite{oconnor_review_2025}. بسیاری از مدل‌های پرکاربرد \lr{—}
+به‌ویژه معماری‌های عمیق \lr{—} ماهیتی جعبه‌سیاه دارند و بی‌آن‌که سازوکارِ درونیِ
+آن‌ها روشن باشد، صرفاً بر پایه‌ی دقتِ خروجی ارزیابی می‌شوند.
+
+در پاسخ به این نیاز، دو رویکردِ کلی در ادبیات دیده می‌شود. رویکردِ نخست، تعبیه‌ی
+تفسیرپذیری در خودِ ساختارِ مدل است؛ برای نمونه، مدلی اقتصادسنجی با محدودکردنِ
+ضرایب به بازه‌هایی که از مدل‌های بنیادی استخراج می‌شوند، هم دقت و هم تفسیرپذیری را
+هم‌زمان دنبال می‌کند \cite{ghelasi_day-ahead_2025}. رویکردِ دوم، به‌کارگیریِ
+روش‌های هوشِ مصنوعیِ توضیح‌پذیر به‌صورتِ پسینی برای تحلیلِ مدل‌های پیچیده است؛
+پژوهشی به‌طورِ اختصاصی هوشِ مصنوعیِ توضیح‌پذیر و یادگیری عمیق را برای تحلیل و
+پیش‌بینیِ سری‌های زمانیِ پیچیده، از جمله قیمتِ برق، به‌کار گرفته است
+\cite{trebbien_explainable_2023}.
+
+با این‌همه، در قیاس با انبوهِ مطالعاتِ متمرکز بر دقت، شمارِ کارهایی که به‌طورِ
+نظام‌مند به تفسیرپذیریِ مدل‌های پیش‌بینیِ قیمت می‌پردازند بسیار اندک است. همین
+کم‌توجهی، یکی از شکاف‌های اصلیِ این حوزه و از انگیزه‌های محوریِ پژوهشِ حاضر برای
+به‌کارگیریِ تحلیلِ تفسیرپذیری در کنارِ سنجشِ دقت است.

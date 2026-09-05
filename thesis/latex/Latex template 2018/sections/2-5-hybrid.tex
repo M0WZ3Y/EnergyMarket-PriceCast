@@ -1,7 +1,42 @@
-% 2-5-hybrid.tex
-%  Budget: 2pp.
-%  Rules: every numeral in \lr{}; cite only from references.bib;
-%  one unit at a time -- see thesis/WRITING_HANDOFF.md and APPROVALS.md.
-
+% 2-5-hybrid.tex  | Budget 2pp
+% SOURCE MAP: hybrid DNN ->kuo ; 4-module hybrid (isolation forest+error comp+prob)
+%  ->zhang_deep_2020 ; ARD+bagging ExtraTrees ->alkawaz ; ML+bionic optim ->sun ;
+%  MIMO point+interval ->jiang_multivariable_2023 ; multi-head attention+CNN
+%  ->pourdaryaei ; SDAE+BiLSTM+GRU ->moradzadeh ; CNN-BiLSTM+AR ->mubarak ;
+%  ensemble ML ->shah ; adaptive VMD+kernel ->yang ; 2-step DL+err-comp AU ->ghimire.
+% Eq = weighted ensemble combination. ghimire abstract-less: described from title only.
 \section{مدل‌های ترکیبی و مکانیزم توجه}
 
+محدودیت‌های مدل‌های منفرد \lr{—} چه آماری و چه یادگیری عمیق \lr{—} پژوهشگران را
+به سوی مدل‌های ترکیبی سوق داده است؛ رویکردی که می‌کوشد نقاطِ قوتِ چند روش را
+کنارِ هم بگذارد. منطقِ بنیادیِ بسیاری از این روش‌ها، ترکیبِ وزن‌دارِ خروجیِ چند
+مدلِ پایه است:
+
+\begin{equation}
+\hat{y} = \sum_{k=1}^{K} w_k\,\hat{y}_k
+\end{equation}
+
+که در آن $\hat{y}_k$ پیش‌بینیِ مدلِ $k$‌اُم، $w_k$ وزنِ آن، و $\hat{y}$ پیش‌بینیِ
+نهاییِ ترکیب است. این ایده در ادبیات به شکل‌های گوناگون تحقق یافته است؛ از ترکیبِ
+رگرسیونِ خطی و درخت‌های تصادفیِ کیسه‌ای \cite{alkawaz_day-ahead_2022} تا مدل‌های
+گروهیِ متشکل از روش‌های آماری و شبکه‌های عصبی \cite{shah_short-term_2021}.
+
+الگوی پرتکرارِ دیگر، ترکیبِ پیش‌پردازش و تجزیه‌ی سیگنال با یادگیری عمیق است.
+رویکردهایی مبتنی بر تجزیه‌ی مُدِ متغیر و حذفِ نوفه، سریِ قیمت را پیش از مدل‌سازی
+به مؤلفه‌های ساده‌تر تجزیه می‌کنند و سپس آن‌ها را به شبکه‌های بازگشتی می‌سپارند
+\cite{yang_novel_2022, moradzadeh_hybrid_2025}. چارچوب‌های چندپیمانه‌ای نیز
+پیشنهاد شده‌اند که در آن‌ها ماژول‌های جداگانه‌ای برای پیش‌پردازش، پیش‌بینیِ
+نقطه‌ای، جبرانِ خطا و پیش‌بینیِ احتمالاتی تعبیه شده است
+\cite{zhang_deep_2020, ghimire_two-step_2024}. افزودنِ مکانیزمِ توجه و شبکه‌های
+کانولوشنی-بازگشتی نیز از جدیدترین گرایش‌ها در این حوزه است
+\cite{pourdaryaei_new_2024, mubarak_day-ahead_2024, kuo_electricity_2018}.
+
+سومین گرایش، بهره‌گیری از الگوریتم‌های بهینه‌سازی برای تنظیمِ ابرپارامترها و
+ساختارِ مدل است \cite{sun_day-ahead_2022}، و برخی چارچوب‌ها فراتر از پیش‌بینیِ
+نقطه‌ای، پیش‌بینیِ بازه‌ای و چندخروجی را نیز پوشش می‌دهند
+\cite{jiang_multivariable_2023}. جمع‌بندیِ این بخش آن است که مدل‌های ترکیبی و
+گروهی، به‌ویژه در بازارِ روز-پیش، عملکردی قدرتمند از خود نشان می‌دهند؛ اما این
+قدرت به بهای پیچیدگیِ بیشتر، دشواریِ تفسیر و خطرِ بیش‌برازش به‌دست می‌آید. همین دو
+نکته \lr{—} کارآمدیِ بالای ترکیب از یک سو و کاهشِ تفسیرپذیری از سوی دیگر \lr{—}
+به‌طورِ مستقیم به دو محورِ اصلیِ این پایان‌نامه، یعنی وزن‌دهیِ گروهیِ رژیم‌محور و
+تحلیلِ تفسیرپذیری، پیوند می‌خورد.
