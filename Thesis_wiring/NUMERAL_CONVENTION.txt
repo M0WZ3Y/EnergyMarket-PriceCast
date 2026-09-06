@@ -1,0 +1,95 @@
+NUMERAL CONVENTION — CORRECTED 2026-09-06
+=========================================
+Supersedes WRITING_HANDOFF.md §1.1 AND the 2026-09-05 revision (§A1 of
+the chapter 3-5 handoff note). Both earlier versions are wrong about decimals.
+
+WHY THIS WAS CORRECTED
+----------------------
+§A1 said: body-text numbers -> Persian digits, decimals as ۳٫۵۵۷ using the
+Persian decimal mark U+066B, "verify on render". That verification was run on
+2026-09-05: a test document was compiled with the real B Nazanin font and the
+rendered page was read. Results:
+
+  FORM                       RENDERS AS      VERDICT
+  ۳/۵۵۷   (Persian slash)    ۵۵۷/۳           reordered            WRONG
+  ۳٫۵۵۷   (U+066B decimal)   ۵۵۷□۳           tofu + reordered     WRONG
+  ۵۲٬۴۱۶  (U+066C thousands) ۴۱۶□۵۲          tofu + reordered     WRONG
+  دورهٔ    (U+0654 hamza)     دوره□           tofu                 WRONG
+  \lr{3.557}                 3.557           correct              USE THIS
+  \lr{52{,}416}              52,416          correct              USE THIS
+  ۵۲۴۱۶   (plain integer)    ۵۲۴۱۶           correct              USE THIS
+  دوره‌ی   (ZWNJ + yeh)       دوره‌ی           correct              USE THIS
+
+B Nazanin simply does not contain U+066B, U+066C or U+0654. The approved
+chapters 1–2 contain zero occurrences of all three — they already use "ه‌ی".
+
+THE RULE
+--------
+  * Standalone integers, counts, years        -> PERSIAN digits, NO \lr
+        ۷۲۸ مبدأ ، ۲۴۷ ستون ، ۲۰۱۶ ، ۵۰ آزمایش ، ۹۶۳ درخت
+  * Decimals                                  -> \lr{...} with LATIN digits
+        \lr{3.5569} ، \lr{0.0226} ، \lr{62.6989}
+  * Thousands-separated numbers               -> \lr{...} with {,}
+        \lr{17{,}472} ، \lr{52{,}416}
+  * Scientific notation                       -> \lr{...}
+        \lr{7.04e-08} ، \lr{1.0e-07}
+  * Latin identifiers / acronyms / tool names -> \lr{...}
+        \lr{SHAP} ، \lr{LSTM} ، \lr{EPEX-DE} ، \lr{LightGBM}
+  * Em-dash                                   -> ALWAYS \lr{—}
+  * Ezafe on a word ending in ه                -> ه‌ی  (ZWNJ + yeh), NEVER هٔ
+
+  * NEVER use ٫ (U+066B) or ٬ (U+066C) anywhere. They tofu.
+
+TABLES — THE RULE THAT BIT US
+-----------------------------
+Inside an RTL tabular, a BARE numeral is reordered silently. Observed in a
+real build of the chapter 4 results table:
+
+        written 7.7501   ->  printed ۷۵۰۱.۷
+        written 0.8491   ->  printed ۸۴۹۱.۰
+        written 13.2573  ->  printed ۲۵۷۳.۱۳
+
+Every cell was wrong and the document compiled with zero warnings. Therefore:
+
+  >>> EVERY numeric cell in EVERY table must be wrapped in \lr{}.  <<<
+  Including cells that also carry \textbf: \lr{\textbf{3.5569}}.
+
+MATH MODE
+---------
+  * \mathrm{...} with Latin content renders correctly. Use it.
+  * \text{...} with Latin content is TOFU. Never use it in math; convert
+    \text{naive} -> \mathrm{naive}, \text{train} -> \mathrm{train}.
+    (\text{} with PERSIAN content is fine.)
+  * Do NOT wrap equations in \begin{latin}: that switches the equation
+    number to Latin "(1-2)". Raw mode gives "(۳-۱)", which is correct and
+    is what the handoff asks for.
+  * Math-mode digits render as Persian in this template (\setdigitfont).
+    That is the template's own setting, consistent throughout, and was
+    left as-is.
+
+ENFORCEMENT
+-----------
+Three scripts live in thesis/latex/Latex template 2018/ :
+
+  fix_numerals.py    rewrites هٔ -> ه‌ی and converts any Persian-decimal /
+                     Persian-thousands number to \lr{latin}. Run over the
+                     chapter files after drafting.
+  audit_integers.py  finds \lr{} wrapping a digits-only value (i.e. an
+                     integer that should be Persian) and, with --fix,
+                     converts it. Run to keep integers uniform.
+  check_refs.py      finds "جدول \cref{...}"-style doubled reference words
+                     and any surviving hardcoded "بخش ۳-۵" reference.
+
+CROSS-REFERENCES (added 2026-09-06)
+-----------------------------------
+cleveref is loaded in commands.tex and ALREADY configured with Persian
+names (\crefname{section}{بخش}, {figure}{شکل}, {table}{جدول},
+{equation}{برابری}). So \cref{sec:3-5} prints exactly "بخش ۳-۵" — the
+conversion from hardcoded refs is visually neutral.
+
+  Labels:  \label{sec:3-5} , \label{sec:3-7-1} , \label{fig:acf-pacf} ,
+           \label{tab:hourly-results}
+  Refs:    \cref{sec:3-5}          single
+           \crefrange{a}{b}        a range ("شکل‌های ۳-۲ تا ۳-۴")
+  Never write the word جدول/شکل/بخش in front of a \cref — cleveref
+  supplies it, and doing both prints "جدول بخش ۴-۲".
