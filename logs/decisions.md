@@ -3886,3 +3886,30 @@ only by a residual this project did NOT isolate -- written as "not separately
 quantified", never as zero or dominant. The stronger sentence (that rescaling
 fixes the forecasts) is not written anywhere; it is deferred to 5-4 as the
 first future-work item, since running it would reopen v1.1-ood.
+
+## 2026-09-08 (b) — Chapter 5 review pass; body closes at exactly 100pp
+
+Two additions from the ch5 examiner review, both accepted:
+
+1. 5-2's fuel-exclusion paragraph now carries chai_forecasting_2024 +
+   trebbien_explainable_2023, the same pair 3-4 already uses for the same
+   claim. Trebbien is a SHAP study on this same German market, so citing it
+   next to an exclusion we made for comparability is the stronger position:
+   the literature says fuel matters, and we say why we could not use it.
+
+2. 5-4 gained a sixth direction, "richer exogenous features". This was not
+   optional on inspection -- 3-4 already promises in its own text that
+   \cref{sec:5-4} proposes adding weather and cross-border flows, and 5-4 did
+   not keep that promise. The new item also names the cost: a study that
+   drops the benchmark's feature set can no longer compare directly against
+   published numbers, and must say so.
+
+Page effect: chapter 5 is 13 printed pages (88-100), not 12. Ledger corrected
+from 12.0 to 13.0. The body now ends exactly on the 100pp target.
+
+Whole-thesis verification run after this build: 127 pages, 0 errors, 0
+undefined references, 0 undefined citations, all 47 \cref targets defined,
+all 42 cited keys present in references.bib, all 17 figures resolved (LOF 17,
+LOT 15), 8 missing characters (the pre-existing dicfa2en/dicen2fa baseline).
+The one remaining font warning is TU/BNazanin(0)/m/it from \emph{} -- B
+Nazanin has no italic; pre-existing across chapters 2-5 and cosmetic.
