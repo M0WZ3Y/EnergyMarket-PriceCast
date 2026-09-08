@@ -3862,3 +3862,27 @@ it stays an author decision and needs its own entry before any code runs.
 **Reconciliation (per NEXT_SESSION.md):** no pages banked — read-only
 diagnostic. Deferral logged here. The finding is prose-ready and belongs in
 3-2 (assumptions 4 and 5), 4-7 and the limitations chapter.
+
+## 2026-09-08 — Chapter 5 written; 5-2 given 4pp against a 2pp line item
+
+Chapter 5 came in at 12 printed pages (88-99) against its 10pp outline
+budget. The overrun is entirely in 5-2, which carries the OOD stress test:
+two tables (ood_stress, ood_recalibration at the 7-day window) plus the
+feature-support diagnostic and the return to the six formal assumptions.
+outline.md offered the alternative of moving the OOD material into a new
+chapter-4 subsection; that was rejected because chapter 4 is fixed at 29pp
+and already banked and approved.
+
+The total body absorbs it: printed pages 1-99 against a 100pp target,
+because chapters 1-2 came in under their 7+17 line items. No trimming was
+done, and none is proposed -- the OOD result is the project's most important
+negative finding and the assumption round-trip is the structural payoff of
+stating the six assumptions in 3-2.
+
+Assumption attribution follows the 2026-09-02 amendment: (4) model
+generalization challenged on both accounts, (3) data quality named as the one
+the train/serve mismatch implicates, (5) stable market conditions challenged
+only by a residual this project did NOT isolate -- written as "not separately
+quantified", never as zero or dominant. The stronger sentence (that rescaling
+fixes the forecasts) is not written anywhere; it is deferred to 5-4 as the
+first future-work item, since running it would reopen v1.1-ood.
