@@ -3965,3 +3965,48 @@ references; the attribution is preserved either way.
 «عظیم‌پور چرندابی» per the approved proposal, in \surname -- one line, and both
 the declaration and the signature block read from it. The defense date is the
 placeholder «[ماه و سال دفاع]» in \thesisdate (and its English twin).
+
+## 2026-09-09 (b) — Spacing pass: 131 -> 125 pages, six wasted pages removed
+
+Found the offenders by measuring ink coverage per page (render at 25 dpi, count
+rows containing any dark pixel) rather than by eye -- pdftotext does not decode
+this Persian reliably enough to count characters. Anything under ~17% inked was
+inspected; chapter-opener pages and the besm page are sparse by design and were
+left alone.
+
+Fixed, each with the mildest tool that worked:
+  - Form page: the third نکات مهم bullet had spilled to its own page after the
+    metadata table was added. Compressed the itemize (itemsep 2pt) and two
+    \vspace*{1cm} -> {.4cm}.
+  - Abstract: the last two keywords sat alone on page «ب». Reduced the gap
+    before the keyword block from 2cm to .8cm.
+  - TOC / LOF / LOT: the body's \linespread{1.75} is far too open for a list of
+    contents and pushed two entries onto an extra page. Wrapped each of the
+    three lists in a group at \linespread{1.35}. Body text untouched.
+  - Both glossaries: the class puts \bigskip between entries, which at 1.75
+    linespread ran 44 entries to three pages each. Locally (inside a
+    \begingroup) set \linespread{1.3} and redefined the entry macro to
+    \medskip. Each glossary is now two pages.
+  - Thesis final line: the closing sentence of 5-5 sat alone on printed 100.
+    \enlargethispage{2\baselineskip} plus \looseness=-1 pulls the whole
+    «جمله‌ی پایانی» subsection onto printed 99. No text was reworded.
+
+Deliberately NOT fixed:
+  - End of chapter 4 (printed 87): the last subsection, heading plus five
+    lines. Pulling it back needed roughly seven lines of \enlargethispage,
+    which looks worse than the whitespace. A complete subsection opening a
+    fresh page is ordinary typography. \enlargethispage was tried, had no
+    effect at 4 baselineskips, and was removed rather than left as dead code.
+  - LOT tail (three long table captions running to a second page): a genuine
+    continuation, not a stranded line, and compressing the lists further would
+    cost readability.
+
+Side effect worth noting: missing-character warnings fell 12 -> 8 purely
+because the glossary now occupies four multicol pages instead of six. That is
+independent confirmation of the 2026-09-09 diagnosis that the warnings are
+bidi's multicol depth-probe, two per glossary page, and nothing to do with
+content.
+
+Body is now printed 1-99 (was 1-100). Front-matter offset moved 16 -> 13; all
+three chapter extracts re-pointed and their first and last pages re-verified by
+rendering. Chapter page ranges are unchanged: ch3 21-58, ch4 59-87, ch5 88-99.

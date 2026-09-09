@@ -5,6 +5,11 @@
 
 \addcontentsline{toc}{chapter}{واژه‌نامه‌ی فارسی به انگلیسی}
 %%%%%%
+% فشرده‌سازیِ محلیِ فاصله‌ها -- همان کاری که در dicen2fa.tex شد و به همان دلیل.
+\begingroup
+\linespread{1.3}\selectfont
+\renewcommand{\farsiTOenglish}[2]{\par\medskip#1\dotfill\lr{#2}\par}
+
 \begin{multicols*}{2}
 
 {\bf آ}
@@ -149,3 +154,4 @@
 \farsiTOenglish{واحد خطی یکسوشده}{Rectified Linear Unit (ReLU)}
 
 \end{multicols*}
+\endgroup

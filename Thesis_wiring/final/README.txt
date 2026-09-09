@@ -3,12 +3,12 @@ FINAL THESIS DELIVERY
 Built 2026-09-09 from a clean tree (all .aux/.toc/.lof/.lot/.bbl wiped,
 then xelatex -> bibtex -> xelatex x3).
 
-thesis-final.pdf   131 pages. Complete document, in order:
+thesis-final.pdf   125 pages. Complete document, in order:
                      cover / Farsi title page          1
-                     defense form + تعهدنامه اصالت اثر  3-5
-                     تقدیم (dedication)                 6
-                     تقدیر و تشکر (acknowledgments)     7
-                     چکیده + کلیدواژه‌ها                8
+                     defense form + تعهدنامه اصالت اثر  3-4
+                     تقدیم (dedication)                 5
+                     تقدیر و تشکر (acknowledgments)     6
+                     چکیده + کلیدواژه‌ها                7
                      فهرست مطالب / تصاویر / جداول       ا-ز
                      فهرست نمادها                      ط
                      Chapter 1  مقدمه                   printed 1
@@ -16,18 +16,18 @@ thesis-final.pdf   131 pages. Complete document, in order:
                      Chapter 3  روش تحقیق               printed 21
                      Chapter 4  نتایج و تحلیل           printed 59
                      Chapter 5  جمع‌بندی                printed 88
-                     کتاب‌نامه (42 refs)                printed 101
-                     پیوست                             printed 107
-                     واژه‌نامه فا->en                   printed 108
-                     واژه‌نامه en->فا                   printed 111
+                     کتاب‌نامه (42 refs)                printed 100
+                     پیوست                             printed 106
+                     واژه‌نامه فا->en                   printed 107
+                     واژه‌نامه en->فا                   printed 109
                      English abstract + English title page
 
-                   Body is printed pages 1-100, exactly the 100pp target.
+                   Body is printed pages 1-99.
 
 tex/               Complete, self-contained sources.
                    VERIFIED: unpacked into an empty directory and built with
                      xelatex -> bibtex -> xelatex -> xelatex
-                   it produces the identical 131-page PDF, 0 errors,
+                   it produces the identical 125-page PDF, 0 errors,
                    0 undefined references. Nothing outside this folder is
                    needed -- logos and all 17 figures are included, and the
                    flat layout is what \graphicspath{{./}...} already expects.
@@ -59,7 +59,7 @@ BUILD VERIFICATION (clean build, 2026-09-09)
   17/17 figures resolve      (LOF lists 17)
   15 tables                  (LOT lists 15)
   42 bibliography entries, all cited keys present
-  12 "Missing character" warnings -- see note below
+  8 "Missing character" warnings -- see note below
 
 THE 12 MISSING-CHARACTER WARNINGS ARE HARMLESS AND NOT FIXABLE HERE.
 They are not content. bidi's own multicol patch
@@ -71,7 +71,7 @@ Inside the Persian glossary the current font is B Nazanin, which has no Latin
 "p", so every shipped glossary page logs exactly two. Both are invisible by
 construction: the \setbox is measured and never shipped, and \phantom prints
 nothing. Count scales with glossary page count (8 over the four placeholder
-pages, 12 over the six real ones), not with what the glossary says.
+pages; 8 over the four the tightened glossary now needs), not with what the glossary says.
 
 TWO FIELDS STILL NEED THE AUTHOR
   1. Surname. Set to the full registrar form «عظیم‌پور چرندابی» per the

@@ -7,6 +7,13 @@
 \lhead{\thepage}\rhead{واژه‌نامه‌ی انگلیسی به فارسی}
 \addcontentsline{toc}{chapter}{واژه‌نامه‌ی انگلیسی به فارسی}
 
+% فشرده‌سازیِ محلیِ فاصله‌ها: کلاس میان مدخل‌ها \bigskip می‌گذارد و بدنه با
+% \linespread{1.75} چیده می‌شود؛ روی هم، چند مدخل آخر را به یک صفحه‌ی سوم
+% می‌راندند. هر دو تغییر درون همین گروه‌اند و به متن بدنه سرایت نمی‌کنند.
+\begingroup
+\linespread{1.3}\selectfont
+\renewcommand{\englishTOfarsi}[2]{\par\medskip\rl{#2}\dotfill\lr{#1}\par}
+
 \LTRmulticolcolumns
 \begin{multicols}{2}
 {\hfill\bf  \lr{A}}
@@ -148,3 +155,4 @@
 \englishTOfarsi{Walk-forward validation}{اعتبارسنجی پیش‌رونده}
 
 \end{multicols}
+\endgroup
