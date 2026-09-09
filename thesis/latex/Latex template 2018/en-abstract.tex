@@ -1,9 +1,34 @@
-%کلمات کلیدی انگلیسی
-\latinkeywords{Write a 3 to 5 KeyWords is essential. Example: AUT, M.Sc., Ph. D,..}
-%چکیده انگلیسی
+% English abstract -- faithful mirror of the Farsi abstract in fa_title.tex.
+% If a number changes there, change it here in the same pass.
+\latinkeywords{Electricity Price Forecasting; Daily Price; Machine Learning; Deep Learning; Energy Markets; Predictive Modeling; Market Dynamics; Forecast Accuracy.}
 
 \en-abstract{
-This page is accurate translation from Persian abstract into English.
+This thesis addresses day-ahead electricity price forecasting for the German
+market (EPEX-DE) on two horizons: the 24-value vector of hourly prices for the
+following day, and the daily baseload average. Five model families -- naive,
+SARIMAX, LEAR-LASSO, LightGBM and LSTM -- together with a regime-aware weighted
+ensemble, are implemented and evaluated on the public dataset and protocol of
+Lago et al. Evaluation is walk-forward with daily recalibration, and results are
+reported using MAE, RMSE, sMAPE and rMAE alongside Diebold-Mariano tests with HAC
+correction and Holm-Bonferroni correction for multiplicity. Model behaviour is
+further examined through SHAP interpretability analysis, and the frozen models
+are subjected to an out-of-distribution stress test on live 2026 data.
+\\[.35cm]
+The best configuration is the regime-aware ensemble, with an MAE of 3.5569
+EUR/MWh against 7.7501 for the naive model. Its improvement, however, is
+concentrated on the 77 stressed days (p = 0.0063) and is effectively zero on
+calm days. The best deep model and the best linear model are statistically
+indistinguishable (LSTM versus LEAR-LASSO, p = 0.4036), meaning deep learning
+bought no defensible advantage in this configuration. This work does not beat
+the best published model: it ties two of the reference variants and loses to
+their DNN ensemble (p = 0.0127). The SHAP analysis shows that the previous
+day's price is the most influential feature and that its share rises sharply
+under stressed conditions. The most important finding, however, is a negative
+one: on 2026 data every fitted model falls behind a naive weekly baseline
+(rMAE > 1) and the ordering of the models inverts.
+\\[.35cm]
+The overall conclusion is that reliable forecasting is as much a matter of
+knowing when a model has ceased to be valid as it is a matter of accuracy.
 }
 %%%%%%%%%%%%%%%%%%%%% کدهای زیر را تغییر ندهید.
 

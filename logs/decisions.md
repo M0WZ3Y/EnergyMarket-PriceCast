@@ -3913,3 +3913,55 @@ all 42 cited keys present in references.bib, all 17 figures resolved (LOF 17,
 LOT 15), 8 missing characters (the pre-existing dicfa2en/dicen2fa baseline).
 The one remaining font warning is TU/BNazanin(0)/m/it from \emph{} -- B
 Nazanin has no italic; pre-existing across chapters 2-5 and cosmetic.
+
+## 2026-09-09 — Front and back matter; two findings worth recording
+
+Built all remaining front/back matter: FA + EN title pages, the defense-form
+metadata table and تعهدنامه اصالت اثر, dedication, acknowledgments, FA + EN
+abstracts, فهرست نمادها, and both واژه‌نامه directions. Body pages 1-100 are
+untouched; the document is 131 PDF pages.
+
+**Finding 1: the "8 missing characters" were never the placeholder glossary.**
+The brief assumed real glossary content would clear them. It does not, and
+cannot. They come from bidi's own multicol patch,
+`multicol-xetex-bidi.def` lines 61 and 65:
+
+    \setbox\z@\hbox{p}\global\dimen\tw@\dp\z@
+    \rlap{\phantom p}%
+
+multicol measures the descender depth of a lowercase "p" to align column
+bottoms. Inside the Persian glossary the current font is B Nazanin, which has
+no Latin "p", so each shipped multicol page logs two warnings. Both are
+invisible by construction -- the \setbox is measured and never shipped, and
+\phantom prints nothing. The count is 2 per glossary page: it was 8 over four
+placeholder pages and is 12 over six real pages. Verified by bisection with a
+minimal document: empty multicols = 0, multicols + one Persian word = 2,
+multicols + \pagestyle{empty} = 2, no multicols = 0.
+Clearing it would mean patching an upstream output routine; not done.
+
+**Finding 2: two real bugs the render caught that the log did not.**
+(a) `\@department` was used in taid.tex. Outside the class, @ is not a letter,
+so it typeset the literal word "department" in B Nazanin -- 20 of the missing
+characters, and visible garbage on the form page. Replaced with literal text.
+(b) `\fatitle` carried a `\[.4cm]` line break for title-page layout. `\ftitle`
+is also used in the form table and the declaration, where a `\` ends the
+table row -- the metadata table rendered mangled and overflowed the margin.
+The break was removed (the title page wraps on its own) and the value column
+was given a fixed `p{9.5cm}` width.
+
+Neither showed up as a LaTeX error. Both were caught only by rendering the
+pages, which is why the render step stays mandatory.
+
+**Deliberate scope calls.** The symbols list contains only symbols the thesis
+actually uses; the brief's suggested φ(B), θ(B), B, d, h_t, W_x, W_h do not
+appear anywhere in chapters 3-4 (SARIMAX and LSTM are introduced in prose, not
+symbolically) and were omitted rather than invented. VMD was likewise left out
+of the glossary: it occurs only in a source-map comment in 2-5, never in body
+text. The Farsi abstract names Lago et al. in prose instead of carrying
+`\cite{}`, because the AUT template instructs that abstracts not cite
+references; the attribution is preserved either way.
+
+**Open for the author:** the surname is set to the full registrar form
+«عظیم‌پور چرندابی» per the approved proposal, in \surname -- one line, and both
+the declaration and the signature block read from it. The defense date is the
+placeholder «[ماه و سال دفاع]» in \thesisdate (and its English twin).
