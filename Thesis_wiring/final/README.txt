@@ -1,9 +1,9 @@
 FINAL THESIS DELIVERY
 =====================
-Built 2026-09-09 from a clean tree (all .aux/.toc/.lof/.lot/.bbl wiped,
+Built 2026-09-10 from a clean tree (all .aux/.toc/.lof/.lot/.bbl wiped,
 then xelatex -> bibtex -> xelatex x3).
 
-thesis-final.pdf   125 pages. Complete document, in order:
+thesis-final.pdf   126 pages. Complete document, in order:
                      cover / Farsi title page          1
                      defense form + تعهدنامه اصالت اثر  3-4
                      تقدیم (dedication)                 5
@@ -14,20 +14,20 @@ thesis-final.pdf   125 pages. Complete document, in order:
                      Chapter 1  مقدمه                   printed 1
                      Chapter 2  پیشینه                  printed 10
                      Chapter 3  روش تحقیق               printed 21
-                     Chapter 4  نتایج و تحلیل           printed 59
-                     Chapter 5  جمع‌بندی                printed 88
-                     کتاب‌نامه (42 refs)                printed 100
-                     پیوست                             printed 106
-                     واژه‌نامه فا->en                   printed 107
-                     واژه‌نامه en->فا                   printed 109
+                     Chapter 4  نتایج و تحلیل           printed 60
+                     Chapter 5  جمع‌بندی                printed 89
+                     کتاب‌نامه (42 refs)                printed 101
+                     پیوست                             printed 107
+                     واژه‌نامه فا->en                   printed 108
+                     واژه‌نامه en->فا                   printed 110
                      English abstract + English title page
 
-                   Body is printed pages 1-99.
+                   Body is printed pages 1-100, exactly the 100pp target.
 
 tex/               Complete, self-contained sources.
                    VERIFIED: unpacked into an empty directory and built with
                      xelatex -> bibtex -> xelatex -> xelatex
-                   it produces the identical 125-page PDF, 0 errors,
+                   it produces the identical 126-page PDF, 0 errors,
                    0 undefined references. Nothing outside this folder is
                    needed -- logos and all 17 figures are included, and the
                    flat layout is what \graphicspath{{./}...} already expects.
@@ -52,7 +52,7 @@ tex/               Complete, self-contained sources.
                      citation, never renumber by hand)
   *.png, besm.jpg    logos and the 17 figures
 
-BUILD VERIFICATION (clean build, 2026-09-09)
+BUILD VERIFICATION (2026-09-10)
   0 errors
   0 undefined references
   0 undefined citations
@@ -61,7 +61,7 @@ BUILD VERIFICATION (clean build, 2026-09-09)
   42 bibliography entries, all cited keys present
   8 "Missing character" warnings -- see note below
 
-THE 12 MISSING-CHARACTER WARNINGS ARE HARMLESS AND NOT FIXABLE HERE.
+THE 8 MISSING-CHARACTER WARNINGS ARE HARMLESS AND NOT FIXABLE HERE.
 They are not content. bidi's own multicol patch
 (multicol-xetex-bidi.def lines 61 and 65) measures the descender depth of a
 lowercase Latin "p" to align column bottoms:
@@ -71,17 +71,21 @@ Inside the Persian glossary the current font is B Nazanin, which has no Latin
 "p", so every shipped glossary page logs exactly two. Both are invisible by
 construction: the \setbox is measured and never shipped, and \phantom prints
 nothing. Count scales with glossary page count (8 over the four placeholder
-pages; 8 over the four the tightened glossary now needs), not with what the glossary says.
+pages, and 8 over the four the tightened glossary now needs), not with what
+the glossary says.
 
-TWO FIELDS STILL NEED THE AUTHOR
+ONE FIELD STILL NEEDS THE AUTHOR
   1. Surname. Set to the full registrar form «عظیم‌پور چرندابی» per the
      approved proposal. If the registrar record omits «چرندابی», edit
      \surname in tex/fa_title.tex -- the declaration page and the
      signature block both read from it. English twin: \latinsurname in
      tex/en_title.tex.
-  2. Defense date. Currently the placeholder «[ماه و سال دفاع]» in
-     \thesisdate (tex/fa_title.tex) and "[Month & Year of Defense]"
-     in \latinthesisdate (tex/en_title.tex).
+
+ALREADY SET
+  Defense date: «شهریور ۱۴۰۵» (\thesisdate, tex/fa_title.tex) and
+  "September 2026" (\latinthesisdate, tex/en_title.tex). It renders on the
+  title page, the defense-form table and the تعهدنامه اصالت اثر, all three
+  fed from that one macro -- change the two lines if the date moves.
 
 OPTIONAL, COSMETIC
   - The چکیده page prints "1" because the template restarts abjad numbering

@@ -4010,3 +4010,47 @@ content.
 Body is now printed 1-99 (was 1-100). Front-matter offset moved 16 -> 13; all
 three chapter extracts re-pointed and their first and last pages re-verified by
 rendering. Chapter page ranges are unchanged: ch3 21-58, ch4 59-87, ch5 88-99.
+
+## 2026-09-10 — Polish pass: date, symbols list, style diversification
+
+**1. Defense date.** \thesisdate set to «شهریور ۱۴۰۵» (and \latinthesisdate to
+"September 2026"). Verified by rendering all three places it feeds: the title
+page, the defense-form table, and the تعهدنامه اصالت اثر. Persian digits
+throughout, no Latin leakage.
+
+**2. Symbols list, 4 -> 30 entries.** Correction to my own earlier claim: on
+2026-09-09 I reported that φ(B), θ(B), B, d, h_t, W_x and W_h "appear nowhere
+in the thesis". That was wrong -- I had grepped only chapters 3 and 4. They are
+all in chapter 2's equations (2-2-statistical, 2-4-deep). The list now carries
+every symbol used in any equation in chapters 2-4, grouped by role: metrics and
+significance, statistical/time-series, deep model, ensemble and regime.
+Consistency fix requested with it: 2-5-hybrid's ensemble equation used
+(k, K, ŷ) while 3-8 used (m, M, p̂). Harmonized 2-5 to the 3-8 notation, so the
+symbols table is unambiguous. Only the equation and its immediately following
+gloss changed; surrounding prose untouched.
+The expanded list initially spilled three entries onto a second page, so the
+list is wrapped in a group at \linespread{1.15} -- the same fix used for the
+glossaries on 2026-09-09, and for the same reason.
+
+**3. Style diversification.** Two mechanical patterns softened, meaning
+preserved throughout:
+  - «این» sentence-openers: 151 -> 114 (9.7% -> 7.3%), and runs of two or more
+    consecutive «این» openers went 6 -> 1. Found by script (sentence-split,
+    first-token match, then near-pair detection at gap <= 2) rather than by
+    eye, so the edits landed on real clusters instead of arbitrary instances.
+  - «X است و نه Y»: 26 -> 13. Kept deliberately wherever it carries rhetorical
+    weight -- the honest-framing lines in 4-5, 4-6, 4-7, 5-2 and 5-5 all still
+    use it. Varied only where it read as a tic, mostly chapters 1-3.
+
+**Verification that nothing else moved.** A script compared every edited file
+against HEAD for: all decimal/scientific numbers, every \cite, every \cref,
+every \label, every equation body, every \lr. Across 24 edited files the only
+differences were the two intended ones -- the 2-5 equation harmonization, and
+two \lr{—} em-dashes added in 3-3-1 when a clause was restructured (correct per
+the numeral convention). Numbers, citations, references and labels are
+byte-identical.
+
+Page effect: chapter 3 gained one page (38 -> 39) from the restructures, so
+chapter 4 starts at printed 60 and chapter 5 at 89. Body is printed 1-100 --
+back on the 100pp target exactly. 126 PDF pages. Front-matter offset held at
+13; all three chapter extracts re-pointed and re-verified by rendering.
