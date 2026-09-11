@@ -138,7 +138,7 @@ number and figure they need is frozen.
 ## P2 — Small and closable. An hour each, at most.
 
 - [x] **Thesis 5-3 screenshot** → `reports/figures/16_pricecast_screenshot.png`.
-      Done 2026-08-05 (commit `9d14fed`): captured with both the accuracy
+      Done 2026-08-05 (commit `12e4075`): captured with both the accuracy
       warning and the forecast-vs-actual chart in frame, plus the sidebar
       showing the cached-demo source and 173 forecastable days.
 - [x] **Decide the week-7 pre-freeze reproducibility check.** Decided: run it
@@ -149,7 +149,7 @@ number and figure they need is frozen.
 - [x] **Fix the stale data-source test table** in `logs/decisions.md`. Done
       2026-08-06. Note the scope was wider than this item stated: **four** rows
       carried `Scheduled`, not one. Rows 4, 8/11 and 11 were all already
-      satisfied (2026-07-28, 2026-08-04 `v1.1-ood`, 2026-08-05 `4243571`) and
+      satisfied (2026-07-28, 2026-08-04 `v1.1-ood`, 2026-08-05 `3cee0a0`) and
       now cite their evidence; row 7 is resolved by the reproducibility check
       below.
 

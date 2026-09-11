@@ -45,7 +45,7 @@ Offline suite: `pytest -m "not network"`.
 
 ## 1. Verified state as of 2026-08-07
 
-- `main` @ `2670797`, tags `v1.0-results` and `v1.1-ood` intact
+- `main` @ `4b1b4ec`, tags `v1.0-results` and `v1.1-ood` intact
 - Branch `retrain-v2-seed-ensemble` pushed, **not merged**
 - Offline suite 362 passed / 7 deselected
 - `thesis/page_ledger.csv` — 0.0 pages banked, dated 2026-08-05

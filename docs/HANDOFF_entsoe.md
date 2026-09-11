@@ -50,7 +50,7 @@ feature code.
 
 `v1.0-results` and `v1.1-ood` are frozen. PROJECT_SPEC.md: *never rerun or modify
 model results after the tag — writing depends on frozen numbers.* The
-technical phase closed at `b53dcfb`, and CHECKLIST.md lists no ENTSO-E work at
+technical phase closed at `1e2a6fe`, and CHECKLIST.md lists no ENTSO-E work at
 any priority.
 
 What the token unblocks — the three series `src/features/price_formation.py`

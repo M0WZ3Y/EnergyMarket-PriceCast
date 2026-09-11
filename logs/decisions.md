@@ -152,7 +152,7 @@ rather than trusted from one early smoke test.
 | 4 | Indirect re-test: walk-forward framework consumes processed benchmark data end-to-end; LEAR sanity check vs published Lago et al. numbers doubles as a silent-data-bug detector | DONE — see 2026-07-28 entry: 728 origins, 17,472 predictions per model, zero NaN, LEAR-LASSO MAE 3.899 in the expected neighborhood |
 | 7 | Pre-freeze reproducibility check: fresh environment, one model end-to-end from config — re-verifies benchmark download path from scratch | DONE, BUT RUN LATE — ran 2026-08-06/07, after the 2026-08-04 freeze, so it is a sanity check and not a gate; naive exact match, LEAR-LASSO matches within 1e-12 (see 2026-08-07 entry) |
 | 8 or 11 | Live pipeline under real load: OOD stress test pulls a large 2026 window through EnergyChartsLoader (much bigger than week-1 smoke test) | DONE — see 2026-08-04 entry: 173 complete days, 4,343 cached hours, no gaps; tagged `v1.1-ood` |
-| 11 | Full live path inside PriceCast: date picker → API fetch → forecast → chart, plus CSV-upload fallback path | DONE — see 2026-08-05 entry: closed, now an automated `@pytest.mark.network` test (commit 4243571) |
+| 11 | Full live path inside PriceCast: date picker → API fetch → forecast → chart, plus CSV-upload fallback path | DONE — see 2026-08-05 entry: closed, now an automated `@pytest.mark.network` test (commit 3cee0a0) |
 
 Mitigation note: on the first successful large 2026 pull (week 8 or 11),
 cache the window to data/processed/live_2026_cache.csv so the OOD test and
@@ -1434,7 +1434,7 @@ real defects).**
    deterministic (a property of the shap library); it now compares across a
    **refit**, which is what actually binds seed 42 and the fixed `n_jobs`.
 4. `_facts_or_skip` used a bare `pytest.skip`, reintroducing the
-   clean-checkout hole b246d25 closed. Now routed through
+   clean-checkout hole 67918e5 closed. Now routed through
    `conftest.require_thesis_data`, so a missing cache fails.
 
 Also added: a contiguity assertion in `interpretation_train_days` (row count
@@ -1497,7 +1497,7 @@ Decide explicitly: run it late, or log it as skipped.
 > **Resolved 2026-08-07.** Both items are closed, and the count was wrong: the
 > table had **four** `Scheduled` rows, not two. Rows 4, 8/11 and 11 were all
 > already satisfied by entries in this same file (2026-07-28; 2026-08-04,
-> `v1.1-ood`; 2026-08-05, commit `4243571`) and now cite that evidence. Row 7
+> `v1.1-ood`; 2026-08-05, commit `3cee0a0`) and now cite that evidence. Row 7
 > was run late and matches within 1e-12 — see the 2026-08-07 entry. The lesson
 > worth keeping: this note found the two stale rows its author happened to
 > notice, and reading it as the full extent of the problem would have left two
@@ -2839,7 +2839,7 @@ pytest 385 passed before, 392 after (seven new tests).
 | location | value | class |
 |---|---|---|
 | `configs/evaluation.yaml:52` | 62.6989 | **canonical** |
-| `PROJECT_SPEC.md:43` | 62.6989 | correct (fixed earlier in b7f9cf8) |
+| `PROJECT_SPEC.md:43` | 62.6989 | correct (fixed earlier in 9774372) |
 | `CHECKLIST.md:49`, `THESIS-BRIEF.md:132,299`, `thesis/outline.md:42`, `docs/HANDOFF_new_model_design.md:139` | 62.6989 | correct prose |
 | `reports/tables/shap_importance.tex:2` | 62.70 | **correct rounding — left alone** |
 | `logs/decisions.md:932,943,1089,2516-2519` | 62.65 / 62.6522 | **historical record — must not be edited** |
@@ -3311,7 +3311,7 @@ Collapsing them into one sentence overstates or understates depending on which
 way it is collapsed.
 
 CLAIM 1 — the misspecification diagnosis was CONFIRMED. The pre-registered
-prediction (commit 5c0eb1f, written before the number existed) was that B4's
+prediction (commit 8d48f41, written before the number existed) was that B4's
 failure was an encoding problem, not an absent mechanism. Re-encoding recovered
 most of the damage on coupling_stress, in the predicted direction:
 
@@ -3364,7 +3364,7 @@ five tests pin it.
 ### Branch pushed
 
 24 commits on origin/power-engineering-integration, remote SHA verified equal
-to local HEAD. main unchanged at 73ab326, v1.0-results and v1.1-ood intact.
+to local HEAD. main unchanged at f798eb2, v1.0-results and v1.1-ood intact.
 The work is no longer a single copy on one machine.
 
 **Ledger: no pages banked** — code task. Deferral logged per the mandatory
@@ -3397,7 +3397,7 @@ another. That mismatch is precisely what manufactures the flag it exists to
 raise — "improved aggregate MAE but missed its own target regime", the
 signature of a feature tracking a correlate rather than its mechanism.
 
-**Scope: EVERY physics-check flag produced before commit 823cc40 is suspect.**
+**Scope: EVERY physics-check flag produced before commit 01e6b91 is suspect.**
 Not only the two that were noticed (B1+headroom, B1+B3). Any flag emitted by
 the pre-fix harness for a pairwise variant was computed from a mismatched pair
 of references and cannot be trusted without recomputation. The single-block
@@ -3596,7 +3596,7 @@ reference still requires DE.csv. This is stated in the provenance record's own
 
 **Frozen tags untouched.** No re-tagging, no amend, no force-push. This closes
 the gap going forward; it does not rewrite history. `v1.0-results` remains
-`1b998f4`, `v1.1-ood` remains `6031f01`.
+`4cc3895`, `v1.1-ood` remains `93405c1`.
 
 **Ledger: no pages banked** — code task. Deferral logged per the mandatory
 post-task reconciliation rule.
@@ -3606,7 +3606,7 @@ post-task reconciliation rule.
 ## 2026-08-30 — MVP dashboard shipped; technical phase closed
 
 **What landed.** `scripts/build_dashboard_data.py` plus
-`reports/dashboard/` on branch `mvp-dashboard` (commit `2320d21`): an offline,
+`reports/dashboard/` on branch `mvp-dashboard` (commit `6740530`): an offline,
 self-contained Persian/RTL dashboard over the physical-feature ablation. It is
 a CONSUMER, structurally: it imports no `src.*` module, rebinds `socket.socket`
 to a raising stub at import time, and reads only byte-pinned copies of the
@@ -3714,7 +3714,7 @@ drafting, starting from 3-2 or the conversion of the four existing drafts.
 ### 2026-08-31 — Documentation pushed once, by explicit author decision
 
 The 2026-08-30 standing rule says thesis writing and documentation are
-committed locally and never pushed. Commits `757b579` and `535f9da` are
+committed locally and never pushed. Commits `3deab8c` and `2bd8f33` are
 entirely documentation, so the rule and the instruction to push pointed
 opposite ways. Flagged before acting; the author reaffirmed, and both were
 pushed to `origin/mvp-dashboard`.
@@ -3763,7 +3763,7 @@ unblocks — generation outages (`A80`, the true scarcity signal), forecast NTC
 `regimes.UNAVAILABLE_SEGMENTS` has no `outage_scarcity` or `reservoir_hydro`
 segment. But `v1.0-results` and `v1.1-ood` are frozen, PROJECT_SPEC.md forbids
 rerunning or modifying model results after the tag, the technical phase closed
-at `b53dcfb`, and CHECKLIST.md lists no ENTSO-E work at any priority. Building
+at `1e2a6fe`, and CHECKLIST.md lists no ENTSO-E work at any priority. Building
 these features would reopen the frozen results to add a driver the thesis has
 already argued around in writing.
 

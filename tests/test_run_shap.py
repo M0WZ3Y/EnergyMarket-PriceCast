@@ -233,7 +233,7 @@ def _facts() -> dict:
     """Missing SHAP cache FAILS by default, per the tests/conftest.py policy.
 
     A bare `pytest.skip` here would reintroduce exactly the clean-checkout
-    hole commit b246d25 closed: delete data/processed/shap/ and the guards
+    hole commit 67918e5 closed: delete data/processed/shap/ and the guards
     below would report green while checking nothing. The cache is committed
     (.gitignore negation), so absence is a real problem, not a normal state.
     """
