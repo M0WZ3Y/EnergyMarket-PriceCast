@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Day-Ahead Guide</title>
+<link rel="stylesheet" href="site.css">
+<style>
+.article { max-width: 760px; margin: 0 auto; }
+.article h1 { font-size: 32px; line-height: 1.2; letter-spacing: -.02em; margin: 8px 0 10px; }
+.article .lede { font-size: 17px; color: var(--text-secondary); margin: 0 0 22px; }
+.article h2 { font-size: 21px; margin: 40px 0 10px; letter-spacing: -.01em; }
+.article p, .article li { font-size: 16px; line-height: 1.7; }
+html[lang="fa"] .article p, html[lang="fa"] .article li { line-height: 1.95; }
+.article ul { padding-inline-start: 20px; }
+.article li { margin-bottom: 8px; }
+.article li b { color: var(--text-primary); }
+.statstrip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 6px 0 8px; }
+@media (max-width: 640px) { .statstrip { grid-template-columns: repeat(2, 1fr); } .article h1 { font-size: 26px; } }
+figure { margin: 18px 0 8px; }
+figcaption { font-size: 13px; color: var(--text-muted); margin-top: 8px; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 640px) { .pair { grid-template-columns: 1fr; } }
+.pair h3 { font-size: 13px; margin: 0 0 2px; } .pair .sub { margin-bottom: 4px; }
+.timeline { position: relative; margin: 18px 0 6px; }
+.tl-row { display: grid; grid-template-columns: 92px 1fr; gap: 14px; padding: 10px 0; border-bottom: 1px solid var(--grid); }
+.tl-row:last-child { border-bottom: 0; }
+.tl-time { font-weight: 700; font-variant-numeric: tabular-nums; }
+.tl-time small { display: block; font-weight: 500; color: var(--text-muted); font-size: 12px; }
+.tl-row.key .tl-time { color: var(--series-1); }
+.cta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 36px; }
+.cta a.btn { display: inline-block; text-decoration: none; background: var(--series-1); color: #fff; font-weight: 600; padding: 10px 18px; border-radius: 10px; }
+.callout { border-inline-start: 3px solid var(--series-1); background: var(--surface-2); border-radius: 0 10px 10px 0; padding: 12px 14px; margin: 16px 0; font-size: 15px; }
+html[dir="rtl"] .callout { border-radius: 10px 0 0 10px; }
+a { color: var(--series-1); }
+nav.crumbs { font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><h1><a href="index.html" style="color:inherit;text-decoration:none" data-t="brand">PriceCast Daily</a></h1><nav class="crumbs"><a href="index.html" data-t="toDash">Tomorrow's forecast →</a></nav></div>
+    <div class="controls">
+      <button id="lang" type="button">فارسی</button>
+      <button id="theme" type="button" aria-label="Toggle theme">◐</button>
+    </div>
+  </header>
+  <main class="article" id="article"><div class="card empty">Loading…</div></main>
+  <footer id="foot" class="article"></footer>
+</div>
+<script src="charts.js"></script>
+<script>
+"use strict";
+const T = {
+  en: {
+    brand: "PriceCast Daily", toDash: "Tomorrow's forecast →",
+    h1: "How tomorrow's electricity price is made",
+    lede: "A beginner's guide to the German day-ahead market, and to forecasting it. Every chart below is drawn from published ENTSO-E data, not illustration.",
+    s_mean: "Average price 2026", s_max: "Highest hour", s_min: "Lowest hour", s_neg: "Hours below zero",
+    h_dayahead: "What does “day-ahead” mean?",
+    p_dayahead1: "Electricity is hard to store, so most of it is sold before it is produced. In the day-ahead market, buyers and sellers trade tomorrow's electricity today: every quarter-hour of the next day gets its own price, set in a single daily auction.",
+    p_dayahead2: "Germany and Luxembourg form one bidding zone, DE-LU. Bids go to power exchanges such as EPEX SPOT, and the European market coupling (SDAC) clears all of Europe's zones together, so that cheap power flows towards expensive zones until the cross-border lines are full. The result is a clearing price: the price of the most expensive offer needed to meet demand in that hour.",
+    h_timeline: "The day before delivery, hour by hour",
+    tl: [["≈10:00", "D-1", "Grid operators publish tomorrow's load forecast (ENTSO-E A65)."],
+         ["12:00", "D-1", "Gate closure. The auction stops accepting bids for tomorrow.", true],
+         ["≈12:45", "D-1", "Prices for all 96 quarter-hours of tomorrow are published."],
+         ["by 18:00", "D-1", "Tomorrow's wind and solar forecast must be published (ENTSO-E A69)."],
+         ["00:00", "D", "Delivery starts. Every hour is settled at yesterday's auction price."]],
+    p_timeline: "That last-but-one row matters for forecasting. A forecast is only useful before 12:00, but the official wind and solar forecast is only required by 18:00. PriceCast therefore labels each forecast ex-ante (made before the auction) or shadow (made after, so it tests the model but could not have been traded on).",
+    h_visual: "Let's make it visual",
+    p_week: "Here is one real week. The price rises with the morning and evening demand peaks and falls when solar output is high. On sunny or windy days it can fall below zero: some generators would rather pay than switch off.",
+    cap_week: "Day-ahead price, DE-LU, {a} to {b} (EUR/MWh, hourly).",
+    p_track: "And here is the same kind of view for forecasts: PriceCast's daily baseload forecast against the price the auction actually set.",
+    cap_track: "Forecast vs published daily baseload, from the dashboard's track record.",
+    h_drivers: "What moves the price",
+    p_drivers: "Compare the cheapest and the most expensive day of 2026 so far. The difference is almost entirely the weather.",
+    avg: "Daily average", lowday: "Cheapest day", highday: "Most expensive day", price: "Price (EUR/MWh)", ws: "Wind + solar (GW)", unit: "EUR/MWh",
+    li_drivers: [["Wind and solar.", "They have almost no running cost, so when they are plentiful they push the expensive plants out of the auction."],
+                 ["Demand.", "Working days cost more than Sundays, and the evening peak usually costs the most."],
+                 ["Fuel and CO₂ prices.", "When gas plants set the price, the cost of gas and carbon allowances sets it with them. These series are licensed data, which is why this project's models do not use them."],
+                 ["Neighbours.", "Through market coupling, a windless day in Denmark or a nuclear outage in France shows up in the German price."]],
+    p_seasons: "The season changes the shape of the day. In July the solar peak carves a valley into midday; in January the valley disappears and the evening peak dominates.",
+    cap_seasons: "Average price by hour of day, January vs July 2025 (EUR/MWh).", jan: "January 2025", jul: "July 2025",
+    h_why: "Why forecast the price at all?",
+    li_why: [["Shifting consumption.", "A factory, a data centre or an electric-vehicle fleet can move flexible load into the cheapest hours."],
+             ["Storage.", "A battery earns its money on the spread between cheap and expensive hours, so it needs to know where that spread will be."],
+             ["Bidding and hedging.", "Generators and retailers decide what to offer in the auction before they know the result."]],
+    h_hard: "Why it is hard: lessons from this project",
+    p_hard1: "Prices are extreme and non-linear: in 2026 they ranged from {min} to {max} EUR/MWh. But the hardest lesson was not volatility. It was that the market moves.",
+    p_hard2: "Models trained on 2015–2017 data, when the average price was around 35 EUR/MWh, kept forecasting near that level in 2026, when the average was {mean}. A model is only as current as the data it learned from, which is why PriceCast retrains on a rolling window.",
+    callout: "Two data pitfalls we found in our own pipeline: live data reaching the model in UTC while it had learned German local time, and a national load forecast served to a model trained on one grid operator's region (Amprion), about 2.5 times smaller. Both are fixed; the definitions are now checked against the training data before any model sees them.",
+    h_how: "How PriceCast forecasts",
+    p_how: "Each morning PriceCast uses prices up to today, tomorrow's Amprion load forecast, tomorrow's wind and solar forecast and the day of the week. Five model families are compared (a naive benchmark, SARIMAX, LEAR-LASSO, LightGBM and an LSTM, plus weighted ensembles). The one served is chosen on a 2025 validation window and judged once on 2026 data it never saw.",
+    cta_text: "See tomorrow's 24 hourly prices, the uncertainty band and the track record.", cta_btn: "Open tomorrow's forecast",
+    foot: "Data: ENTSO-E Transparency Platform. Charts computed from a pinned snapshot ({src}).",
+  },
+  fa: {
+    brand: "پرایس‌کست روزانه", toDash: "← پیش‌بینی فردا",
+    h1: "قیمت برق فردا چطور تعیین می‌شود؟",
+    lede: "راهنمای مقدماتی بازار روز-پیش آلمان و پیش‌بینی آن. همه نمودارهای این صفحه از داده‌های منتشرشده ENTSO-E ساخته شده‌اند، نه از تصویرسازی.",
+    s_mean: "میانگین قیمت ۲۰۲۶", s_max: "گران‌ترین ساعت", s_min: "ارزان‌ترین ساعت", s_neg: "ساعت‌های با قیمت منفی",
+    h_dayahead: "«روز-پیش» یعنی چه؟",
+    p_dayahead1: "برق را به‌سختی می‌توان ذخیره کرد، برای همین بیشترش پیش از تولید فروخته می‌شود. در بازار روز-پیش، خریداران و فروشندگان برق فردا را امروز معامله می‌کنند: هر ربع‌ساعتِ روز بعد قیمت خودش را دارد و این قیمت در یک حراج روزانه تعیین می‌شود.",
+    p_dayahead2: "آلمان و لوکزامبورگ یک منطقه قیمتی مشترک به نام DE-LU دارند. پیشنهادها به بورس‌های برق مانند EPEX SPOT فرستاده می‌شود و سازوکار هم‌پیوندی بازار اروپا (SDAC) همه منطقه‌های اروپا را با هم تسویه می‌کند تا برق ارزان تا جایی که ظرفیت خطوط مرزی اجازه می‌دهد به سمت منطقه‌های گران‌تر جریان یابد. نتیجه، قیمت تسویه است: قیمتِ گران‌ترین پیشنهادی که برای تأمین تقاضای آن ساعت لازم است.",
+    h_timeline: "روزِ پیش از تحویل، ساعت به ساعت",
+    tl: [["حدود ۱۰:۰۰", "روز قبل", "بهره‌برداران شبکه پیش‌بینی بار فردا را منتشر می‌کنند (ENTSO-E A65)."],
+         ["۱۲:۰۰", "روز قبل", "بسته‌شدن دروازه. حراج دیگر پیشنهادی برای فردا نمی‌پذیرد.", true],
+         ["حدود ۱۲:۴۵", "روز قبل", "قیمت هر ۹۶ ربع‌ساعتِ فردا منتشر می‌شود."],
+         ["تا ۱۸:۰۰", "روز قبل", "پیش‌بینی باد و خورشیدِ فردا باید منتشر شود (ENTSO-E A69)."],
+         ["۰۰:۰۰", "روز تحویل", "تحویل آغاز می‌شود و هر ساعت با قیمت حراجِ دیروز تسویه می‌شود."]],
+    p_timeline: "ردیف یکی‌مانده به آخر برای پیش‌بینی مهم است. پیش‌بینی فقط پیش از ساعت ۱۲ به کار می‌آید، اما پیش‌بینی رسمی باد و خورشید تا ساعت ۱۸ مهلت انتشار دارد. به همین دلیل پرایس‌کست هر پیش‌بینی را «پیشینی» (ساخته‌شده پیش از حراج) یا «سایه» (ساخته‌شده پس از آن) برچسب می‌زند؛ پیش‌بینی سایه مدل را می‌آزماید، ولی امکان معامله با آن وجود نداشت.",
+    h_visual: "بیایید ببینیم",
+    p_week: "این یک هفته واقعی است. قیمت با اوج تقاضای صبح و عصر بالا می‌رود و وقتی تولید خورشیدی زیاد است پایین می‌آید. در روزهای آفتابی یا پرباد ممکن است حتی منفی شود، چون برای بعضی نیروگاه‌ها پرداخت پول ارزان‌تر از خاموش‌کردن است.",
+    cap_week: "قیمت روز-پیش DE-LU، از {a} تا {b} (یورو/مگاوات‌ساعت، ساعتی).",
+    p_track: "و همین نما برای پیش‌بینی: بار پایه پیش‌بینی‌شده پرایس‌کست در برابر قیمتی که حراج واقعاً تعیین کرد.",
+    cap_track: "بار پایه روزانه پیش‌بینی‌شده در برابر منتشرشده، از سابقه عملکرد داشبورد.",
+    h_drivers: "چه چیزی قیمت را جابه‌جا می‌کند؟",
+    p_drivers: "ارزان‌ترین و گران‌ترین روز ۲۰۲۶ تا امروز را مقایسه کنید. تقریباً همه تفاوت از آب‌وهواست.",
+    avg: "میانگین روزانه", lowday: "ارزان‌ترین روز", highday: "گران‌ترین روز", price: "قیمت (یورو/مگاوات‌ساعت)", ws: "باد + خورشید (گیگاوات)", unit: "یورو/مگاوات‌ساعت",
+    li_drivers: [["باد و خورشید.", "هزینه بهره‌برداری‌شان تقریباً صفر است؛ وقتی فراوان باشند، نیروگاه‌های گران را از حراج بیرون می‌رانند."],
+                 ["تقاضا.", "روزهای کاری گران‌تر از یکشنبه‌اند و اوج عصر معمولاً گران‌ترین بخش روز است."],
+                 ["قیمت سوخت و CO₂.", "وقتی نیروگاه گازی قیمت را تعیین می‌کند، هزینه گاز و مجوز کربن هم با آن در قیمت می‌نشیند. این داده‌ها مجوزی و پولی‌اند و به همین دلیل مدل‌های این پروژه از آن‌ها استفاده نمی‌کنند."],
+                 ["همسایه‌ها.", "از طریق هم‌پیوندی بازار، روزی بی‌باد در دانمارک یا خاموشی یک نیروگاه هسته‌ای در فرانسه در قیمت آلمان دیده می‌شود."]],
+    p_seasons: "فصل شکلِ روز را عوض می‌کند. در ژوئیه اوج خورشیدی دره‌ای در میانه روز می‌کند؛ در ژانویه این دره از بین می‌رود و اوج عصر غالب است.",
+    cap_seasons: "میانگین قیمت بر حسب ساعت روز، ژانویه در برابر ژوئیه ۲۰۲۵ (یورو/مگاوات‌ساعت).", jan: "ژانویه ۲۰۲۵", jul: "ژوئیه ۲۰۲۵",
+    h_why: "اصلاً چرا قیمت را پیش‌بینی کنیم؟",
+    li_why: [["جابه‌جایی مصرف.", "یک کارخانه، مرکز داده یا ناوگان خودروی برقی می‌تواند بار انعطاف‌پذیرش را به ارزان‌ترین ساعت‌ها ببرد."],
+             ["ذخیره‌سازی.", "باتری از فاصله قیمت ساعت ارزان و گران درآمد دارد، پس باید بداند این فاصله کجا خواهد بود."],
+             ["پیشنهاددهی و پوشش ریسک.", "تولیدکنندگان و خرده‌فروشان پیش از دانستن نتیجه حراج تصمیم می‌گیرند چه پیشنهادی بدهند."]],
+    h_hard: "چرا سخت است: درس‌های همین پروژه",
+    p_hard1: "قیمت‌ها حدی و غیرخطی‌اند: در ۲۰۲۶ از {min} تا {max} یورو/مگاوات‌ساعت نوسان داشتند. اما سخت‌ترین درس، نوسان نبود؛ این بود که خودِ بازار جابه‌جا می‌شود.",
+    p_hard2: "مدل‌هایی که با داده‌های ۲۰۱۵ تا ۲۰۱۷ آموزش دیده بودند، یعنی زمانی که میانگین قیمت حدود ۳۵ یورو بود، در ۲۰۲۶ هم نزدیک همان سطح پیش‌بینی می‌کردند، در حالی که میانگین {mean} بود. مدل فقط به‌اندازه داده‌ای که از آن یاد گرفته به‌روز است؛ برای همین پرایس‌کست روی یک پنجره غلتان دوباره آموزش می‌بیند.",
+    callout: "دو دام داده که در مسیر خودمان پیدا کردیم: داده زنده با ساعت UTC به مدلی می‌رسید که با ساعت محلی آلمان آموزش دیده بود، و پیش‌بینی بار سراسری آلمان به مدلی داده می‌شد که با بار منطقه یک بهره‌بردار شبکه (آمپریون) آموزش دیده بود؛ منطقه‌ای حدوداً ۲٫۵ برابر کوچک‌تر. هر دو اصلاح شده‌اند و حالا تعریف هر داده پیش از رسیدن به مدل با داده آموزشی مقایسه می‌شود.",
+    h_how: "پرایس‌کست چطور پیش‌بینی می‌کند",
+    p_how: "پرایس‌کست هر صبح از قیمت‌ها تا امروز، پیش‌بینی بار آمپریون برای فردا، پیش‌بینی باد و خورشید فردا و روز هفته استفاده می‌کند. پنج خانواده مدل با هم مقایسه می‌شوند (معیار ساده، SARIMAX، LEAR-LASSO، LightGBM و LSTM، به‌علاوه ترکیب‌های وزن‌دار). مدلی که سرویس داده می‌شود روی پنجره اعتبارسنجی ۲۰۲۵ انتخاب و فقط یک بار روی داده‌های ۲۰۲۶ که هرگز ندیده بود سنجیده می‌شود.",
+    cta_text: "قیمت ۲۴ ساعت فردا، باند عدم‌قطعیت و سابقه عملکرد را ببینید.", cta_btn: "پیش‌بینی فردا",
+    foot: "داده: ENTSO-E Transparency Platform. نمودارها از یک نسخه ثابت‌شده داده محاسبه شده‌اند ({src}).",
+  },
+};
+let lang = "en", G = null, L = null;
+try { lang = localStorage.getItem("pc-lang") || (new URLSearchParams(location.search).get("lang") === "fa" ? "fa" : "en"); } catch (e) {}
+const t = (k, vars) => { let s = (T[lang][k] ?? T.en[k] ?? k); if (typeof s !== "string") return s; for (const [a, b] of Object.entries(vars || {})) s = s.replace(`{${a}}`, b); return s; };
+const fmtDay = (iso, opts) => new Date(iso.slice(0, 10) + "T12:00:00").toLocaleDateString(lang === "fa" ? "fa-IR-u-ca-gregory" : "en-GB", opts);
+const bullets = items => `<ul>${items.map(([b, s]) => `<li><b>${esc(b)}</b> ${esc(s)}</li>`).join("")}</ul>`;
+
+function render() {
+  document.documentElement.lang = lang; document.documentElement.dir = lang === "fa" ? "rtl" : "ltr";
+  document.getElementById("lang").textContent = lang === "fa" ? "English" : "فارسی";
+  document.querySelectorAll("[data-t]").forEach(n => n.textContent = t(n.dataset.t));
+  const s = G.stats_2026, ex = G.extremes;
+  const hist = (L && L.history) || [];
+  let h = `<h1>${esc(t("h1"))}</h1><p class="lede">${esc(t("lede"))}</p>
+    <div class="statstrip">
+      <div class="tile"><div class="label">${esc(t("s_mean"))}</div><div class="v">${dec(s.mean, 1)}</div><div class="s">${esc(t("unit"))}</div></div>
+      <div class="tile"><div class="label">${esc(t("s_max"))}</div><div class="v">${dec(s.max, 0)}</div><div class="s">${esc(t("unit"))}</div></div>
+      <div class="tile"><div class="label">${esc(t("s_min"))}</div><div class="v">${dec(s.min, 0)}</div><div class="s">${esc(t("unit"))}</div></div>
+      <div class="tile"><div class="label">${esc(t("s_neg"))}</div><div class="v">${int(s.negative_hours)}</div><div class="s">${pct(100 * s.negative_hours / s.hours)} · ${esc(fmtDay(s.through, { day: "numeric", month: "short" }))}</div></div>
+    </div>
+    <h2>${esc(t("h_dayahead"))}</h2><p>${esc(t("p_dayahead1"))}</p><p>${esc(t("p_dayahead2"))}</p>
+    <h2>${esc(t("h_timeline"))}</h2>
+    <div class="card timeline">${t("tl").map(([tm, d, txt, key]) => `<div class="tl-row${key ? " key" : ""}"><div class="tl-time">${esc(tm)}<small>${esc(d)}</small></div><div>${esc(txt)}</div></div>`).join("")}</div>
+    <p>${esc(t("p_timeline"))}</p>
+    <h2>${esc(t("h_visual"))}</h2><p>${esc(t("p_week"))}</p>
+    <figure class="card"><div class="chart" id="g-week"></div><figcaption>${esc(t("cap_week", { a: fmtDay(G.week.start, { day: "numeric", month: "long" }), b: fmtDay(G.week.end, { day: "numeric", month: "long", year: "numeric" }) }))}</figcaption></figure>`;
+  if (hist.length) h += `<p>${esc(t("p_track"))}</p><figure class="card">${legend([["", "var(--series-1)", T[lang].brand + " · " + (lang === "fa" ? "پیش‌بینی" : "forecast")], ["", "var(--series-2)", lang === "fa" ? "منتشرشده" : "published"]])}<div class="chart" id="g-track"></div><figcaption>${esc(t("cap_track"))}</figcaption></figure>`;
+  h += `<h2>${esc(t("h_drivers"))}</h2><p>${esc(t("p_drivers"))}</p>
+    <div class="pair">
+      ${["low", "high"].map(k => `<div class="card"><h3>${esc(t(k + "day"))} · ${esc(fmtDay(ex[k].day, { day: "numeric", month: "long" }))}</h3><p class="sub">${esc(t("avg"))} ${dec(ex[k].mean_price, 1)} ${esc(t("unit"))}</p><div class="chart" id="g-${k}-p"></div><p class="sub" style="margin-top:8px">${esc(t("ws"))}</p><div class="chart" id="g-${k}-w"></div></div>`).join("")}
+    </div>
+    ${bullets(t("li_drivers"))}
+    <p>${esc(t("p_seasons"))}</p>
+    <figure class="card">${legend([["", "var(--series-1)", t("jan")], ["", "var(--series-2)", t("jul")]])}<div class="chart" id="g-season"></div><figcaption>${esc(t("cap_seasons"))}</figcaption></figure>
+    <h2>${esc(t("h_why"))}</h2>${bullets(t("li_why"))}
+    <h2>${esc(t("h_hard"))}</h2>
+    <p>${t("p_hard1", { min: dec(s.min, 0), max: dec(s.max, 0) })}</p>
+    <p>${t("p_hard2", { mean: dec(s.mean, 0) })}</p>
+    <div class="callout">${esc(t("callout"))}</div>
+    <h2>${esc(t("h_how"))}</h2><p>${esc(t("p_how"))}</p>
+    <div class="card cta"><span>${esc(t("cta_text"))}</span><a class="btn" href="index.html">${esc(t("cta_btn"))}</a></div>`;
+  document.getElementById("article").innerHTML = h;
+  // Latin names isolated so RTL reordering cannot scatter their punctuation
+  document.getElementById("foot").innerHTML = esc(t("foot", { src: "@@SRC@@" })).replace("ENTSO-E Transparency Platform", "<bdi>ENTSO-E Transparency Platform</bdi>").replace("@@SRC@@", `<bdi>${esc(G.source)}</bdi>`);
+
+  const hours = [...Array(24).keys()];
+  const wk = G.week;
+  const dayTicks = wk.timestamps.map((ts, i) => ts.endsWith("00:00") ? i : -1).filter(i => i >= 0);
+  lineChart(document.getElementById("g-week"), { x: wk.timestamps, xFmt: ts => fmtDay(ts, { weekday: "short", day: "numeric" }) + (ts.endsWith("00:00") ? "" : " " + hh(+ts.slice(11, 13))),
+    series: [{ name: "EUR/MWh", values: wk.price, color: "var(--series-1)" }], height: 260, xTicks: dayTicks });
+  if (hist.length) lineChart(document.getElementById("g-track"), { x: hist.map(r => r.day), xFmt: d => fmtDay(d, { day: "numeric", month: "short" }), height: 220,
+    series: [{ name: lang === "fa" ? "پیش‌بینی" : "Forecast", values: hist.map(r => r.forecast_baseload), color: "var(--series-1)" },
+             { name: lang === "fa" ? "منتشرشده" : "Published", values: hist.map(r => r.actual_baseload), color: "var(--series-2)" }] });
+  // shared y-scales inside each small-multiple row, so the two days are comparable at a glance
+  const pAll = [...ex.low.price, ...ex.high.price], wAll = [...ex.low.wind_solar, ...ex.high.wind_solar];
+  for (const k of ["low", "high"]) {
+    lineChart(document.getElementById(`g-${k}-p`), { x: hours, xFmt: hh, height: 150, xTicks: [0, 6, 12, 18, 23], width: 380, yDomain: [Math.min(...pAll), Math.max(...pAll)],
+      series: [{ name: "EUR/MWh", values: ex[k].price, color: "var(--series-1)" }] });
+    lineChart(document.getElementById(`g-${k}-w`), { x: hours, xFmt: hh, height: 120, xTicks: [0, 6, 12, 18, 23], width: 380, yDomain: [0, Math.max(...wAll)],
+      yFmt: v => axisInt(v / 1000),  // GW
+      series: [{ name: "MW", values: ex[k].wind_solar, color: "var(--series-1)" }] });
+  }
+  lineChart(document.getElementById("g-season"), { x: hours, xFmt: hh, height: 240, xTicks: [0, 3, 6, 9, 12, 15, 18, 21, 23],
+    series: [{ name: t("jan"), values: G.seasons.january_2025, color: "var(--series-1)" }, { name: t("jul"), values: G.seasons.july_2025, color: "var(--series-2)" }] });
+}
+
+document.getElementById("lang").onclick = () => { lang = lang === "fa" ? "en" : "fa"; try { localStorage.setItem("pc-lang", lang); } catch (e) {} if (G) render(); };
+document.getElementById("theme").onclick = () => {
+  const cur = document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  document.documentElement.dataset.theme = cur === "dark" ? "light" : "dark";
+  try { localStorage.setItem("pc-theme", document.documentElement.dataset.theme); } catch (e) {}
+};
+try { const th = localStorage.getItem("pc-theme"); if (th) document.documentElement.dataset.theme = th; } catch (e) {}
+Promise.all([
+  fetch("data/guide.json", { cache: "no-store" }).then(r => { if (!r.ok) throw new Error("guide.json " + r.status); return r.json(); }),
+  fetch("data/latest.json", { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null),
+]).then(([g, l]) => { G = g; L = l; render(); })
+  .catch(e => { document.getElementById("article").innerHTML = `<div class="card empty">${esc(e.message)}. Run scripts/build_guide_data.py.</div>`; });
+</script>
+</body>
+</html>

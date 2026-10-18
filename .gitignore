@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+/models/
+data/processed/
+data/raw/
+data/live_cache/
+/reports/
+health.txt
+*.tmp

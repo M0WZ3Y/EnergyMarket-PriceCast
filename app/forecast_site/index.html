@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PriceCast Daily</title>
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><h1 data-t="title">PriceCast Daily</h1><span class="zone">DE-LU</span><a class="navlink" href="guide.html" data-t="guide">How it works</a></div>
+    <div class="controls">
+      <span class="clock" id="clock"></span>
+      <button id="lang" type="button">فارسی</button>
+      <button id="theme" type="button" aria-label="Toggle theme">◐</button>
+    </div>
+  </header>
+  <main id="app"><div class="card empty" data-t="loading">Loading forecast…</div></main>
+  <footer id="foot"></footer>
+</div>
+<script src="charts.js"></script>
+<script>
+"use strict";
+const T = {
+  en: {
+    title: "PriceCast Daily", guide: "How it works", loading: "Loading forecast…", berlin: "Berlin",
+    mainTitle: "Day-ahead price: last 3 days and tomorrow", updated: "Updated", tomorrow: "Tomorrow",
+    viewChart: "Chart", viewTable: "Table", csv: "CSV",
+    fc: "Forecast", fcEx: "Ex-ante forecast", fcSh: "Shadow forecast", band: "80% band",
+    shadowLine: "Shadow model, with tomorrow's wind/solar: {v} EUR/MWh", variantEx: "ex-ante model (no D+1 wind/solar)", variantSh: "shadow model", actual: "Published price", eur: "EUR/MWh",
+    now: "Now", vs24: "{p} vs last 24-h average", low: "Today's low", high: "Today's high",
+    tmr: "Tomorrow's baseload", peak: "Peak 08–20h", offpeak: "Off-peak",
+    opp: "Tomorrow's opportunities", cheapestHour: "Cheapest hour", best2: "Best 2-h window", best4: "Best 4-h window", worst2: "Most expensive 2-h", spread: "2-h spread (cheap → dear)",
+    exante: "Ex-ante · before auction", shadow: "Shadow · after auction", pending: "Pending inputs", stale: "Model stale", provisional: "Provisional model",
+    pendingNote: "Tomorrow's forecast appears once its inputs are published.",
+    negative: "Negative prices forecast at", load: "Amprion load forecast (GW)", ws: "Wind + solar forecast, DE-LU (GW)", wsPending: "Not published yet: ENTSO-E posts tomorrow's wind/solar forecast around 18:15 Berlin, after the auction. The ex-ante model does not use it; the shadow forecast does.",
+    track: "Track record", trackSub: "Daily baseload: forecast vs published. Backtest = 2026 test window; live = issued by this dashboard.",
+    mae: "Model MAE", naive: "Same-hour-last-week MAE", skill: "Error vs naive", days: "days", better: "below 1 = better than naive", needDays: "needs at least 7 scored days",
+    hour: "Hour", lo: "Low", hi: "High", model: "Model", fitted: "fitted through", ageDays: "days old", generated: "Generated", runs: "Scheduled runs", lastRun: "last", nextRun: "next", runOk: "OK", runFail: "failed", runAlerts: "{n} alert(s)", runStale: "no scheduled run since {t}: is the PC asleep or the scheduler off?",
+    accuracy: "On the {n}-day 2026 test window this model scored rMAE {r} (MAE {m} EUR/MWh).",
+    howRead: "Ex-ante forecasts are made before the 12:00 CET auction; shadow forecasts after it (the official wind/solar input is only due by 18:00), so they test the model but could not have been traded on.",
+    errors: "Data problem", backtest: "backtest", live: "live",
+    recalc: "Data correction, 17–18 Oct: the backtest record and the test-window accuracy figure were first computed against a price series that was not the official auction price. Both have been recalculated against the official price; the earlier figures are withdrawn.",
+  },
+  fa: {
+    title: "پرایس‌کست روزانه", guide: "چطور کار می‌کند", loading: "در حال بارگذاری پیش‌بینی…", berlin: "برلین",
+    mainTitle: "قیمت روز-پیش: سه روز گذشته و فردا", updated: "به‌روزرسانی", tomorrow: "فردا",
+    viewChart: "نمودار", viewTable: "جدول", csv: "CSV",
+    fc: "پیش‌بینی", fcEx: "پیش‌بینی پیشینی", fcSh: "پیش‌بینی سایه", band: "باند ۸۰٪",
+    shadowLine: "مدل سایه، با باد/خورشید فردا: {v} یورو/مگاوات‌ساعت", variantEx: "مدل پیشینی (بدون باد/خورشید فردا)", variantSh: "مدل سایه", actual: "قیمت منتشرشده", eur: "یورو/مگاوات‌ساعت",
+    now: "اکنون", vs24: "{p} نسبت به میانگین ۲۴ ساعت گذشته", low: "کمینه امروز", high: "بیشینه امروز",
+    tmr: "بار پایه فردا", peak: "اوج ۸ تا ۲۰", offpeak: "غیراوج",
+    opp: "فرصت‌های فردا", cheapestHour: "ارزان‌ترین ساعت", best2: "بهترین بازه ۲ ساعته", best4: "بهترین بازه ۴ ساعته", worst2: "گران‌ترین بازه ۲ ساعته", spread: "اختلاف بازه ۲ ساعته (ارزان ← گران)",
+    exante: "پیشینی · پیش از حراج", shadow: "سایه · پس از حراج", pending: "در انتظار ورودی‌ها", stale: "مدل کهنه", provisional: "مدل موقت",
+    pendingNote: "پیش‌بینی فردا پس از انتشار ورودی‌هایش نمایش داده می‌شود.",
+    negative: "قیمت منفی پیش‌بینی‌شده در", load: "پیش‌بینی بار آمپریون (گیگاوات)", ws: "پیش‌بینی باد + خورشید، DE-LU (گیگاوات)", wsPending: "هنوز منتشر نشده است: ENTSO-E پیش‌بینی باد و خورشید فردا را حدود ساعت ۱۸:۱۵ به وقت برلین، بعد از حراج، منتشر می‌کند. مدل پیش از حراج از آن استفاده نمی‌کند؛ پیش‌بینی سایه از آن استفاده می‌کند.",
+    track: "سابقه عملکرد", trackSub: "بار پایه روزانه: پیش‌بینی در برابر منتشرشده. بک‌تست = پنجره آزمون ۲۰۲۶؛ زنده = صادرشده توسط همین داشبورد.",
+    mae: "MAE مدل", naive: "MAE ساعت مشابه هفته قبل", skill: "خطا نسبت به ساده", days: "روز", better: "کمتر از ۱ یعنی بهتر از ساده", needDays: "دست‌کم ۷ روز امتیازدهی‌شده لازم است",
+    hour: "ساعت", lo: "پایین", hi: "بالا", model: "مدل", fitted: "آموزش‌دیده تا", ageDays: "روز عمر", generated: "تولید", runs: "اجراهای زمان‌بندی‌شده", lastRun: "آخرین", nextRun: "بعدی", runOk: "موفق", runFail: "ناموفق", runAlerts: "{n} هشدار", runStale: "از {t} هیچ اجرای زمان‌بندی‌شده‌ای انجام نشده است؛ رایانه خاموش است یا زمان‌بند غیرفعال شده؟",
+    accuracy: "این مدل در پنجره آزمون ۲۰۲۶ ({n} روز) rMAE برابر {r} (MAE {m} یورو/مگاوات‌ساعت) داشت.",
+    howRead: "پیش‌بینی پیشینی پیش از حراج ساعت ۱۲ به وقت اروپای مرکزی ساخته می‌شود؛ پیش‌بینی سایه پس از آن (ورودی رسمی باد/خورشید تا ساعت ۱۸ منتشر می‌شود)، پس مدل را می‌آزماید ولی امکان معامله با آن نبود.",
+    errors: "مشکل داده", backtest: "بک‌تست", live: "زنده",
+    recalc: "اصلاح داده، ۱۷ و ۱۸ اکتبر: سابقهٔ بک‌تست و دقت پنجرهٔ آزمون ابتدا با سری قیمتی حساب شده بود که قیمت رسمی حراج نبود. هر دو با قیمت رسمی دوباره حساب شده‌اند و ارقام قبلی کنار گذاشته شده‌اند.",
+  },
+};
+let lang = "en", DATA = null, VIEW = "chart", STATUS = null;
+try { lang = localStorage.getItem("pc-lang") || (new URLSearchParams(location.search).get("lang") === "fa" ? "fa" : "en"); } catch (e) {}
+const t = (k, vars) => { let s = (T[lang][k] ?? T.en[k] ?? k); for (const [a, b] of Object.entries(vars || {})) s = s.replace(`{${a}}`, b); return s; };
+const span = (a, b) => `${hh(a)}–${hh(b % 24)}`;
+// Berlin wall-clock now, independent of the viewer's timezone
+function berlinNow() {
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+    .formatToParts(new Date()).map(x => [x.type, x.value]));
+  return { day: `${p.year}-${p.month}-${p.day}`, hour: +p.hour, minute: p.minute };
+}
+function axisTs(ts) {  // midnight ticks show the day only; the table keeps shortTs
+  if (!ts.endsWith("00:00")) return hh(+ts.slice(11, 13));
+  return new Date(ts.slice(0, 10) + "T12:00:00").toLocaleDateString(lang === "fa" ? "fa-IR-u-ca-gregory" : "en-GB", { weekday: "short", day: "numeric" });
+}
+function shortTs(ts) {
+  const d = new Date(ts.slice(0, 10) + "T12:00:00");
+  return d.toLocaleDateString(lang === "fa" ? "fa-IR-u-ca-gregory" : "en-GB", { weekday: "short", day: "numeric" }) + " " + hh(+ts.slice(11, 13));
+}
+
+function timeline(d) {
+  // last 3 published days + the target day, one value per hour
+  const rec = d.recent || [], fc = d.forecast;
+  const ts = [...rec.map(r => r.ts), ...[...Array(24).keys()].map(h => `${d.target_day} ${String(h).padStart(2, "0")}:00`)];
+  const actual = [...rec.map(r => r.price), ...(d.target_actual || Array(24).fill(null))];
+  const pad = Array(rec.length).fill(null);
+  const fcv = fc ? [...pad, ...fc.hourly.map(h => h.forecast)] : null;
+  const fs = d.forecasts || {};
+  const other = fc && fc.variant === "exante" && fs.shadow ? [...pad, ...fs.shadow.hourly.map(h => h.forecast)] : null;
+  const band = fc && fc.hourly[0].lo != null ? { lo: [...pad, ...fc.hourly.map(h => h.lo)], hi: [...pad, ...fc.hourly.map(h => h.hi)] } : null;
+  return { ts, actual, fcv, band, other, at: rec.length };
+}
+
+function snapshotHtml(d) {
+  const rec = (d.recent || []).filter(r => r.price != null), now = berlinNow();
+  const cur = rec.find(r => r.ts === `${now.day} ${String(now.hour).padStart(2, "0")}:00`);
+  if (!cur) return "";
+  const idx = rec.indexOf(cur), last24 = rec.slice(Math.max(0, idx - 23), idx + 1).map(r => r.price);
+  const avg = last24.reduce((a, b) => a + b, 0) / last24.length, dev = 100 * (cur.price - avg) / Math.abs(avg || 1);
+  const today = rec.filter(r => r.ts.startsWith(now.day)).map(r => r.price), lo = Math.min(...today), hi = Math.max(...today);
+  const pos = hi > lo ? 100 * (cur.price - lo) / (hi - lo) : 50;
+  return `<div class="snap-block"><div class="label">${esc(t("now"))} · ${hh(now.hour)}</div>
+    <div class="big">${dec(cur.price)}<small>${esc(t("eur"))}</small></div>
+    <div class="gauge" role="img" aria-label="${esc(t("low"))} ${lo} – ${esc(t("high"))} ${hi}"><span style="inset-inline-start:${pos.toFixed(1)}%"></span></div>
+    <div class="gauge-ends"><span>${esc(t("low"))} ${dec(lo, 0)}</span><span>${esc(t("high"))} ${dec(hi, 0)}</span></div>
+    <div class="s">${t("vs24", { p: `<span class="num">${dev >= 0 ? "+" : ""}${faNum(dev.toFixed(0) + "%")}</span>` })}</div></div>`;
+}
+
+// health of the scheduled runs (data/status.json, written by scripts/run_health.py)
+function statusLine() {
+  const s = STATUS;
+  if (!s) return "";
+  const stamp = v => `<bdi>${esc(int(v))}</bdi>`;
+  const ageH = (Date.now() - Date.parse(s.last_run.replace(" ", "T") + ":00+02:00")) / 3.6e6;  // CEST/CET +-1h is irrelevant at 26h
+  const bad = s.last_exit !== 0 || (s.alerts || []).length || ageH > 26;
+  let msg = `${esc(t("runs"))}: ${esc(t("lastRun"))} ${stamp(s.last_run.slice(11))} ${esc(s.last_exit === 0 ? t("runOk") : t("runFail"))}`;
+  if (s.next_run) msg += ` · ${esc(t("nextRun"))} ${stamp(s.next_run.slice(11))}`;
+  if ((s.alerts || []).length) msg += ` · <span title="${esc(s.alerts.join(" | "))}">${esc(t("runAlerts", { n: int(s.alerts.length) }))}</span>`;
+  if (ageH > 26) msg += ` · ${esc(t("runStale", { t: int(s.last_run) }))}`;
+  return `<div class="runs${bad ? " bad" : ""}">${msg}</div>`;
+}
+
+function render() {
+  document.documentElement.lang = lang; document.documentElement.dir = lang === "fa" ? "rtl" : "ltr";
+  document.getElementById("lang").textContent = lang === "fa" ? "English" : "فارسی";
+  document.querySelectorAll("[data-t]").forEach(n => n.textContent = t(n.dataset.t));
+  const d = DATA, fc = d.forecast, s = fc && fc.summary, o = fc && fc.opportunities;
+  const chips = [];
+  if (fc) chips.push(fc.status === "ex-ante" ? ["good", "✓", t("exante")] : ["warn", "◷", t("shadow")]);
+  else chips.push(["warn", "◷", t("pending")]);
+  if (d.stale) chips.push(["crit", "!", t("stale")]);
+  if (fc && fc.provisional) chips.push(["info", "i", t("provisional")]);
+  const chipHtml = `<div class="chips">${chips.map(([c, ic, l]) => `<span class="chip ${c}"><span aria-hidden="true">${ic}</span>${esc(l)}</span>`).join("")}</div>`;
+  const tl = timeline(d);
+  const fcName = fc ? t(fc.variant === "exante" ? "fcEx" : "fcSh") : t("fc");
+  const legendItems = [["", "var(--series-2)", t("actual")], ...(fc ? [["", "var(--series-1)", fcName]] : []),
+    ...(tl.other ? [["", "var(--series-3)", t("fcSh")]] : []), ...(tl.band ? [["band", "", t("band")]] : [])];
+  let html = `<section class="dash">
+    <div class="card">
+      <div class="card-head"><div><h2>${esc(t("mainTitle"))}</h2><p class="sub">${esc(t("updated"))} <span class="num">${esc(int(d.generated_at))}</span></p></div>
+        <div class="seg" role="group">
+          <button type="button" data-view="chart" class="${VIEW === "chart" ? "on" : ""}">${esc(t("viewChart"))}</button>
+          <button type="button" data-view="table" class="${VIEW === "table" ? "on" : ""}">${esc(t("viewTable"))}</button>
+          <button type="button" id="csv"${fc ? "" : " disabled"}>${esc(t("csv"))}</button></div></div>
+      ${legend(legendItems)}
+      <div id="view"></div>
+    </div>
+    <aside class="card snap">
+      ${snapshotHtml(d)}
+      <div class="snap-block"><div class="label">${esc(t("tmr"))} · ${esc(dayLabel(d.target_day))}</div>
+        ${chipHtml}
+        ${s ? `<div class="big">${dec(s.baseload)}<small>${esc(t("eur"))}</small></div>
+          <div class="pairline"><span>${esc(t("peak"))} <b>${dec(s.peak)}</b></span><span>${esc(t("offpeak"))} <b>${dec(s.offpeak)}</b></span></div>
+          <div class="s">${esc(t(fc.variant === "exante" ? "variantEx" : "variantSh"))}</div>
+          ${fc.variant === "exante" && d.forecasts && d.forecasts.shadow ? `<div class="s">${t("shadowLine", { v: dec(d.forecasts.shadow.summary.baseload) })}</div>` : ""}` : `<p class="s">${esc(t("pendingNote"))}</p>`}
+        ${s && s.negative_hours.length ? `<div class="alert warn">${esc(t("negative"))} ${s.negative_hours.map(hh).join("، ")}</div>` : ""}
+      </div>
+      ${o ? `<div class="snap-block"><div class="label">${esc(t("opp"))}</div><div class="opps">
+        <div class="opp good"><div class="k">${esc(t("cheapestHour"))}</div><div class="v">${hh(o.cheapest_hour.hour)}</div><div class="s">${dec(o.cheapest_hour.price)}</div></div>
+        <div class="opp good"><div class="k">${esc(t("best2"))}</div><div class="v">${span(o.cheapest_2h.start, o.cheapest_2h.end)}</div><div class="s">${dec(o.cheapest_2h.mean)}</div></div>
+        <div class="opp good"><div class="k">${esc(t("best4"))}</div><div class="v">${span(o.cheapest_4h.start, o.cheapest_4h.end)}</div><div class="s">${dec(o.cheapest_4h.mean)}</div></div>
+        <div class="opp crit"><div class="k">${esc(t("worst2"))}</div><div class="v">${span(o.dearest_2h.start, o.dearest_2h.end)}</div><div class="s">${dec(o.dearest_2h.mean)}</div></div>
+        </div><div class="s">${esc(t("spread"))}: <b>${dec(o.spread_2h)}</b> ${esc(t("eur"))}</div></div>` : ""}
+      ${(d.errors || []).map(e => `<div class="alert crit">${esc(t("errors"))}: ${esc(e)}</div>`).join("")}
+    </aside>
+  </section>`;
+  if (fc) html += `<section class="grid2">
+    <div class="card"><h2>${esc(t("load"))}</h2><div class="chart" id="c-load"></div></div>
+    <div class="card"><h2>${esc(t("ws"))}</h2><div class="chart" id="c-ws"></div></div></section>`;
+  const allHist = d.history || [];
+  const histVariant = allHist.some(r => r.variant === "exante") ? "exante" : "shadow";
+  const hist = allHist.filter(r => (r.variant || "shadow") === histVariant);
+  if (hist.length) {
+    const mae = hist.reduce((a, r) => a + r.mae, 0) / hist.length;
+    const nv = hist.filter(r => r.naive_mae != null), nmae = nv.reduce((a, r) => a + r.naive_mae, 0) / (nv.length || 1);
+    const nLive = hist.filter(r => r.source === "live").length;
+    html += `<section class="card" style="margin-top:16px"><h2>${esc(t("track"))}</h2><p class="sub">${esc(t("trackSub"))} ${esc(t("backtest"))} ${int(hist.length - nLive)} · ${esc(t("live"))} ${int(nLive)}</p><p class="note">${esc(t("recalc"))}</p>
+      <div class="track-tiles">
+        <div class="tile"><div class="label">${esc(t("mae"))}</div><div class="v">${dec(mae)}</div><div class="s">${int(hist.length)} ${esc(t("days"))}</div></div>
+        <div class="tile"><div class="label">${esc(t("naive"))}</div><div class="v">${dec(nmae)}</div><div class="s">${int(nv.length)} ${esc(t("days"))}</div></div>
+        <div class="tile"><div class="label">${esc(t("skill"))}</div>${nv.length >= 7 ? `<div class="v">${dec(mae / nmae, 2)}</div><div class="s">${esc(t("better"))}</div>` : `<div class="v">–</div><div class="s">${esc(t("needDays"))}</div>`}</div>
+      </div>${legend([["", "var(--series-1)", t("fc")], ["", "var(--series-2)", t("actual")]])}<div class="chart" id="c-track"></div></section>`;
+  }
+  const m = fc && fc.model;
+  html += `<p class="note" style="margin-top:16px">${m ? `${esc(t("model"))}: <bdi>${esc(m.rung)} / ${esc(m.name)}</bdi>, ${esc(t("fitted"))} <bdi>${esc(int(m.fit_end))}</bdi> (${int(d.model_age_days)} ${esc(t("ageDays"))}). ` : ""}${d.accuracy ? t("accuracy", { n: int(d.accuracy.n_days), r: dec(d.accuracy.rmae, 3), m: dec(d.accuracy.mae, 2) }) + " " : ""}${esc(t("howRead"))}</p>`;
+  document.getElementById("app").innerHTML = html;
+  document.getElementById("foot").innerHTML = `${statusLine()}<bdi>${esc(d.attribution)}</bdi> · ${esc(t("generated"))} <bdi>${esc(int(d.generated_at))}</bdi>`;
+
+  drawView(tl);
+  document.querySelectorAll("[data-view]").forEach(b => b.onclick = () => { VIEW = b.dataset.view; render(); });
+  const csv = document.getElementById("csv");
+  if (fc) csv.onclick = () => {
+    const rows = [["hour", "forecast_eur_mwh", "lo", "hi"], ...fc.hourly.map(h => [h.hour, h.forecast, h.lo, h.hi])];
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([rows.map(r => r.join(",")).join("\n")], { type: "text/csv" }));
+    a.download = `pricecast_${fc.target_day}.csv`; a.click();
+  };
+  const hours = [...Array(24).keys()];
+  if (fc) {
+    const k = v => axisInt(v / 1000);  // MW plotted, axis in GW: no mixed-script "۸۰k"
+    lineChart(document.getElementById("c-load"), { x: hours, series: [{ name: "MW", values: fc.inputs.load_mw, color: "var(--series-1)" }], xFmt: hh, yFmt: k, height: 180, width: 520, step: true, xTicks: [0, 6, 12, 18] });
+    if (fc.inputs.wind_solar_mw.every(v => v == null)) document.getElementById("c-ws").outerHTML = `<p class="sub">${esc(t("wsPending"))}</p>`;
+    else lineChart(document.getElementById("c-ws"), { x: hours, series: [{ name: "MW", values: fc.inputs.wind_solar_mw, color: "var(--series-1)" }], xFmt: hh, yFmt: k, height: 180, width: 520, step: true, xTicks: [0, 6, 12, 18] });
+  }
+  if (hist.length) {
+    const fmtDay = iso => new Date(iso + "T12:00:00").toLocaleDateString(lang === "fa" ? "fa-IR-u-ca-gregory" : "en-GB", { day: "numeric", month: "short" });
+    lineChart(document.getElementById("c-track"), { x: hist.map(r => r.day), xFmt: fmtDay, height: 240,
+      series: [{ name: t("fc"), values: hist.map(r => r.forecast_baseload), color: "var(--series-1)" },
+               { name: t("actual"), values: hist.map(r => r.actual_baseload), color: "var(--series-2)" }] });
+  }
+}
+
+function drawView(tl) {
+  const el = document.getElementById("view");
+  if (VIEW === "table") {
+    const rows = tl.ts.map((ts, i) => ({ ts, a: tl.actual[i], f: tl.fcv ? tl.fcv[i] : null, lo: tl.band ? tl.band.lo[i] : null, hi: tl.band ? tl.band.hi[i] : null })).reverse();
+    el.className = "";
+    el.innerHTML = `<div class="tablewrap"><table><thead><tr><th>${esc(t("hour"))}</th><th>${esc(t("actual"))}</th><th>${esc(t("fc"))}</th><th>${esc(t("lo"))}</th><th>${esc(t("hi"))}</th></tr></thead><tbody>
+      ${rows.map(r => `<tr><td>${esc(shortTs(r.ts))}</td><td>${dec(r.a)}</td><td>${dec(r.f)}</td><td>${dec(r.lo)}</td><td>${dec(r.hi)}</td></tr>`).join("")}</tbody></table></div>`;
+    return;
+  }
+  el.className = "chart";
+  const series = [{ name: t("actual"), values: tl.actual, color: "var(--series-2)" }];
+  const fc0 = DATA.forecast;
+  if (tl.fcv) series.push({ name: t(fc0 && fc0.variant === "exante" ? "fcEx" : "fcSh"), values: tl.fcv, color: "var(--series-1)" });
+  if (tl.other) series.push({ name: t("fcSh"), values: tl.other, color: "var(--series-3)" });
+  // Persian weekday names are longer: tick at midnight only so labels never collide
+  const ticks = tl.ts.map((ts, i) => ts.endsWith("00:00") || (lang !== "fa" && ts.endsWith("12:00")) ? i : -1).filter(i => i >= 0);
+  lineChart(el, { x: tl.ts, series, band: tl.band, step: true, height: 320, xTicks: ticks, xFmt: axisTs,
+    divider: { at: tl.at, label: t("tomorrow") } });
+}
+
+function tick() {
+  const n = berlinNow(), hm = `${String(n.hour).padStart(2, "0")}:${n.minute}`;
+  document.getElementById("clock").textContent = `${t("berlin")} ${lang === "fa" ? int(hm) : hm}`;
+}
+document.getElementById("lang").onclick = () => { lang = lang === "fa" ? "en" : "fa"; try { localStorage.setItem("pc-lang", lang); } catch (e) {} tick(); if (DATA) render(); };
+document.getElementById("theme").onclick = () => {
+  const cur = document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  document.documentElement.dataset.theme = cur === "dark" ? "light" : "dark";
+  try { localStorage.setItem("pc-theme", document.documentElement.dataset.theme); } catch (e) {}
+};
+try { const th = localStorage.getItem("pc-theme"); if (th) document.documentElement.dataset.theme = th; } catch (e) {}
+tick(); setInterval(tick, 30000);
+let resizeT; let lastW = innerWidth;
+addEventListener("resize", () => { if (innerWidth === lastW) return; lastW = innerWidth; clearTimeout(resizeT); resizeT = setTimeout(() => { if (DATA) render(); }, 150); });
+fetch("data/status.json", { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null).then(s => { STATUS = s; if (DATA) render(); });
+fetch("data/latest.json", { cache: "no-store" }).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+  .then(j => { DATA = j; render(); })
+  .catch(e => { document.getElementById("app").innerHTML = `<div class="card empty">No forecast data yet (data/latest.json: ${esc(e.message)}). Run scripts/daily_run.py.</div>`; });
+</script>
+</body>
+</html>
