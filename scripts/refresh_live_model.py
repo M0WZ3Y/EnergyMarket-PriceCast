@@ -85,6 +85,40 @@ def fit_member(name: str, rung: str, X, Y, last_day, window: int | None, variant
     return cls(cfg).fit(X.loc[days], Y.loc[days])
 
 
+def compact(m):
+    """Drop SARIMAX's cached smoother output before saving; the forecast is unchanged.
+
+    statsmodels keeps the full smoother arrays of every fitted hour (about 18 MB
+    each, 442 MB per served model), but a one-step forecast needs only the
+    filtered state at the end of the window. Re-filtering with the fitted params
+    (conserving memory, keeping the forecast covariance) and dropping the cached
+    smoother objects gives 8.6 MB with identical forecasts. Measured 2026-10-19
+    on the served ex-ante model: max |diff| 0.0 after a pickle round trip.
+    Other models pass through untouched.
+    """
+    if not isinstance(m, SARIMAXModel):
+        return m
+    from statsmodels.tsa.statespace.kalman_filter import MEMORY_CONSERVE, MEMORY_NO_FORECAST_COV
+
+    for h, res in list(m._results.items()):
+        lean = res.model.filter(res.params, conserve_memory=MEMORY_CONSERVE & ~MEMORY_NO_FORECAST_COV)
+        lean.model.ssm._kalman_smoothers = {}
+        lean.model.ssm._kalman_filters = {}
+        m._results[h] = lean
+    return m
+
+
+def compact_saved(out_dir: Path) -> None:
+    """Compact the SARIMAX member of an already-written served model in place."""
+    meta = json.loads((out_dir / "served.json").read_text())
+    for d in meta["member_dirs"].get("SARIMAX", []):
+        m = SARIMAXModel(load_models_config()["sarimax"]).load(out_dir / d)
+        tmp = out_dir / f"{d}.tmp"
+        compact(m).save(tmp)
+        tmp.replace(out_dir / d)
+        print(f"compacted {out_dir / d}")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--offline", action="store_true", help="skip the live fetch; use snapshot + cache only")
@@ -93,7 +127,12 @@ def main() -> None:
     ap.add_argument("--provisional", choices=list(CLASSES),
                     help="serve this model with the R3 protocol BEFORE selection.json exists; "
                          "labelled provisional everywhere it is shown")
+    ap.add_argument("--compact-only", action="store_true",
+                    help="no refit: shrink the SARIMAX member already saved for --variant")
     args = ap.parse_args()
+    if args.compact_only:
+        compact_saved(REPO_ROOT / "models" / "live" / args.variant)
+        return
 
     rung0 = "R3x" if args.variant == "exante" else "R3"
     if args.provisional:
@@ -125,7 +164,7 @@ def main() -> None:
         for w in windows:
             m = fit_member(name, p["rung"], X, Y, last_day, w, args.variant)
             d = member_dir(name, w)
-            m.save(tmp / d)
+            compact(m).save(tmp / d)
             member_dirs[name].append(d)
     meta = {**{k: p[k] for k in ("rung", "model", "kind", "weights", "threshold")},
             "member_dirs": member_dirs, "fit_end": str(last_day.date()),
