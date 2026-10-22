@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-10-22 16:28 CEST",
+ "generated_at": "2026-10-22 22:23 CEST",
  "target_day": "2026-10-23",
  "forecast": {
   "target_day": "2026-10-23",
@@ -504,7 +504,257 @@
     ]
    }
   },
-  "shadow": null
+  "shadow": {
+   "target_day": "2026-10-23",
+   "generated_at": "2026-10-22 22:23 CEST",
+   "status": "shadow",
+   "provisional": false,
+   "variant": "shadow",
+   "model": {
+    "rung": "R3",
+    "name": "Ensemble (regime-aware)",
+    "fit_end": "2026-10-18"
+   },
+   "band": {
+    "method": "rolling",
+    "window_days": 56,
+    "pooled": true,
+    "from": "2026-08-13",
+    "through": "2026-10-22"
+   },
+   "hourly": [
+    {
+     "hour": 0,
+     "forecast": 164.93,
+     "lo": 143.95,
+     "hi": 206.03
+    },
+    {
+     "hour": 1,
+     "forecast": 154.43,
+     "lo": 133.46,
+     "hi": 195.53
+    },
+    {
+     "hour": 2,
+     "forecast": 147.44,
+     "lo": 126.46,
+     "hi": 188.54
+    },
+    {
+     "hour": 3,
+     "forecast": 141.63,
+     "lo": 120.65,
+     "hi": 182.73
+    },
+    {
+     "hour": 4,
+     "forecast": 141.88,
+     "lo": 120.91,
+     "hi": 182.98
+    },
+    {
+     "hour": 5,
+     "forecast": 147.63,
+     "lo": 126.65,
+     "hi": 188.73
+    },
+    {
+     "hour": 6,
+     "forecast": 179.85,
+     "lo": 158.87,
+     "hi": 220.95
+    },
+    {
+     "hour": 7,
+     "forecast": 199.47,
+     "lo": 178.49,
+     "hi": 240.57
+    },
+    {
+     "hour": 8,
+     "forecast": 207.38,
+     "lo": 186.4,
+     "hi": 248.48
+    },
+    {
+     "hour": 9,
+     "forecast": 178.51,
+     "lo": 157.53,
+     "hi": 219.61
+    },
+    {
+     "hour": 10,
+     "forecast": 144.64,
+     "lo": 123.66,
+     "hi": 185.74
+    },
+    {
+     "hour": 11,
+     "forecast": 117.39,
+     "lo": 96.41,
+     "hi": 158.49
+    },
+    {
+     "hour": 12,
+     "forecast": 100.38,
+     "lo": 79.4,
+     "hi": 141.48
+    },
+    {
+     "hour": 13,
+     "forecast": 90.79,
+     "lo": 69.81,
+     "hi": 131.89
+    },
+    {
+     "hour": 14,
+     "forecast": 86.01,
+     "lo": 65.04,
+     "hi": 127.12
+    },
+    {
+     "hour": 15,
+     "forecast": 87.93,
+     "lo": 66.96,
+     "hi": 129.03
+    },
+    {
+     "hour": 16,
+     "forecast": 104.12,
+     "lo": 83.14,
+     "hi": 145.22
+    },
+    {
+     "hour": 17,
+     "forecast": 131.74,
+     "lo": 110.76,
+     "hi": 172.84
+    },
+    {
+     "hour": 18,
+     "forecast": 152.61,
+     "lo": 131.63,
+     "hi": 193.71
+    },
+    {
+     "hour": 19,
+     "forecast": 159.34,
+     "lo": 138.36,
+     "hi": 200.44
+    },
+    {
+     "hour": 20,
+     "forecast": 144.11,
+     "lo": 123.13,
+     "hi": 185.21
+    },
+    {
+     "hour": 21,
+     "forecast": 138.15,
+     "lo": 117.17,
+     "hi": 179.25
+    },
+    {
+     "hour": 22,
+     "forecast": 130.71,
+     "lo": 109.74,
+     "hi": 171.81
+    },
+    {
+     "hour": 23,
+     "forecast": 112.32,
+     "lo": 91.34,
+     "hi": 153.42
+    }
+   ],
+   "summary": {
+    "baseload": 140.14,
+    "peak": 130.07,
+    "offpeak": 150.21,
+    "min_hour": 14,
+    "min": 86.01,
+    "max_hour": 8,
+    "max": 207.38,
+    "negative_hours": []
+   },
+   "opportunities": {
+    "cheapest_hour": {
+     "hour": 14,
+     "price": 86.01
+    },
+    "cheapest_2h": {
+     "start": 14,
+     "end": 16,
+     "mean": 86.97
+    },
+    "cheapest_4h": {
+     "start": 12,
+     "end": 16,
+     "mean": 91.28
+    },
+    "dearest_2h": {
+     "start": 7,
+     "end": 9,
+     "mean": 203.42
+    },
+    "spread_2h": 116.45
+   },
+   "inputs": {
+    "load_mw": [
+     17722.4,
+     16870.8,
+     16443.3,
+     16330.9,
+     16526.5,
+     17296.7,
+     18849.2,
+     20731.0,
+     22172.3,
+     22850.9,
+     23109.5,
+     23253.3,
+     23226.3,
+     22947.3,
+     22482.4,
+     22105.9,
+     21979.2,
+     22173.5,
+     22431.1,
+     22297.0,
+     21629.8,
+     20612.9,
+     19496.7,
+     18326.1
+    ],
+    "wind_solar_mw": [
+     21589.4,
+     19760.4,
+     18462.4,
+     18014.5,
+     18135.6,
+     19062.0,
+     21502.7,
+     24582.3,
+     29195.3,
+     35730.6,
+     40990.4,
+     44954.2,
+     48696.2,
+     50944.2,
+     51331.5,
+     50449.1,
+     48940.1,
+     47777.7,
+     48552.4,
+     50073.6,
+     50958.0,
+     51344.5,
+     50192.2,
+     49859.3
+    ]
+   }
+  }
  },
  "pending_reason": null,
  "stale": false,
@@ -834,11 +1084,11 @@
   156.96,
   175.76,
   193.93,
-  207.87,
+  207.86,
   181.58,
   151.16,
   132.39,
-  115.69,
+  115.7,
   110.13,
   112.5,
   115.12,
@@ -5179,8 +5429,6 @@
    "naive_mae": 73.077
   }
  ],
- "errors": [
-  "fetch failed: ENTSO-E request failed (A44): HTTPError: 599 Server Error: status code 599"
- ],
+ "errors": [],
  "attribution": "Data: ENTSO-E Transparency Platform (transparency.entsoe.eu)"
 }
