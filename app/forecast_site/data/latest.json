@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-10-22 14:34 CEST",
+ "generated_at": "2026-10-22 15:13 CEST",
  "target_day": "2026-10-23",
  "forecast": {
   "target_day": "2026-10-23",
@@ -834,11 +834,11 @@
   156.96,
   175.76,
   193.93,
-  207.86,
+  207.87,
   181.58,
   151.16,
   132.39,
-  115.7,
+  115.69,
   110.13,
   112.5,
   115.12,
@@ -5179,6 +5179,8 @@
    "naive_mae": 73.077
   }
  ],
- "errors": [],
+ "errors": [
+  "fetch failed: ENTSO-E request failed (A44): HTTPError: 599 Server Error: status code 599"
+ ],
  "attribution": "Data: ENTSO-E Transparency Platform (transparency.entsoe.eu)"
 }

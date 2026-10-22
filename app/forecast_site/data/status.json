@@ -1,8 +1,10 @@
 {
- "last_run": "2026-10-22 14:34",
+ "last_run": "2026-10-22 15:13",
  "last_exit": 0,
- "last_success": "2026-10-22 14:34",
+ "last_success": "2026-10-22 15:13",
  "next_run": null,
- "alerts": [],
+ "alerts": [
+  "Run finished but fetch failed: ENTSO-E request failed (A44): HTTPError: 599 Server Error: status code 599"
+ ],
  "timezone": "Europe/Berlin"
 }
