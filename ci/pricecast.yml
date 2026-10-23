@@ -7,8 +7,20 @@ name: PriceCast daily
 on:
   schedule:
     # UTC, no DST. Berlin = UTC+2 (CEST) / UTC+1 (CET). Off the hour: GitHub
-    # delays on-the-hour schedules most. Ex-ante runs all land before 10:00 UTC
-    # (12:00 CEST); shadow runs after A69 (due 18:00 Berlin).
+    # delays on-the-hour schedules most. Gate closure is 12:00 Berlin (10:00 UTC
+    # in CEST, 11:00 UTC in CET); shadow runs after A69 (due 18:00 Berlin).
+    # GitHub fired every morning cron 4.6-5.7 h late on 2026-10-20..23, so no
+    # run landed before gate closure (logs/decisions.md 2026-10-23). The 00:20-
+    # 04:50 slots exist to absorb that delay. A run that lands before A65 is
+    # published issues nothing (daily_run waits for its inputs) and raises no
+    # alert, so the early slots are harmless if the delay ever disappears.
+    - cron: "20 0 * * *"
+    - cron: "5 1 * * *"
+    - cron: "50 1 * * *"
+    - cron: "35 2 * * *"
+    - cron: "20 3 * * *"
+    - cron: "5 4 * * *"
+    - cron: "50 4 * * *"
     - cron: "50 5 * * *"
     - cron: "50 6 * * *"
     - cron: "35 7 * * *"
@@ -32,7 +44,8 @@ jobs:
         shell: bash
         run: |   # warn only: main's copy is what actually runs
           git fetch -q --depth=1 origin main
-          git show FETCH_HEAD:.github/workflows/pricecast.yml | diff -q --strip-trailing-cr - ci/pricecast.yml >/dev/null \n            || echo "::warning::.github/workflows/pricecast.yml on main differs from ci/pricecast.yml on pricecast-live"
+          git show FETCH_HEAD:.github/workflows/pricecast.yml | diff -q --strip-trailing-cr - ci/pricecast.yml >/dev/null \
+            || echo "::warning::.github/workflows/pricecast.yml on main differs from ci/pricecast.yml on pricecast-live"
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0 (released 2026-07-20)
         with: { python-version: "3.11.9", cache: pip, cache-dependency-path: requirements-live.txt }
       - run: pip install -r requirements-live.txt -c constraints-live.txt
