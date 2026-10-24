@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-10-24 00:04 CEST",
+ "generated_at": "2026-10-24 06:51 CEST",
  "target_day": "2026-10-25",
  "forecast": null,
  "forecasts": {
@@ -8,7 +8,7 @@
  },
  "pending_reason": "Tomorrow's load forecast (A65) is not published yet.",
  "stale": false,
- "model_age_days": 5,
+ "model_age_days": 6,
  "recent": [
   {
    "ts": "2026-10-22 00:00",
