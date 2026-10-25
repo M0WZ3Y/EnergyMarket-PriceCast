@@ -1,11 +1,11 @@
 {
- "last_run": "2026-10-25 21:58",
+ "last_run": "2026-10-25 22:43",
  "last_exit": 1,
  "last_success": "2026-10-25 06:51",
  "next_run": null,
  "alerts": [
   "Daily run failed (exit 1). The page keeps showing the last good data; see the run log (daily_run.log on the PC, the Actions job log in the cloud).",
-  "No shadow forecast for 2026-10-25 at 21:58 Berlin (wind/solar input A69 late?)."
+  "No shadow forecast for 2026-10-25 at 22:43 Berlin (wind/solar input A69 late?)."
  ],
  "timezone": "Europe/Berlin"
 }
