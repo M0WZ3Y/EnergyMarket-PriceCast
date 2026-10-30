@@ -1,8 +1,10 @@
 {
- "last_run": "2026-10-30 00:19",
- "last_exit": 0,
+ "last_run": "2026-10-30 07:06",
+ "last_exit": 1,
  "last_success": "2026-10-30 00:19",
  "next_run": null,
- "alerts": [],
+ "alerts": [
+  "Daily run failed (exit 1). The page keeps showing the last good data; see the run log (daily_run.log on the PC, the Actions job log in the cloud)."
+ ],
  "timezone": "Europe/Berlin"
 }
