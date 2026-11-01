@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-01 12:36 CET",
+ "generated_at": "2026-11-01 13:07 CET",
  "target_day": "2026-11-02",
  "forecast": {
   "target_day": "2026-11-02",
@@ -520,11 +520,11 @@
   },
   {
    "ts": "2026-10-30 02:00",
-   "price": 233.3
+   "price": 233.31
   },
   {
    "ts": "2026-10-30 03:00",
-   "price": 229.95
+   "price": 229.94
   },
   {
    "ts": "2026-10-30 04:00",
@@ -664,11 +664,11 @@
   },
   {
    "ts": "2026-10-31 14:00",
-   "price": 231.95
+   "price": 231.96
   },
   {
    "ts": "2026-10-31 15:00",
-   "price": 254.7
+   "price": 254.69
   },
   {
    "ts": "2026-10-31 16:00",
@@ -764,7 +764,7 @@
   },
   {
    "ts": "2026-11-01 15:00",
-   "price": 267.03
+   "price": 267.04
   },
   {
    "ts": "2026-11-01 16:00",
@@ -815,7 +815,7 @@
   242.3,
   246.52,
   242.27,
-  267.03,
+  267.04,
   295.34,
   301.94,
   300.04,
@@ -5154,6 +5154,8 @@
    "naive_mae": 242.241
   }
  ],
- "errors": [],
+ "errors": [
+  "fetch failed: ENTSO-E request failed (A65): HTTPError: 599 Server Error: status code 599"
+ ],
  "attribution": "Data: ENTSO-E Transparency Platform (transparency.entsoe.eu)"
 }
