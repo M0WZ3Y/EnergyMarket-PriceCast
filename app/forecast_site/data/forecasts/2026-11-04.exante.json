@@ -1,0 +1,251 @@
+{
+ "target_day": "2026-11-04",
+ "generated_at": "2026-11-03 08:03 CET",
+ "status": "ex-ante",
+ "provisional": false,
+ "variant": "exante",
+ "model": {
+  "rung": "R3x",
+  "name": "Ensemble (regime-aware)",
+  "fit_end": "2026-10-18"
+ },
+ "band": {
+  "method": "rolling",
+  "window_days": 91,
+  "pooled": false,
+  "from": "2026-07-17",
+  "through": "2026-11-03"
+ },
+ "hourly": [
+  {
+   "hour": 0,
+   "forecast": 210.37,
+   "lo": 193.15,
+   "hi": 228.97
+  },
+  {
+   "hour": 1,
+   "forecast": 215.38,
+   "lo": 194.92,
+   "hi": 233.24
+  },
+  {
+   "hour": 2,
+   "forecast": 210.36,
+   "lo": 187.3,
+   "hi": 227.85
+  },
+  {
+   "hour": 3,
+   "forecast": 206.87,
+   "lo": 186.58,
+   "hi": 226.51
+  },
+  {
+   "hour": 4,
+   "forecast": 205.49,
+   "lo": 182.16,
+   "hi": 224.91
+  },
+  {
+   "hour": 5,
+   "forecast": 216.62,
+   "lo": 192.27,
+   "hi": 241.23
+  },
+  {
+   "hour": 6,
+   "forecast": 253.95,
+   "lo": 231.19,
+   "hi": 295.59
+  },
+  {
+   "hour": 7,
+   "forecast": 319.73,
+   "lo": 297.61,
+   "hi": 360.2
+  },
+  {
+   "hour": 8,
+   "forecast": 363.92,
+   "lo": 321.64,
+   "hi": 408.06
+  },
+  {
+   "hour": 9,
+   "forecast": 325.77,
+   "lo": 281.05,
+   "hi": 369.99
+  },
+  {
+   "hour": 10,
+   "forecast": 291.77,
+   "lo": 242.92,
+   "hi": 344.86
+  },
+  {
+   "hour": 11,
+   "forecast": 223.49,
+   "lo": 165.8,
+   "hi": 284.85
+  },
+  {
+   "hour": 12,
+   "forecast": 201.36,
+   "lo": 145.05,
+   "hi": 258.84
+  },
+  {
+   "hour": 13,
+   "forecast": 195.77,
+   "lo": 141.25,
+   "hi": 255.42
+  },
+  {
+   "hour": 14,
+   "forecast": 207.58,
+   "lo": 152.6,
+   "hi": 266.4
+  },
+  {
+   "hour": 15,
+   "forecast": 228.13,
+   "lo": 172.75,
+   "hi": 284.1
+  },
+  {
+   "hour": 16,
+   "forecast": 263.66,
+   "lo": 202.42,
+   "hi": 327.55
+  },
+  {
+   "hour": 17,
+   "forecast": 307.46,
+   "lo": 243.25,
+   "hi": 371.33
+  },
+  {
+   "hour": 18,
+   "forecast": 290.67,
+   "lo": 242.66,
+   "hi": 357.87
+  },
+  {
+   "hour": 19,
+   "forecast": 269.15,
+   "lo": 229.98,
+   "hi": 347.75
+  },
+  {
+   "hour": 20,
+   "forecast": 232.13,
+   "lo": 193.21,
+   "hi": 310.58
+  },
+  {
+   "hour": 21,
+   "forecast": 208.96,
+   "lo": 183.3,
+   "hi": 274.41
+  },
+  {
+   "hour": 22,
+   "forecast": 206.01,
+   "lo": 184.73,
+   "hi": 254.0
+  },
+  {
+   "hour": 23,
+   "forecast": 186.95,
+   "lo": 169.64,
+   "hi": 234.19
+  }
+ ],
+ "summary": {
+  "baseload": 243.4,
+  "peak": 264.06,
+  "offpeak": 222.73,
+  "min_hour": 23,
+  "min": 186.95,
+  "max_hour": 8,
+  "max": 363.92,
+  "negative_hours": []
+ },
+ "opportunities": {
+  "cheapest_hour": {
+   "hour": 23,
+   "price": 186.95
+  },
+  "cheapest_2h": {
+   "start": 22,
+   "end": 24,
+   "mean": 196.48
+  },
+  "cheapest_4h": {
+   "start": 11,
+   "end": 15,
+   "mean": 207.05
+  },
+  "dearest_2h": {
+   "start": 8,
+   "end": 10,
+   "mean": 344.84
+  },
+  "spread_2h": 148.36
+ },
+ "inputs": {
+  "load_mw": [
+   17288.2,
+   16709.9,
+   16450.4,
+   16482.5,
+   17085.8,
+   18686.4,
+   20846.2,
+   22537.1,
+   23423.1,
+   23800.0,
+   24086.0,
+   24289.6,
+   24228.9,
+   23910.2,
+   23541.2,
+   23365.9,
+   23577.7,
+   23966.9,
+   23959.0,
+   23330.9,
+   22264.3,
+   20997.5,
+   19647.8,
+   18260.5
+  ],
+  "wind_solar_mw": [
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null
+  ]
+ }
+}
