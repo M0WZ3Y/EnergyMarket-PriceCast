@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-19 15:01 CET",
+ "generated_at": "2026-11-19 15:46 CET",
  "target_day": "2026-11-20",
  "forecast": {
   "target_day": "2026-11-20",
@@ -5155,7 +5155,7 @@
   }
  ],
  "errors": [
-  "fetch failed: ENTSO-E request failed (A65): HTTPError: 527 Server Error: status code 527"
+  "fetch failed: ENTSO-E request failed (A44): HTTPError: 599 Server Error: status code 599"
  ],
  "attribution": "Data: ENTSO-E Transparency Platform (transparency.entsoe.eu)"
 }
